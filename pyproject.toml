@@ -1,0 +1,21 @@
+[project]
+name = "porescene"
+authors = [{name = "Felix Faber", email = "felix.faber@ovgu.de"}]
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "bpy"
+]
+
+[tool.isort]
+multi_line_output = 3
+include_trailing_comma = true
+force_grid_wrap = 0
+line_length = 88
+profile = "black"
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "fake-bpy-module"
+]
