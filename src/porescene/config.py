@@ -2,9 +2,8 @@ from pathlib import Path
 from typing import Callable, Self, Type
 
 from porescene.color import Color
-from porescene.color.palette import Palette
 from porescene.color.gradient import Gradient, SmoothGradient
-from porescene.color.palette.fefa import FeFaPalette
+from porescene.color.palette import Palette
 from porescene.utility import CompassDirection, Orientation
 
 
@@ -307,7 +306,7 @@ class SceneConfiguration:
         material_clusters: str = "PLASTIC_ROUGH",
         material_solid: str = "SOLID_DEFAULT",
         material_void: str = "ICE",
-        palette: Palette = FeFaPalette(),
+        palette: Palette = Palette.load("batlow"),
     ):
         self._properties = []
         self.enable_spheres = enable_spheres
@@ -629,16 +628,16 @@ default_config = SceneConfiguration()
 #         # gradient_class=DiscreteGradient,
 #     )
 # )
-default_config.add_property(
-    PropertyConfiguration(
-        "radius",
-        FeFaPalette().all(),
-        heading="Radius [μm]",
-        orientation=Orientation.HORIZONTAL,
-        factor=1e6,
-        precision=-1,
-    )
-)
+# default_config.add_property(
+#     PropertyConfiguration(
+#         "radius",
+#         FeFaPalette().all(),
+#         heading="Radius [μm]",
+#         orientation=Orientation.HORIZONTAL,
+#         factor=1e6,
+#         precision=-1,
+#     )
+# )
 # default_config.add_property(
 #     PropertyConfiguration(
 #         "saturation",
