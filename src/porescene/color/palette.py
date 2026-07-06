@@ -1,6 +1,6 @@
 import random
 import re
-from pathlib import Path
+from importlib import resources
 from typing import Self
 
 import numpy as np
@@ -42,14 +42,16 @@ class Palette:
         if not pattern.match(name):
             raise Exception("Specified colormap is not available")
 
-        pth = Path("./src/porescene/data/colormap/" + name + ".txt")
+        ref = resources.files("porescene").joinpath("data/colormap/" + name + ".txt")
 
-        colors = np.fromfile(pth, sep=" ").reshape((256, 3))
+        with resources.as_file(ref) as pth:
 
-        for color in colors:
-            colorlist.append(Color.from_nrgb(*color))
+            colors = np.fromfile(pth, sep=" ").reshape((256, 3))
 
-        ins = cls(colorlist)
+            for color in colors:
+                colorlist.append(Color.from_nrgb(*color))
+
+            ins = cls(colorlist)
 
         return ins
 
