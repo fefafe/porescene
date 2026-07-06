@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Callable, Self, Type
+from typing import Callable, Self, Sequence, Type
 
 from porescene.color import Color
 from porescene.color.gradient import Gradient, SmoothGradient
@@ -488,9 +488,14 @@ class AxesConfiguration:
         self.ticks_x = []
         self.ticks_y = []
         self.ticks_z = []
-        self.enable_ticks = True
+        self.enable_ticks = (True, True, True)
+        self.enable_ticks_minor = (True, True, True)
         self.factor = (1e6, 1e6, 1e6)
         self.precision = (0, 0, 0)
+        self.indent_ticks = True
+        self.num_ticks_minor = 4
+        self.value_start = (0, 0, 0)
+        self.value_end = (1, 1, 1)
 
     def set_labels(self, L_x: float, L_y: float, L_z: float) -> Self:
         label_x = round(L_x * self.factor[0], self.precision[0])
@@ -527,12 +532,26 @@ class AxesConfiguration:
         self._precision = arg
 
     @property
-    def enable_ticks(self) -> bool:
+    def enable_ticks(self) -> tuple[bool, bool, bool]:
+        """Toggle to show/hide major axis ticks."""
         return self._enable_ticks
 
     @enable_ticks.setter
-    def enable_ticks(self, arg: bool):
+    def enable_ticks(self, arg: bool | tuple[bool, bool, bool]):
+        if isinstance(arg, bool):
+            arg = (arg, arg, arg)
         self._enable_ticks = arg
+
+    @property
+    def enable_ticks_minor(self) -> tuple[bool, bool, bool]:
+        """Toggle to show/hide minor axis ticks."""
+        return self._enable_ticks_minor
+
+    @enable_ticks_minor.setter
+    def enable_ticks_minor(self, arg: bool | tuple[bool, bool, bool]):
+        if isinstance(arg, bool):
+            arg = (arg, arg, arg)
+        self._enable_ticks_minor = arg
 
     @property
     def line_width(self) -> float:
@@ -583,6 +602,14 @@ class AxesConfiguration:
         self._font_size = arg
 
     @property
+    def font_size_ticks(self) -> float:
+        return self._font_size
+
+    @font_size_ticks.setter
+    def font_size_ticks(self, arg: float):
+        self._font_size = arg
+
+    @property
     def tick_length(self) -> float:
         return self._tick_length
 
@@ -591,11 +618,11 @@ class AxesConfiguration:
         self._tick_length = arg
 
     @property
-    def ticks_x(self) -> list[float]:
+    def ticks_x(self) -> Sequence[float]:
         return self._ticks_x
 
     @ticks_x.setter
-    def ticks_x(self, arg: list[float]):
+    def ticks_x(self, arg: Sequence[float]):
         self._ticks_x = arg
 
     @property
@@ -613,6 +640,66 @@ class AxesConfiguration:
     @ticks_z.setter
     def ticks_z(self, arg: list[float]):
         self._ticks_z = arg
+
+    @property
+    def indent_ticks(self) -> bool:
+        return self._indent_ticks
+
+    @indent_ticks.setter
+    def indent_ticks(self, arg: bool):
+        self._indent_ticks = arg
+
+    @property
+    def position_tick_x(self) -> tuple[float, ...]:
+        if hasattr(self, "_position_tick_x"):
+            return self._position_tick_x
+        else:
+            N = len(self.ticks_x)
+            return tuple(x / (N - 1) for x in range(N))
+
+    @position_tick_x.setter
+    def position_tick_x(self, arg: tuple[float, ...]):
+        self._position_tick_x = arg
+
+    @property
+    def position_tick_y(self) -> tuple[float, ...]:
+        if hasattr(self, "_tick_positions_y"):
+            return self._tick_positions_y
+        else:
+            N = len(self.ticks_y)
+            return tuple(y / (N - 1) for y in range(N))
+
+    @position_tick_y.setter
+    def position_tick_y(self, arg: tuple[float, ...]):
+        self._tick_positions_y = arg
+
+    @property
+    def position_tick_z(self) -> Sequence[float]:
+        if hasattr(self, "_tick_positions_z"):
+            return self._tick_positions_z
+        else:
+            N = len(self.ticks_z)
+            return tuple(z / (N - 1) for z in range(N))
+
+    @position_tick_z.setter
+    def position_tick_z(self, arg: Sequence[float]):
+        self._tick_positions_z = arg
+
+    @property
+    def value_start(self) -> Sequence[float]:
+        return self._value_start
+
+    @value_start.setter
+    def value_start(self, arg: Sequence[float]):
+        self._value_start = arg
+
+    @property
+    def value_end(self) -> Sequence[float]:
+        return self._value_end
+
+    @value_end.setter
+    def value_end(self, arg: Sequence[float]):
+        self._value_end = arg
 
 
 default_config = SceneConfiguration()
