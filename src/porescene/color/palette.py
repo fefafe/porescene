@@ -1,5 +1,10 @@
-from random import choice
+import random
+import re
+from pathlib import Path
 from typing import Self
+
+import numpy as np
+
 from porescene.color import Color
 
 
@@ -26,6 +31,27 @@ class Palette:
         else:
             raise StopIteration
 
+    @classmethod
+    def load(cls, name: str) -> Self:
+
+        colorlist: list[Color] = []
+
+        pattern = re.compile("^[a-z0-9]+$")
+
+        if not pattern.match(name):
+            raise Exception("Specified colormap is not available")
+
+        pth = Path("./src/porescene/data/colormap/" + name + ".txt")
+
+        colors = np.fromfile(pth, sep=" ").reshape((256, 3))
+
+        for color in colors:
+            colorlist.append(Color.from_nrgb(*color))
+
+        ins = cls(colorlist)
+
+        return ins
+
     def all(self) -> list[Color]:
         """
         Returns the full color palette.
@@ -50,5 +76,5 @@ class Palette:
         """
         colors = []
         for k in range(n):
-            colors.append(choice(self.colors))
+            colors.append(random.choice(self.colors))
         return colors

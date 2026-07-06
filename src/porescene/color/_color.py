@@ -7,6 +7,7 @@ Colors and Color Gradients
 from __future__ import annotations
 
 from typing import Self
+
 from .conversion import hex2rgb, nrgb2lnrgb, nrgb2rgb, rgb2hex, rgb2nrgb
 
 
