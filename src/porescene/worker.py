@@ -1,12 +1,10 @@
-import sys
 import bpy
 import numpy as np
+from mathutils import Matrix, Vector
 from pathlib import Path
-from mathutils import Vector, Matrix
 
 from porescene.color import Color
 from porescene.color.gradient import DiscreteGradient, SegmentedGradient, SmoothGradient
-from porescene.color.palette import fefa
 from porescene.config import PropertyConfiguration
 from porescene.image import img_add_colorbar, img_trim
 from porescene.layout import (
@@ -202,9 +200,7 @@ def make_radius(pth: Path, pn: PoreNetwork, sc: Scene) -> tuple[Scene, Path]:
     return sc, pth_vis
 
 
-def make_coordination_number(
-    pth: Path, pn: PoreNetwork, sc: Scene
-) -> tuple[Scene, Path]:
+def make_coordination_number(pth: Path, pn: PoreNetwork, sc: Scene) -> tuple[Scene, Path]:
     """
     Create images of the model colored depending on coordination number.
     """
