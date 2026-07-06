@@ -1,21 +1,36 @@
 [project]
 name = "porescene"
-authors = [{name = "Felix Faber", email = "felix.faber@ovgu.de"}]
 version = "0.1.0"
-requires-python = ">=3.11"
-dependencies = [
-    "bpy"
+description = ""
+authors = [{ name = "Felix Faber", email = "felix.faber@ovgu.de" }]
+readme = "README.md"
+requires-python = "=3.13.*"
+dependencies = ["bpy", "numpy", "rich", "h5py", "pillow"]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[dependency-groups]
+dev = [
+    "fake-bpy-module (>=20260501,<20260502)",
+    "pytest (>=9.1.1,<10.0.0)",
+    "pre-commit (>=4.6.0,<5.0.0)",
 ]
+
+[tool.black]
+line-length = 90
 
 [tool.isort]
+profile = "hug"
+src_paths = ["src", "tests"]
 multi_line_output = 3
+line_length = 90
 include_trailing_comma = true
-force_grid_wrap = 0
-line_length = 88
-profile = "black"
 
-[project.optional-dependencies]
-dev = [
-    "pytest",
-    "fake-bpy-module"
-]
+[tool.flake8]
+max_line_length = 90
+max_complexity = 18
+select = ["B", "C", "E", "F", "W", "T4", "B9"]
+ignore = ["C901", "E203", "W503"]
