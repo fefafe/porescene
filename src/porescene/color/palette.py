@@ -5,6 +5,7 @@ from typing import Self
 
 import numpy as np
 
+import porescene.utility as util
 from porescene.color import Color
 
 
@@ -69,6 +70,12 @@ class Palette:
         Returns the last color of the palette.
         """
         return self.colors[-1]
+
+    def subset(self, n: int = 5) -> list[Color]:
+        """
+        Returns a color subset from the palette.
+        """
+        return util.n_equidistant(self.colors, n)
 
     def random(self, n: int = 1) -> list[Color]:
         """

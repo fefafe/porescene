@@ -1,8 +1,10 @@
+import subprocess
 from enum import Enum
 from math import ceil, floor, isclose
 from pathlib import Path
-import subprocess
 from typing import Callable
+
+import numpy as np
 
 
 class CompassDirection(Enum):
@@ -19,6 +21,11 @@ class CompassDirection(Enum):
 class Orientation(Enum):
     VERTICAL = "V"
     HORIZONTAL = "H"
+
+
+def n_equidistant(lst, n):
+    indices = np.linspace(0, len(lst) - 1, n, dtype=int)
+    return [lst[i] for i in indices]
 
 
 def _get_bounds(
