@@ -6,8 +6,7 @@ from typing import Self
 import numpy as np
 from porescene.color import Color
 from porescene.color.gradient import SmoothGradient
-from porescene.color.palette import fefa
-from porescene.utility import CompassDirection, Orientation
+from porescene.utility import CompassDirection, MultiplicationSymbol, Orientation
 
 
 class Overlay(abc.ABC):
@@ -546,7 +545,7 @@ class Gradient(TitleOverlay, abc.ABC):
         self.line_width = 12
         self.orientation = Orientation.VERTICAL
         self.roundness = 10
-        self.seperator_exponent = "CROSS"
+        self.seperator_exponent = MultiplicationSymbol.CROSS
         self.seperator_decimal = "DOT"
         self.text_nan = "NaN"
         self.tick_length = 50
@@ -725,7 +724,7 @@ class Gradient(TitleOverlay, abc.ABC):
         return svg
 
     def _get_tag_exponent(self):
-        sep = "&#215;" if self.seperator_exponent == "CROSS" else "&#183;"
+        sep = self.seperator_exponent.value
         exponent = str(self.exponent)
         if self.seperator_decimal == "COMMA":
             exponent = exponent.replace(".", ",")
@@ -965,7 +964,7 @@ class Gradient(TitleOverlay, abc.ABC):
         self._seperator_decimal = arg
 
     @property
-    def seperator_exponent(self) -> {"CROSS", "DOT"}:
+    def seperator_exponent(self) -> MultiplicationSymbol:
         """
         The multiplication sign of the scalebar exponent can be either
         'CROSS' or 'DOT'.
@@ -973,7 +972,7 @@ class Gradient(TitleOverlay, abc.ABC):
         return self._seperator_exponent
 
     @seperator_exponent.setter
-    def seperator_exponent(self, arg: {"CROSS", "DOT"}):
+    def seperator_exponent(self, arg: MultiplicationSymbol):
         self._seperator_exponent = arg
 
     @property

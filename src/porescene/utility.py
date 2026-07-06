@@ -23,6 +23,11 @@ class Orientation(Enum):
     HORIZONTAL = "H"
 
 
+class MultiplicationSymbol(Enum):
+    CROSS = "×"
+    DOT = "·"
+
+
 def n_equidistant(lst, n):
     indices = np.linspace(0, len(lst) - 1, n, dtype=int)
     return [lst[i] for i in indices]
