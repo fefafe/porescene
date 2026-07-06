@@ -2,10 +2,11 @@
 Pore Networks
 """
 
-import numpy as np
-from h5py import File
 from pathlib import Path
 from typing import Self
+
+import numpy as np
+from h5py import File
 
 
 class PoreNetworkProperty:
@@ -204,10 +205,30 @@ class PoreNetwork:
                 pn.throat_coordination_number = np.array(f["cn_t"]).transpose()
             if "p_top" in f:
                 pn.pores_top = np.array(f["p_top"]).flatten() - 1
+            if "p_bot" in f:
+                pn.pores_bot = np.array(f["p_bot"]).flatten() - 1
+            if "p_left" in f:
+                pn.pores_left = np.array(f["p_left"]).flatten() - 1
+            if "p_right" in f:
+                pn.pores_right = np.array(f["p_right"]).flatten() - 1
+            if "p_front" in f:
+                pn.pores_front = np.array(f["p_front"]).flatten() - 1
+            if "p_back" in f:
+                pn.pores_back = np.array(f["p_back"]).flatten() - 1
             if "pos_p" in f:
                 pn.pore_position = np.array(f["pos_p"]).transpose()
-            if "pos_p_top" in f:
-                pn.pore_position_top = np.array(f["pos_p_top"]).transpose()
+            if "pos_p_out_top" in f:
+                pn.pore_position_top = np.array(f["pos_p_out_top"]).transpose()
+            if "pos_p_out_bot" in f:
+                pn.pore_position_bot = np.array(f["pos_p_out_bot"]).transpose()
+            if "pos_p_out_left" in f:
+                pn.pore_position_left = np.array(f["pos_p_out_left"]).transpose()
+            if "pos_p_out_right" in f:
+                pn.pore_position_right = np.array(f["pos_p_out_right"]).transpose()
+            if "pos_p_out_front" in f:
+                pn.pore_position_front = np.array(f["pos_p_out_front"]).transpose()
+            if "pos_p_out_back" in f:
+                pn.pore_position_back = np.array(f["pos_p_out_back"]).transpose()
             if "r_p" in f:
                 pn.pore_radius = np.array(f["r_p"]).transpose()
             if "r_p_eqs" in f:
@@ -216,6 +237,16 @@ class PoreNetwork:
                 pn.throat_radius = np.array(f["r_t"]).transpose()
             if "r_t_out_top" in f:
                 pn.throat_radius_top = np.array(f["r_t_out_top"]).transpose()
+            if "r_t_out_bot" in f:
+                pn.throat_radius_bot = np.array(f["r_t_out_bot"]).transpose()
+            if "r_t_out_left" in f:
+                pn.throat_radius_left = np.array(f["r_t_out_left"]).transpose()
+            if "r_t_out_right" in f:
+                pn.throat_radius_right = np.array(f["r_t_out_right"]).transpose()
+            if "r_t_out_front" in f:
+                pn.throat_radius_front = np.array(f["r_t_out_front"]).transpose()
+            if "r_t_out_back" in f:
+                pn.throat_radius_back = np.array(f["r_t_out_back"]).transpose()
             if "tnp" in f:
                 pn.throat_neighboring_pores = np.array(f["tnp"]).transpose() - 1
             if "pnp" in f:
@@ -366,6 +397,61 @@ class PoreNetwork:
         self._pore_position = arg
 
     @property
+    def pore_position_left(self) -> np.ndarray | None:
+        """
+        Position of each node at the left sample surface.
+        """
+        return self._pore_position_left
+
+    @pore_position_left.setter
+    def pore_position_left(self, arg: np.ndarray | None):
+        self._pore_position_left = arg
+
+    @property
+    def pore_position_right(self) -> np.ndarray | None:
+        """
+        Position of each node at the right sample surface.
+        """
+        return self._pore_position_right
+
+    @pore_position_right.setter
+    def pore_position_right(self, arg: np.ndarray | None):
+        self._pore_position_right = arg
+
+    @property
+    def pore_position_front(self) -> np.ndarray | None:
+        """
+        Position of each node at the sample bottom surface.
+        """
+        return self._pore_position_front
+
+    @pore_position_front.setter
+    def pore_position_front(self, arg: np.ndarray | None):
+        self._pore_position_front = arg
+
+    @property
+    def pore_position_back(self) -> np.ndarray | None:
+        """
+        Position of each node at the sample bottom surface.
+        """
+        return self._pore_position_back
+
+    @pore_position_back.setter
+    def pore_position_back(self, arg: np.ndarray | None):
+        self._pore_position_back = arg
+
+    @property
+    def pore_position_bot(self) -> np.ndarray | None:
+        """
+        Position of each node at the sample bottom surface.
+        """
+        return self._pore_position_bot
+
+    @pore_position_bot.setter
+    def pore_position_bot(self, arg: np.ndarray | None):
+        self._pore_position_bot = arg
+
+    @property
     def pore_position_top(self) -> np.ndarray | None:
         """
         Position of each node at the top sample surface.
@@ -400,6 +486,66 @@ class PoreNetwork:
         self._pores_top = arg
 
     @property
+    def pores_bot(self) -> np.ndarray | None:
+        """
+        Pores located at the sample bot interface that have a connection to the
+        surrounding.
+        """
+        return self._pores_bot
+
+    @pores_bot.setter
+    def pores_bot(self, arg: np.ndarray | None):
+        self._pores_bot = arg
+
+    @property
+    def pores_left(self) -> np.ndarray | None:
+        """
+        Pores located at the sample left interface that have a connection to the
+        surrounding.
+        """
+        return self._pores_left
+
+    @pores_left.setter
+    def pores_left(self, arg: np.ndarray | None):
+        self._pores_left = arg
+
+    @property
+    def pores_right(self) -> np.ndarray | None:
+        """
+        Pores located at the sample right interface that have a connection to the
+        surrounding.
+        """
+        return self._pores_right
+
+    @pores_right.setter
+    def pores_right(self, arg: np.ndarray | None):
+        self._pores_right = arg
+
+    @property
+    def pores_front(self) -> np.ndarray | None:
+        """
+        Pores located at the sample front interface that have a connection to the
+        surrounding.
+        """
+        return self._pores_front
+
+    @pores_front.setter
+    def pores_front(self, arg: np.ndarray | None):
+        self._pores_front = arg
+
+    @property
+    def pores_back(self) -> np.ndarray | None:
+        """
+        Pores located at the sample back interface that have a connection to the
+        surrounding.
+        """
+        return self._pores_back
+
+    @pores_back.setter
+    def pores_back(self, arg: np.ndarray | None):
+        self._pores_back = arg
+
+    @property
     def extent(self) -> np.ndarray:
         """ """
         return np.array([self.length_x, self.length_y, self.length_z])
@@ -431,6 +577,18 @@ class PoreNetwork:
         """
         if self.throat_radius is not None:
             cnt = len(self.throat_radius)
+            if self.throat_radius_top is not None:
+                cnt += len(self.throat_radius_top)
+            if self.throat_radius_bot is not None:
+                cnt += len(self.throat_radius_bot)
+            if self.throat_radius_left is not None:
+                cnt += len(self.throat_radius_left)
+            if self.throat_radius_right is not None:
+                cnt += len(self.throat_radius_right)
+            if self.throat_radius_front is not None:
+                cnt += len(self.throat_radius_front)
+            if self.throat_radius_back is not None:
+                cnt += len(self.throat_radius_back)
         else:
             cnt = 0
         return cnt
@@ -460,7 +618,7 @@ class PoreNetwork:
     @property
     def throat_radius_top(self) -> np.ndarray | None:
         """
-        Radius of each throat connection into the surrounding at the sample top 
+        Radius of each throat connection into the surrounding at the sample top
         interface.
         """
         return self._throat_radius_top
@@ -468,6 +626,66 @@ class PoreNetwork:
     @throat_radius_top.setter
     def throat_radius_top(self, arg: np.ndarray | None):
         self._throat_radius_top = arg
+
+    @property
+    def throat_radius_bot(self) -> np.ndarray | None:
+        """
+        Radius of each throat connection into the surrounding at the sample top
+        interface.
+        """
+        return self._throat_radius_bot
+
+    @throat_radius_bot.setter
+    def throat_radius_bot(self, arg: np.ndarray | None):
+        self._throat_radius_bot = arg
+
+    @property
+    def throat_radius_left(self) -> np.ndarray | None:
+        """
+        Radius of each throat connection into the surrounding at the sample left
+        interface.
+        """
+        return self._throat_radius_left
+
+    @throat_radius_left.setter
+    def throat_radius_left(self, arg: np.ndarray | None):
+        self._throat_radius_left = arg
+
+    @property
+    def throat_radius_right(self) -> np.ndarray | None:
+        """
+        Radius of each throat connection into the surrounding at the sample right
+        interface.
+        """
+        return self._throat_radius_right
+
+    @throat_radius_right.setter
+    def throat_radius_right(self, arg: np.ndarray | None):
+        self._throat_radius_right = arg
+
+    @property
+    def throat_radius_front(self) -> np.ndarray | None:
+        """
+        Radius of each throat connection into the surrounding at the sample front
+        interface.
+        """
+        return self._throat_radius_front
+
+    @throat_radius_front.setter
+    def throat_radius_front(self, arg: np.ndarray | None):
+        self._throat_radius_front = arg
+
+    @property
+    def throat_radius_back(self) -> np.ndarray | None:
+        """
+        Radius of each throat connection into the surrounding at the sample back
+        interface.
+        """
+        return self._throat_radius_back
+
+    @throat_radius_back.setter
+    def throat_radius_back(self, arg: np.ndarray | None):
+        self._throat_radius_back = arg
 
     @property
     def throat_neighboring_pores(self) -> np.ndarray | None:
