@@ -28,6 +28,60 @@ class MultiplicationSymbol(Enum):
     DOT = "·"
 
 
+class UnitExponentMetric(Enum):
+    QUETTA = 30
+    RONNA = 27
+    YOTTA = 24
+    ZETTA = 21
+    EXA = 18
+    PETA = 15
+    TERA = 12
+    GIGA = 9
+    MEGA = 6
+    KILO = 3
+    HECTO = 2
+    DECA = 1
+    DECI = -1
+    CENTI = -2
+    MILLI = -3
+    MICRO = -6
+    NANO = -9
+    PICO = -12
+    FEMTO = -15
+    ATTO = -18
+    ZEPTO = -21
+    YOCTO = -24
+    RONTO = -27
+    QUECTO = -30
+
+
+class UnitPrefixMetric(Enum):
+    QUETTA = "Q"
+    RONNA = "R"
+    YOTTA = "Y"
+    ZETTA = "Z"
+    EXA = "E"
+    PETA = "P"
+    TERA = "t"
+    GIGA = "G"
+    MEGA = "M"
+    KILO = "k"
+    HECTO = "h"
+    DECA = "da"
+    DECI = "d"
+    CENTI = "c"
+    MILLI = "m"
+    MICRO = "µ"
+    NANO = "n"
+    PICO = "p"
+    FEMTO = "f"
+    ATTO = "a"
+    ZEPTO = "z"
+    YOCTO = "y"
+    RONTO = "r"
+    QUECTO = "q"
+
+
 def n_equidistant(lst, n):
     indices = np.linspace(0, len(lst) - 1, n, dtype=int)
     return [lst[i] for i in indices]
@@ -95,7 +149,12 @@ def svg2png(pth: Path):
     pth
         Path to the file to be converted.
     """
-
     subprocess.call(
-        ["inkscape", "--export-type=png", "--export-background-opacity=0", str(pth)]
+        [
+            "inkscape",
+            "--export-type=png,svg,pdf",
+            "--export-area-drawing",
+            "--export-overwrite",
+            str(pth),
+        ]
     )
