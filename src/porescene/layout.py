@@ -1,9 +1,10 @@
 import abc
+import random
 from pathlib import Path
-from random import getrandbits
 from typing import Self
 
 import numpy as np
+
 from porescene.color import Color
 from porescene.color.gradient import SmoothGradient
 from porescene.utility import CompassDirection, MultiplicationSymbol, Orientation
@@ -54,7 +55,7 @@ class BackgroundOverlay(Overlay):
     def __init__(
         self,
         pth: Path,
-        res: tuple[int, int] = (3000, 2000),
+        res: tuple[int, int] = (4096, 4096),
         pad: tuple[int, int, int, int] = (100, 100, 100, 100),
         bg: Color = Color("#FFF"),
     ):
@@ -100,9 +101,9 @@ class BackgroundOverlay(Overlay):
     def _get_tag_svg_open(self):
         return (
             f'<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="'
-            f'http://www.w3.org/1999/xlink" width="100%" height="100%" '
+            f'http://www.w3.org/1999/xlink" width="4096px" height="4096px" '
             f'viewBox="0 0 {self.resolution[0]} {self.resolution[1]} " '
-            f'font-weight="400" font-variant-numeric="tabular-nums">'
+            f'font-weight="400">'
         )
 
     @property
@@ -204,7 +205,7 @@ class TitleOverlay(BackgroundOverlay):
     def __init__(
         self,
         pth: Path,
-        res: tuple[int, int] = (3000, 2000),
+        res: tuple[int, int] = (4096, 4096),
         pad: tuple[int, int, int, int] = (100, 100, 100, 100),
     ):
         super().__init__(pth, res, pad)
@@ -218,7 +219,7 @@ class TitleOverlay(BackgroundOverlay):
         self.font_size_text = 55
         self.heading = None
         self.line_height = 1.15
-        self.spacing = 50
+        self.spacing = 25
         self.subheading = None
         self.text = []
 
@@ -254,7 +255,6 @@ class TitleOverlay(BackgroundOverlay):
         return (
             f'<text id="title" x="{self._x}" y="{self._y}" dominant-baseline="{b}" '
             f'text-anchor="{a}" fill="{self.color_subheading.str_hex}" '
-            f'font-variant-numeric="oldstyle-nums proportional-nums" '
             f'font-weight="500" font-family="{self.font_family}" '
             f'font-size="{self.font_size_subheading}">{self.subheading}</text>'
         )
@@ -325,6 +325,13 @@ class TitleOverlay(BackgroundOverlay):
                 sign_y = 1
                 anchor = "end"
                 baseline = "hanging"
+            case CompassDirection.WEST:
+                x = self.padding[3]
+                y = self.padding[0]
+                sign_x = 1
+                sign_y = 1
+                anchor = "start"
+                baseline = "auto"
         return x, y, sign_x, sign_y, anchor, baseline
 
     @property
@@ -531,13 +538,13 @@ class Gradient(TitleOverlay, abc.ABC):
     def __init__(
         self,
         pth: Path,
-        res: tuple[int, int] = (3000, 2000),
+        res: tuple[int, int] = (4096, 4096),
         pad: tuple[int, int, int, int] = (100, 100, 100, 100),
     ):
         super().__init__(pth, res, pad)
         self.color_ticks = Color("#000")
         self.color_nan = None
-        self.font_size_ticks = 100
+        self.font_size_ticks = 90
         self.exponent = None
         self.gradient_colors = []
         self.gradient_height = 120
@@ -555,13 +562,13 @@ class Gradient(TitleOverlay, abc.ABC):
         x, y, sign_x, sign_y, anchor, baseline = self._get_alignment_config()
         self._x = x
         self._y = y
-        svg, h = self._get_tag_defs()
+        svg, id_grad = self._get_tag_defs()
         svg += super()._build()
         if any([self.text, self.heading, self.subheading]):
             self._y += self.spacing * sign_y
         svg += "<g>"
         if self.gradient_colors:
-            svg += self._get_tag_gradient(self._x, self._y, h)
+            svg += self._get_tag_gradient(self._x, self._y, id_grad)
             if self.orientation is Orientation.VERTICAL:
                 self._x += (self.gradient_height + self.spacing) * sign_x
             if self.orientation is Orientation.HORIZONTAL:
@@ -610,7 +617,7 @@ class Gradient(TitleOverlay, abc.ABC):
         return svg
 
     @abc.abstractmethod
-    def _get_tag_defs(self):
+    def _get_tag_defs(self) -> tuple[str, int]:
         """<defs>"""
 
     # @abc.abstractmethod
@@ -657,10 +664,12 @@ class Gradient(TitleOverlay, abc.ABC):
             y -= h
         if self.align is CompassDirection.NORTH or self.align is CompassDirection.SOUTH:
             x -= w / 2
-        for i, tick in enumerate(self.ticks):
+        ticks = self.ticks
+        if self.orientation is Orientation.VERTICAL:
+            ticks.reverse()
+        for i, tick in enumerate(ticks):
             if self.seperator_decimal == "COMMA":
                 tick = str(tick).replace(".", ",")
-            transform = ""
             a = (
                 "middle"
                 if self.orientation is Orientation.HORIZONTAL
@@ -682,11 +691,6 @@ class Gradient(TitleOverlay, abc.ABC):
                 x2 += self.tick_length * sign_x
                 x_tick = x2 + self.spacing * sign_x
             if i == 0:
-                transform = (
-                    "translate(-6 0)"
-                    if self.orientation is Orientation.HORIZONTAL
-                    else "translate(0 -6)"
-                )
                 if self.orientation is Orientation.HORIZONTAL:
                     # a = "start"
                     x1 = x2 = x_tick = x + self.line_width / 2
@@ -694,11 +698,6 @@ class Gradient(TitleOverlay, abc.ABC):
                     # b = "hanging"
                     y1 = y2 = y_tick = y + self.line_width / 2
             if i == len(self.ticks) - 1:
-                transform = (
-                    "translate(6 0)"
-                    if self.orientation is Orientation.HORIZONTAL
-                    else "translate(0 6)"
-                )
                 if self.orientation is Orientation.HORIZONTAL:
                     # a = "end"
                     x1 = x2 = x_tick = x - self.line_width / 2
@@ -717,7 +716,7 @@ class Gradient(TitleOverlay, abc.ABC):
                 f'font-size="{self.font_size_ticks}" text-anchor="{a}" '
                 f'dominant-baseline="{b}">{tick}</text>'
             )
-            if "V" == self.orientation:
+            if self.orientation is Orientation.VERTICAL:
                 y += step
             else:
                 x += step
@@ -761,10 +760,11 @@ class Gradient(TitleOverlay, abc.ABC):
 
     def _get_tag_nan(self, sign_x, sign_y):
         anchor = "start" if "W" in self.align.value else "end"
+        color_nan = self.color_nan.str_rgb if self.color_nan else ""
         tag = (
             f'<rect x="{self._x}" y="{self._y}" rx="{self.roundness}" '
             f'ry="{self.roundness}" width="{self.gradient_height}" '
-            f'height="{self.gradient_height}" fill="{self.color_nan.str_rgb}"/>'
+            f'height="{self.gradient_height}" fill="{color_nan}"/>'
         )
         self._x += self.spacing * sign_x
         if "W" in self.align.value:
@@ -1013,18 +1013,18 @@ class SmoothGradientOverlay(Gradient):
     def __init__(
         self,
         pth: Path,
-        res: tuple[int, int] = (3000, 2000),
+        res: tuple[int, int] = (4096, 4096),
         pad: tuple[int, int, int, int] = (100, 100, 100, 100),
     ) -> None:
         super().__init__(pth, res, pad)
 
     def _get_tag_defs(self):
-        h = getrandbits(32)
+        id_grad = random.getrandbits(32)
         p2 = (0, 1) if self.orientation is Orientation.VERTICAL else (1, 0)
         grad = SmoothGradient(self.gradient_colors)
         tag = "<defs>"
         tag += (
-            f'<linearGradient id="gradient-{h}" x1="0" y1="0" '
+            f'<linearGradient id="gradient-{id_grad}" x1="0" y1="0" '
             f'x2="{p2[0]}" y2="{p2[1]}">'
         )
         for value in np.linspace(0.0, 1.0, 100):
@@ -1034,7 +1034,7 @@ class SmoothGradientOverlay(Gradient):
             )
         tag += "</linearGradient>"
         tag += "</defs>"
-        return tag, h
+        return tag, id_grad
 
 
 class SegmentedGradientOverlay(Gradient):
@@ -1043,17 +1043,17 @@ class SegmentedGradientOverlay(Gradient):
     def __init__(
         self,
         pth: Path,
-        res: tuple[int, int] = (3000, 2000),
+        res: tuple[int, int] = (4096, 4096),
         pad: tuple[int, int, int, int] = (100, 100, 100, 100),
     ) -> None:
         super().__init__(pth, res, pad)
 
     def _get_tag_defs(self):
-        h = getrandbits(32)
+        id_grad = random.getrandbits(32)
         p2 = (0, 1) if self.orientation is Orientation.VERTICAL else (1, 0)
         tag = "<defs>"
         tag += (
-            f'<linearGradient id="gradient-{h}" x1="0" y1="0" '
+            f'<linearGradient id="gradient-{id_grad}" x1="0" y1="0" '
             f'x2="{p2[0]}" y2="{p2[1]}">'
         )
         length = len(self.gradient_colors)
@@ -1070,7 +1070,7 @@ class SegmentedGradientOverlay(Gradient):
                 )
         tag += "</linearGradient>"
         tag += "</defs>"
-        return tag, h
+        return tag, id_grad
 
 
 class DiscreteGradientOverlay(SegmentedGradientOverlay):
@@ -1079,13 +1079,13 @@ class DiscreteGradientOverlay(SegmentedGradientOverlay):
     def __init__(
         self,
         pth: Path,
-        res: tuple[int, int] = (3000, 2000),
+        res: tuple[int, int] = (4096, 4096),
         pad: tuple[int, int, int, int] = (100, 100, 100, 100),
     ) -> None:
         super().__init__(pth, res, pad)
 
     def _get_tag_axis(self, x, y, sign_x, sign_y):
-        return ""
+        # return ""
         if self._orientation is Orientation.HORIZONTAL:
             y1 = y2 = y
             x1 = x + (self.line_width / 2) * sign_x
@@ -1099,7 +1099,13 @@ class DiscreteGradientOverlay(SegmentedGradientOverlay):
         dasharray.append(self.gradient_length / len(self.ticks) - stride)
         dasharray.append(stride)
         offset = -0.5 * stride
-        return f'<line x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" stroke-dashoffset="{offset}" stroke-dasharray="{dasharray[0]} {dasharray[1]}" stroke-linecap="round" stroke="{self.color_ticks.hex_str}" stroke-width="{self.line_width}"></line>'
+        return (
+            f'<line x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" '
+            f'stroke-dashoffset="{offset}" '
+            f'stroke-dasharray="{dasharray[0]} {dasharray[1]}" '
+            f'stroke-linecap="round" stroke="{self.color_ticks.str_hex}" '
+            f'stroke-width="{self.line_width}"></line>'
+        )
 
     def _get_tag_ticks(self, x, y, sign_x, sign_y):
         svg = ""
@@ -1172,7 +1178,7 @@ class LabelsOverlay(TitleOverlay):
     def __init__(
         self,
         pth: Path,
-        res: tuple[int, int] = (3000, 2000),
+        res: tuple[int, int] = (4096, 4096),
         pad: tuple[int, int, int, int] = (100, 100, 100, 100),
     ) -> None:
         super().__init__(pth, res, pad)
