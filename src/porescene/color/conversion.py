@@ -12,7 +12,7 @@ Some functions to convert color tuples between following color spaces:
 
 from typing import overload
 
-from ._color import (
+from ._types import (
     ColorTupleFloat3,
     ColorTupleFloat4,
     ColorTupleInt3,
