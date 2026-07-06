@@ -1,7 +1,8 @@
-from abc import abstractmethod, ABC
+from abc import ABC, abstractmethod
 from typing import Self
 
 import numpy as np
+
 from porescene.color import Color
 
 
@@ -9,7 +10,7 @@ class Gradient(ABC):
     """
     Abstract base class for all types of gradient.
     """
-    
+
     def __init__(
         self,
         colors: list[Color] = [Color("#FFF"), Color("#000")],
