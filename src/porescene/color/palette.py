@@ -85,3 +85,9 @@ class Palette:
         for k in range(n):
             colors.append(random.choice(self.colors))
         return colors
+
+    def reversed(self) -> list[Color]:
+        """
+        Returns selected colors from a color palette with named colors.
+        """
+        return list(reversed(self.colors))
