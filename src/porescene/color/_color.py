@@ -4,8 +4,15 @@ Colors and Color Gradients
 
 """
 
+from __future__ import annotations
+
 from typing import Self
 from .conversion import hex2rgb, nrgb2lnrgb, nrgb2rgb, rgb2hex, rgb2nrgb
+
+type ColorTupleInt3 = tuple[int, int, int]
+type ColorTupleInt3Float1 = tuple[int, int, int, float]
+type ColorTupleFloat3 = tuple[float, float, float]
+type ColorTupleFloat4 = tuple[float, float, float, float]
 
 
 class Color:
@@ -33,15 +40,18 @@ class Color:
     """
 
     def __init__(self, h: str = "#000"):
-        rgb = rgb2nrgb(*hex2rgb(h))
+        rgb = hex2rgb(h)
         if len(rgb) == 3:
+            rgb = rgb2nrgb(rgb[0], rgb[1], rgb[2])
             rgb += (1.0,)
+        else:
+            rgb = rgb2nrgb(rgb[0], rgb[1], rgb[2], rgb[3])
         self.red = rgb[0]
         self.green = rgb[1]
         self.blue = rgb[2]
         self.alpha = rgb[3]
 
-    def __add__(self, other) -> Self:
+    def __add__(self, other) -> Color:
         """
         Creates a new color by mixing the current instance with another.
         """
@@ -72,7 +82,7 @@ class Color:
         ins.alpha = a
         return ins
 
-    def mix(self, other: Self, ratio: float = 0.5) -> Self:
+    def mix(self, other: Self, ratio: float = 0.5) -> Color:
         """
         Create a new color by mixing the current instance with others.
 

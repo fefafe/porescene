@@ -10,8 +10,17 @@ Some functions to convert color tuples between following color spaces:
 - Normalized linear RGB
 """
 
+from typing import overload
 
-def hex2rgb(h: str) -> tuple[int, int, int] | tuple[int, int, int, float]:
+from ._color import (
+    ColorTupleFloat3,
+    ColorTupleFloat4,
+    ColorTupleInt3,
+    ColorTupleInt3Float1,
+)
+
+
+def hex2rgb(h: str) -> ColorTupleInt3 | ColorTupleInt3Float1:
     """
     Convert HEX into sRGB.
 
@@ -63,9 +72,13 @@ def rgb2hex(r: int, g: int, b: int, a: float | None = None) -> str:
     return h.upper()
 
 
+@overload
+def rgb2nrgb(r: int, g: int, b: int, a: None = None) -> ColorTupleFloat3: ...
+@overload
+def rgb2nrgb(r: int, g: int, b: int, a: float) -> ColorTupleFloat4: ...
 def rgb2nrgb(
     r: int, g: int, b: int, a: float | None = None
-) -> tuple[float, float, float] | tuple[float, float, float, float]:
+) -> ColorTupleFloat3 | ColorTupleFloat4:
     """
     Converts sRGB from range [0, 255] into range [0, 1].
     """
@@ -79,12 +92,16 @@ def rgb2nrgb(
     return nrgb
 
 
+@overload
+def nrgb2rgb(r: float, g: float, b: float, a: None = None) -> ColorTupleInt3: ...
+@overload
+def nrgb2rgb(r: float, g: float, b: float, a: float) -> ColorTupleInt3Float1: ...
 def nrgb2rgb(
     r: float,
     g: float,
     b: float,
     a: float | None = None,
-) -> tuple[int, int, int] | tuple[int, int, int, float]:
+) -> ColorTupleInt3 | ColorTupleInt3Float1:
     """
     Converts sRGB from range [0, 1] into range [0, 255].
     """
@@ -98,12 +115,16 @@ def nrgb2rgb(
     return rgb
 
 
+@overload
+def nrgb2lnrgb(r: float, g: float, b: float, a: None = None) -> ColorTupleFloat3: ...
+@overload
+def nrgb2lnrgb(r: float, g: float, b: float, a: float) -> ColorTupleFloat4: ...
 def nrgb2lnrgb(
     r: float,
     g: float,
     b: float,
     a: float | None = None,
-) -> tuple[float, float, float] | tuple[float, float, float, float]:
+) -> ColorTupleFloat3 | ColorTupleFloat4:
     """
     Converts normalized sRGB into normalized linear RGB.
     """
@@ -117,12 +138,16 @@ def nrgb2lnrgb(
     return lnrgb
 
 
+@overload
+def lnrgb2nrgb(r: float, g: float, b: float, a: None = None) -> ColorTupleFloat3: ...
+@overload
+def lnrgb2nrgb(r: float, g: float, b: float, a: float) -> ColorTupleFloat4: ...
 def lnrgb2nrgb(
     r: float,
     g: float,
     b: float,
     a: float | None = None,
-) -> tuple[float, float, float] | tuple[float, float, float, float]:
+) -> ColorTupleFloat3 | ColorTupleFloat4:
     """
     Converts normalized linear RGB into sRGB in range [0, 1].
     """
