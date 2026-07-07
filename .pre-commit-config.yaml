@@ -1,31 +1,48 @@
 repos:
- -   repo: https://github.com/PyCQA/isort
-     rev: 7.0.0
-     hooks:
-     -   id: isort
+-   repo: https://github.com/PyCQA/isort
+    rev: 8.0.1
+    hooks:
+    -   id: isort
 
- -   repo: https://github.com/ambv/black
-     rev: 26.1.0
-     hooks:
-     -   id: black
-         language_version: python3.13
+-   repo: https://github.com/psf/black
+    rev: 26.5.1
+    hooks:
+    -   id: black
 
- -   repo: https://github.com/pre-commit/pre-commit-hooks
-     rev: v6.0.0
-     hooks:
-     -   id: check-added-large-files
-         args: ['--maxkb=5120']
-     -   id: trailing-whitespace
-         files: (\.py|\.rst|\.yaml|)$
-     -   id: check-merge-conflict
+-   repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+    -   id: check-added-large-files
+        args: ['--maxkb=5120']
+    -   id: trailing-whitespace
+        files: (\.py|\.rst|\.yaml|)$
+    -   id: end-of-file-fixer
+    -   id: trailing-whitespace
+    -   id: check-yaml
+    -   id: check-json
+    -   id: check-toml
 
- -   repo: https://github.com/PyCQA/flake8
-     rev: 7.3.0
-     hooks:
-     -   id: flake8
-         additional_dependencies: ["Flake8-pyproject"]
+-   repo: https://github.com/PyCQA/flake8
+    rev: 7.3.0
+    hooks:
+    -   id: flake8
+        additional_dependencies: ["Flake8-pyproject"]
 
-#  -   repo: https://github.com/pre-commit/mirrors-mypy
-#      rev: 'v1.19.1'
-#      hooks:
-#      -   id: mypy
+-   repo: https://github.com/python-poetry/poetry
+    rev: '2.3.2'
+    hooks:
+    -   id: poetry-check
+    -   id: poetry-lock
+    -   id: poetry-install
+
+-   repo: https://github.com/python-poetry/poetry-plugin-export
+    rev: 1.10.0
+    hooks:
+    -   id: poetry-export
+        args:
+            - "-f"
+            - "requirements.txt"
+            - "-o"
+            - "requirements.txt"
+            - "--without-hashes"
+            - "--only=main"
