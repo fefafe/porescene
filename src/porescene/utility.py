@@ -1,10 +1,28 @@
+import contextlib
+import os
 import subprocess
 from enum import Enum
 from math import ceil, floor, isclose
 from pathlib import Path
-from typing import Callable
+from typing import Callable, Iterator
 
 import numpy as np
+
+
+@contextlib.contextmanager
+def suppress_stdout() -> Iterator[None]:
+    """
+    Silences stdout at the OS file-descriptor level.
+    """
+    fd = os.dup(1)
+    devnull = os.open(os.devnull, os.O_WRONLY)
+    os.dup2(devnull, 1)
+    os.close(devnull)
+    try:
+        yield
+    finally:
+        os.dup2(fd, 1)
+        os.close(fd)
 
 
 class CompassDirection(Enum):

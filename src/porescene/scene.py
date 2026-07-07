@@ -2,7 +2,7 @@ import json
 import math
 import random
 from pathlib import Path
-from typing import Self
+from typing import Self, cast
 
 import bpy
 import numpy as np
@@ -10,6 +10,7 @@ from rich import progress
 
 from porescene.color import Color
 from porescene.config import AxesConfiguration, ImageConfiguration, SceneConfiguration
+from porescene.utility import suppress_stdout
 
 import bmesh  # isort:skip
 
@@ -704,7 +705,8 @@ class Scene:
             else:
                 return 0
 
-        bpy.ops.wm.obj_import(filepath=str(pth))
+        with suppress_stdout():
+            bpy.ops.wm.obj_import(filepath=str(pth))
         mat = self.get_material(style, "default")
         col = bpy.data.collections.new("Clusters")
         col_default = bpy.data.collections.get("Collection")
@@ -921,20 +923,26 @@ class Scene:
         self.has_lights = True
         return self
 
-    def create_solid(self, pth: Path, style: str = "SOLID_DEFAULT"):
+    def create_solid(self, pth: Path, style: str = "SOLID_DEFAULT", name: str = "solid"):
         """
         Adds the solid into the scene.
         """
         with _get_spinner(f"Loading object: {pth.name}") as p:
             p.add_task("load", total=None)
-            bpy.ops.wm.obj_import(filepath=str(pth))
-            obj = bpy.data.objects["solid"]
-            obj.rotation_euler = (math.radians(0), 0, math.radians(0))
-            obj.scale = (self.scale, self.scale, self.scale)
-            obj.location = self.shift
-            obj.data.materials.clear()
-            obj.data.materials.append(self.get_material(style, "solid"))
-            self.has_solid = True
+            with suppress_stdout():
+                bpy.ops.wm.obj_import(filepath=str(pth))
+            selected = bpy.context.selected_objects
+            assert selected
+            obj = selected[0]
+        mesh = cast(bpy.types.Mesh, obj.data)
+        obj.name = name
+        mesh.name = name
+        obj.rotation_euler = (math.radians(0), 0, math.radians(0))
+        obj.scale = (self.scale, self.scale, self.scale)
+        obj.location = self.shift
+        mesh.materials.clear()
+        mesh.materials.append(self.get_material(style, "solid"))
+        self.has_solid = True
 
         return self
 
@@ -1016,16 +1024,21 @@ class Scene:
         """
         Adds a 3D object of the void space to the scene.
         """
-        bpy.ops.wm.obj_import(filepath=str(pth))
-        obj = bpy.data.objects["void"]
+        with _get_spinner(f"Loading object: {pth.name}") as p:
+            p.add_task("load", total=None)
+            with suppress_stdout():
+                bpy.ops.wm.obj_import(filepath=str(pth))
+            selected = bpy.context.selected_objects
+            assert selected
+            obj = selected[0]
+        mesh = cast(bpy.types.Mesh, obj.data)
         obj.name = name
-        msh = bpy.data.meshes["void"]
-        msh.name = name
+        mesh.name = name
         obj.rotation_euler = (0, 0, 0)
         obj.scale = (self.scale, self.scale, self.scale)
         obj.location = self.shift
-        obj.data.materials.clear()
-        obj.data.materials.append(self.get_material(style, name))
+        mesh.materials.clear()
+        mesh.materials.append(self.get_material(style, name))
         self.has_void = True
         return self
 
