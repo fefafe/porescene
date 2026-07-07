@@ -705,18 +705,14 @@ class Scene:
         return self
 
     def create_cylinders(
-        self, pos: np.ndarray, r: np.ndarray, style="STRUCTURE_DEFAULT"
+        self,
+        pos: np.ndarray,
+        r: np.ndarray,
+        style: str = "STRUCTURE_DEFAULT",
     ) -> Self:
         """
-        Adds a cylinder for each throat in correct position and size to
-        the scene.
+        Places a cylinder for each throat in the scene.
         """
-        bpy.ops.mesh.primitive_cylinder_add(vertices=self.n_segments, radius=1, depth=1)
-        obj_template = bpy.context.view_layer.objects.active
-        obj_template.data.polygons.foreach_set(
-            "use_smooth", [True] * len(obj_template.data.polygons)
-        )
-        mat = self.get_material(style, "default")
         pos1 = pos[:, 0:3] * self.scale
         pos2 = pos[:, 3:6] * self.scale
         d = pos2 - pos1
@@ -725,25 +721,148 @@ class Scene:
         theta = np.arccos(d[:, 2] / dist)
         phi = np.arctan2(d[:, 1], d[:, 0])
         loc = d / 2 + pos1 + self.shift
-        col = bpy.data.collections.get("Cylinders")
-        if not col:
-            col = bpy.data.collections.new("Cylinders")
-            bpy.context.scene.collection.children.link(col)
-        offset = len(col.objects)
-        for no in track(range(len(r)), description="Creating cylinders"):
-            obj = bpy.data.objects.new(
-                f"cylinder {no + offset}", obj_template.data.copy()
-            )
-            obj.location = loc[no, :]
-            obj.scale = (r[no], r[no], dist[no])
-            obj.rotation_euler[1] = theta[no]
-            obj.rotation_euler[2] = phi[no]
-            col.objects.link(obj)
-            obj.data.materials.append(mat.copy())
-            obj.data.materials[0].name = obj.name
-        bpy.data.objects.remove(obj_template)
+
+        mesh = bpy.data.meshes.new("Cylinders")
+        mesh.from_pydata(loc.tolist(), [], [])
+        mesh.update()
+
+        rotation = np.zeros((len(r), 3), dtype=np.float32)
+        rotation[:, 1] = theta
+        rotation[:, 2] = phi
+        rot_attr = mesh.attributes.new(
+            name="rotation", type="FLOAT_VECTOR", domain="POINT"
+        )
+        rot_attr.data.foreach_set("vector", rotation.ravel())
+
+        iscale = np.column_stack([r, r, dist]).astype(np.float32)
+        scale_attr = mesh.attributes.new(
+            name="iscale", type="FLOAT_VECTOR", domain="POINT"
+        )
+        scale_attr.data.foreach_set("vector", iscale.ravel())
+
+        mesh.attributes.new(name="color", type="FLOAT_COLOR", domain="POINT")
+
+        obj = bpy.data.objects.new("Cylinders", mesh)
+
+        col = bpy.data.collections.get("Layers")
+        col.objects.link(obj)
+
+        obj_template = self._get_cylinder_template(style)
+        mod = obj.modifiers.new("CylinderInstances", type="NODES")
+        mod.node_group = self._get_node_group(obj_template)
+
         self.has_cylinders = True
         return self
+
+    def _get_cylinder_template(self, style: str) -> bpy.types.Object:
+        """
+        Returns a unit cylinder (radius=1, depth=1).
+        """
+        name = f"Cylinder_{style}"
+        obj_tmpl = bpy.data.objects.get(name)
+        if obj_tmpl is not None:
+            return obj_tmpl
+
+        bpy.ops.mesh.primitive_cylinder_add(vertices=self.n_segments, radius=1, depth=1)
+        obj_tmpl = bpy.context.view_layer.objects.active
+        obj_tmpl.name = name
+        obj_tmpl.location = (0, 0, 0)
+        obj_tmpl.rotation_euler = (0, 0, 0)
+        obj_tmpl.scale = (1, 1, 1)
+        obj_tmpl.data.polygons.foreach_set(
+            "use_smooth", [True] * len(obj_tmpl.data.polygons)
+        )
+
+        mat = self.get_material(style, "default").copy()
+        obj_tmpl.data.materials.append(mat)
+        self._apply_instance_color(mat)
+
+        templates_col = bpy.data.collections.get("Templates")
+        if not templates_col:
+            templates_col = bpy.data.collections.new("Templates")
+            bpy.context.scene.collection.children.link(templates_col)
+            templates_col.hide_render = True
+            templates_col.hide_viewport = True
+        for c in list(obj_tmpl.users_collection):
+            c.objects.unlink(obj_tmpl)
+        templates_col.objects.link(obj_tmpl)
+
+        return obj_tmpl
+
+    def _apply_instance_color(self, mat: bpy.types.Material) -> None:
+        """
+        Connects material base color to instance attribute.
+        """
+        tree = mat.node_tree
+        principled = next(n for n in tree.nodes if n.type == "BSDF_PRINCIPLED")
+        attr_node = tree.nodes.new("ShaderNodeAttribute")
+        attr_node.attribute_type = "INSTANCER"
+        attr_node.attribute_name = "color"
+        tree.links.new(attr_node.outputs["Color"], principled.inputs["Base Color"])
+
+    def _get_node_group(self, template: bpy.types.Object) -> bpy.types.NodeTree:
+        """
+        Builds geometry nodes tree that instances :arg:``template`` onto the points of
+        the modified object using the per-point "rotation", "iscale", and "color"
+        attributes.
+        """
+        name = f"Instancer_{template.name}"
+        group = bpy.data.node_groups.get(name)
+        if group is not None:
+            return group
+
+        group = bpy.data.node_groups.new(name, "GeometryNodeTree")
+        group.interface.new_socket(
+            "Geometry", in_out="INPUT", socket_type="NodeSocketGeometry"
+        )
+        group.interface.new_socket(
+            "Geometry", in_out="OUTPUT", socket_type="NodeSocketGeometry"
+        )
+
+        n_in = group.nodes.new("NodeGroupInput")
+        n_out = group.nodes.new("NodeGroupOutput")
+
+        n_color_attr = group.nodes.new("GeometryNodeInputNamedAttribute")
+        n_color_attr.data_type = "FLOAT_COLOR"
+        n_color_attr.inputs["Name"].default_value = "color"
+
+        n_capture = group.nodes.new("GeometryNodeCaptureAttribute")
+        n_capture.domain = "POINT"
+        n_capture.capture_items.new(socket_type="RGBA", name="color")
+
+        n_to_points = group.nodes.new("GeometryNodeMeshToPoints")
+
+        n_rot = group.nodes.new("GeometryNodeInputNamedAttribute")
+        n_rot.data_type = "FLOAT_VECTOR"
+        n_rot.inputs["Name"].default_value = "rotation"
+
+        n_scale = group.nodes.new("GeometryNodeInputNamedAttribute")
+        n_scale.data_type = "FLOAT_VECTOR"
+        n_scale.inputs["Name"].default_value = "iscale"
+
+        n_obj_info = group.nodes.new("GeometryNodeObjectInfo")
+        n_obj_info.inputs["Object"].default_value = template
+        n_obj_info.inputs["As Instance"].default_value = True
+
+        n_instance = group.nodes.new("GeometryNodeInstanceOnPoints")
+
+        n_store_color = group.nodes.new("GeometryNodeStoreNamedAttribute")
+        n_store_color.domain = "INSTANCE"
+        n_store_color.data_type = "FLOAT_COLOR"
+        n_store_color.inputs["Name"].default_value = "color"
+
+        group.links.new(n_in.outputs["Geometry"], n_capture.inputs["Geometry"])
+        group.links.new(n_color_attr.outputs["Attribute"], n_capture.inputs["color"])
+        group.links.new(n_capture.outputs["Geometry"], n_to_points.inputs["Mesh"])
+        group.links.new(n_to_points.outputs["Points"], n_instance.inputs["Points"])
+        group.links.new(n_obj_info.outputs["Geometry"], n_instance.inputs["Instance"])
+        group.links.new(n_rot.outputs["Attribute"], n_instance.inputs["Rotation"])
+        group.links.new(n_scale.outputs["Attribute"], n_instance.inputs["Scale"])
+        group.links.new(n_instance.outputs["Instances"], n_store_color.inputs["Geometry"])
+        group.links.new(n_capture.outputs["color"], n_store_color.inputs["Value"])
+        group.links.new(n_store_color.outputs["Geometry"], n_out.inputs["Geometry"])
+
+        return group
 
     def create_lights(self) -> Self:
         """
@@ -775,33 +894,76 @@ class Scene:
         return self
 
     def create_spheres(
-        self, pos: np.ndarray, r: np.ndarray, style="STRUCTURE_DEFAULT"
+        self,
+        pos: np.ndarray,
+        r: np.ndarray,
+        style: str = "STRUCTURE_DEFAULT",
     ) -> Self:
+        """Places a sphere for each pore in the scene."""
+        loc = pos * self.scale + self.shift
+        r = r * self.scale
+
+        mesh = bpy.data.meshes.new("Spheres")
+        mesh.from_pydata(loc.tolist(), [], [])
+        mesh.update()
+
+        iscale = np.column_stack([r, r, r]).astype(np.float32)
+        scale_attr = mesh.attributes.new(
+            name="iscale", type="FLOAT_VECTOR", domain="POINT"
+        )
+        scale_attr.data.foreach_set("vector", iscale.ravel())
+
+        mesh.attributes.new(name="color", type="FLOAT_COLOR", domain="POINT")
+
+        obj = bpy.data.objects.new("Spheres", mesh)
+
+        col = bpy.data.collections.get("Layers")
+        col.objects.link(obj)
+
+        template = self._get_sphere_template(style)
+
+        mod = obj.modifiers.new("SphereInstances", type="NODES")
+        mod.node_group = self._get_node_group(template)
+
+        self.has_spheres = True
+        return self
+
+    def _get_sphere_template(self, style: str) -> bpy.types.Object:
         """
-        Adds a sphere for each pore in correct position and size.
+        Returns a unit sphere (radius=1)
         """
+        name = f"Sphere_{style}"
+        obj_tmpl = bpy.data.objects.get(name)
+        if obj_tmpl is not None:
+            return obj_tmpl
+
         bpy.ops.mesh.primitive_uv_sphere_add(
             segments=self.n_segments, ring_count=self.n_segments, radius=1
         )
-        obj_template = bpy.context.view_layer.objects.active
-        obj_template.data.polygons.foreach_set(
-            "use_smooth", [True] * len(obj_template.data.polygons)
+        obj_tmpl = bpy.context.view_layer.objects.active
+        obj_tmpl.name = name
+        obj_tmpl.location = (0, 0, 0)
+        obj_tmpl.rotation_euler = (0, 0, 0)
+        obj_tmpl.scale = (1, 1, 1)
+        obj_tmpl.data.polygons.foreach_set(
+            "use_smooth", [True] * len(obj_tmpl.data.polygons)
         )
-        mat = self.get_material(style, "default")
-        pos = pos * self.scale + self.shift
-        r = r * self.scale
-        col = bpy.data.collections.new("Spheres")
-        for no in track(range(len(r)), description="Creating spheres"):
-            obj = bpy.data.objects.new(f"sphere {no}", obj_template.data.copy())
-            obj.location = pos[no, :]
-            obj.scale = (r[no], r[no], r[no])
-            col.objects.link(obj)
-            obj.data.materials.append(mat.copy())
-            obj.data.materials[0].name = obj.name
-        bpy.data.objects.remove(obj_template)
-        bpy.context.scene.collection.children.link(col)
-        self.has_spheres = True
-        return self
+
+        mat = self.get_material(style, "default").copy()
+        obj_tmpl.data.materials.append(mat)
+        self._apply_instance_color(mat)
+
+        templates_col = bpy.data.collections.get("Templates")
+        if not templates_col:
+            templates_col = bpy.data.collections.new("Templates")
+            bpy.context.scene.collection.children.link(templates_col)
+            templates_col.hide_render = True
+            templates_col.hide_viewport = True
+        for c in list(obj_tmpl.users_collection):
+            c.objects.unlink(obj_tmpl)
+        templates_col.objects.link(obj_tmpl)
+
+        return obj_tmpl
 
     def create_void(self, pth: Path, style: str = "ICE", name: str = "void") -> Self:
         """
