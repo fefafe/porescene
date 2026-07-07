@@ -7,6 +7,7 @@ from typing import Self, cast
 import bpy
 import numpy as np
 from rich import progress
+from rich.console import Console
 
 from porescene.color import Color
 from porescene.config import AxesConfiguration, ImageConfiguration, SceneConfiguration
@@ -1265,7 +1266,7 @@ class Scene:
         bpy.context.scene.render.resolution_x = self.config_image.width
         bpy.context.scene.render.resolution_y = self.config_image.height
         bpy.context.scene.render.filepath = str(pth)
-        with _get_spinner(f"Rendering {pth.name}") as p:
+        with _get_spinner(f"Rendering: {pth.name}") as p:
             p.add_task("render", total=None)
             with suppress_stdout():
                 bpy.ops.render.render(write_still=True)
@@ -1373,4 +1374,5 @@ def _get_spinner(text: str) -> progress.Progress:
         progress.SpinnerColumn(),
         progress.TextColumn(text),
         progress.TimeElapsedColumn(),
+        console=Console(stderr=True),
     )
