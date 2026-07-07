@@ -890,12 +890,34 @@ class Scene:
         """
         Adds all nessecary lightnings to the scene.
         """
-        bpy.ops.object.light_add(type="SUN")
-        bpy.context.object.name = "Sun"
-        obj = bpy.data.objects["Sun"]
-        obj.data.energy = 9
-        obj.data.angle = math.radians(10)
-        obj.rotation_euler = (math.radians(-30), 0, math.radians(-70))
+        col = bpy.data.collections.get("Lights")
+        if not col:
+            col = bpy.data.collections.new("Lights")
+            bpy.context.scene.collection.children.link(col)
+
+        def add_sun(name, energy, angle_deg, rot_deg):
+            light_data = bpy.data.lights.new(name=name, type="SUN")
+            light_data.energy = energy
+            light_data.angle = math.radians(angle_deg)
+            obj = bpy.data.objects.new(name, light_data)
+            obj.rotation_euler = tuple(math.radians(a) for a in rot_deg)
+            col.objects.link(obj)
+            return obj
+
+        add_sun("Key_Light", energy=4.0, angle_deg=15, rot_deg=(-55, 0, -70))
+        add_sun("Fill_Light", energy=2.5, angle_deg=30, rot_deg=(-50, 0, 110))
+        add_sun("Rim_Light", energy=2.0, angle_deg=10, rot_deg=(140, 0, 20))
+
+        world = bpy.context.scene.world
+        if world is None:
+            world = bpy.data.worlds.new("World")
+            bpy.context.scene.world = world
+        world.use_nodes = True
+        bg = world.node_tree.nodes.get("Background")
+        if bg:
+            bg.inputs["Color"].default_value = (1.0, 1.0, 1.0, 1.0)
+            bg.inputs["Strength"].default_value = 0.25
+
         self.has_lights = True
         return self
 
