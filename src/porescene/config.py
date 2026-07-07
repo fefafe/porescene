@@ -1,10 +1,18 @@
+from importlib import resources
 from pathlib import Path
 from typing import Callable, Self, Sequence, Type
+
+import numpy as np
 
 from porescene.color import Color
 from porescene.color.gradient import Gradient, SmoothGradient
 from porescene.color.palette import Palette
-from porescene.utility import CompassDirection, Orientation
+from porescene.utility import (
+    CompassDirection,
+    Orientation,
+    UnitExponentMetric,
+    UnitPrefixMetric,
+)
 
 
 class PropertyConfiguration:
@@ -230,6 +238,21 @@ class ImageConfiguration:
     def __init__(self) -> None:
         self.width = 4096
         self.height = 4096
+
+    @classmethod
+    def from_dict(cls, data: dict) -> Self:
+        ins = cls()
+
+        keys_valid = [
+            "width",
+            "height",
+        ]
+
+        for key, value in data.items():
+            if key in keys_valid:
+                setattr(ins, key, value)
+
+        return ins
 
     @property
     def width(self) -> int:
@@ -478,7 +501,6 @@ class AxesConfiguration:
     def __init__(self) -> None:
         self.font_size_labels = 1.5
         self.font_size_ticks = 1
-        self.font_family = None
         self.line_width = 0.1
         self.distance = 0.2
         self.tick_length = 0.3
@@ -492,22 +514,95 @@ class AxesConfiguration:
         self.enable_ticks_minor = (True, True, True)
         self.factor = (1e6, 1e6, 1e6)
         self.precision = (0, 0, 0)
-        self.indent_ticks = True
+        self.indent_ticks = False
         self.num_ticks_minor = 4
         self.value_start = (0, 0, 0)
         self.value_end = (1, 1, 1)
 
-    def set_labels(self, L_x: float, L_y: float, L_z: float) -> Self:
-        label_x = round(L_x * self.factor[0], self.precision[0])
-        label_y = round(L_y * self.factor[1], self.precision[1])
-        label_z = round(L_z * self.factor[2], self.precision[2])
-        unit_x = "µm" if self.factor[0] == 1e6 else "mm"
-        unit_y = "µm" if self.factor[1] == 1e6 else "mm"
-        unit_z = "µm" if self.factor[2] == 1e6 else "mm"
-        self.label_x = f"{label_x:.{self.precision[0]}f}" + " " + unit_x
-        self.label_y = f"{label_y:.{self.precision[1]}f}" + " " + unit_y
-        self.label_z = f"{label_z:.{self.precision[2]}f}" + " " + unit_z
-        return self
+        ref = resources.files("porescene").joinpath("data/font/Inter-Regular.ttf")
+        with resources.as_file(ref) as font_path:
+            self.font_family = font_path
+
+    @classmethod
+    def from_dict(cls, extent: np.ndarray, data: dict) -> Self:
+        ins = cls()
+
+        keys_valid = [
+            "font_size_labels",
+            "font_size_ticks",
+            "line_width",
+            "distance",
+            "tick_length",
+            "tick_interval",
+            "label_x",
+            "label_y",
+            "label_z",
+            "ticks_x",
+            "ticks_y",
+            "ticks_z",
+            "enable_ticks",
+            "enable_ticks_minor",
+            "precision",
+            "num_ticks_minor",
+            "indent_ticks",
+        ]
+
+        for key, value in data.items():
+            if key in keys_valid:
+                setattr(ins, key, value)
+
+        if "tick_interval" in data:
+            tick_interval = data["tick_interval"]
+        else:
+            tick_interval = 100
+
+        if "unit_display" in data:
+            unit_display = data["unit_display"]
+        else:
+            unit_display = "MICRO"
+
+        fac_unit = 10 ** UnitExponentMetric[unit_display].value
+        fac_axis = 1 / fac_unit
+        label_axis = UnitPrefixMetric[unit_display].value + "m"
+
+        if "label_x" not in data:
+            ins.label_x = f"y [{label_axis}]"
+        if "label_y" not in data:
+            ins.label_y = f"x [{label_axis}]"
+        if "label_z" not in data:
+            ins.label_z = f"z [{label_axis}]"
+
+        ins.factor = (fac_axis, fac_axis, fac_axis)
+
+        tick_start = (0, 0, 0)
+        tick_end = np.array(
+            (
+                extent[0] * ins.factor[0],
+                extent[1] * ins.factor[1],
+                extent[2] * ins.factor[2],
+            )
+        )
+        tick_end = tick_end - 1
+
+        ticks_x = np.arange(tick_start[0], tick_end[0] + 1, tick_interval)
+        ticks_y = np.arange(tick_start[1], tick_end[1] + 1, tick_interval)
+        ticks_z = np.arange(tick_start[2], tick_end[2] + 1, tick_interval)
+
+        if "ticks_x" not in data:
+            ins.ticks_x = ticks_x
+        if "ticks_y" not in data:
+            ins.ticks_y = ticks_y
+        if "ticks_z" not in data:
+            ins.ticks_z = ticks_z
+
+        ins.position_tick_x = ticks_x / extent[0] / fac_axis
+        ins.position_tick_y = ticks_y / extent[1] / fac_axis
+        ins.position_tick_z = ticks_z / extent[2] / fac_axis
+
+        ins.value_start = tick_start
+        ins.value_end = tuple(tick_end)
+
+        return ins
 
     @property
     def factor(self) -> tuple[float, float, float]:

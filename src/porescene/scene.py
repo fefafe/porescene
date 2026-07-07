@@ -1,15 +1,17 @@
+import json
 import math
 import random
 from pathlib import Path
 from typing import Self
 
-import bmesh
 import bpy
 import numpy as np
 from rich.progress import track
 
 from porescene.color import Color
 from porescene.config import AxesConfiguration, ImageConfiguration, SceneConfiguration
+
+import bmesh  # isort:skip
 
 
 class Scene:
@@ -50,6 +52,26 @@ class Scene:
         bpy.context.scene.view_settings.look = "AgX - Medium High Contrast"
         # bpy.context.scene.cycles.transparent_max_bounces = 100
         # bpy.context.scene.cycles.transmission_bounces = 100
+
+    @classmethod
+    def from_json(cls, dims: tuple[float, float, float], pth_config: Path) -> Self:
+        ins = cls()
+
+        extent = np.array(dims)
+
+        with pth_config.open(mode="r", encoding="UTF-8") as json_data:
+            config = json.load(json_data)
+
+        if "axes" in config:
+            ins.config_axes = AxesConfiguration.from_dict(extent, config["axes"])
+        if "image" in config:
+            ins.config_image = ImageConfiguration.from_dict(config["image"])
+
+        ins.scale = ins.size_bounding_box / max(extent)
+        ins.shift = (ins.size_bounding_box - extent * ins.scale) / 2
+        ins.aspect = extent / max(extent)
+
+        return ins
 
     def apply_colors(
         self,
