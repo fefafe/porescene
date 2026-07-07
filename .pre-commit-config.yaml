@@ -1,4 +1,19 @@
 repos:
+
+-   repo: local
+    hooks:
+    -   id: sphinx-apidoc
+        name: sphinx-apidoc
+        entry: poetry run sphinx-apidoc -e -P -f -o docs/source/api src/porescene
+        language: system
+        pass_filenames: false
+
+    -   id: sphinx-build
+        name: sphinx-build
+        entry: poetry run sphinx-build -W --keep-going -n -b html docs/source docs/_build/html
+        language: system
+        pass_filenames: false
+
 -   repo: https://github.com/PyCQA/isort
     rev: 8.0.1
     hooks:
@@ -9,24 +24,25 @@ repos:
     hooks:
     -   id: black
 
+-   repo: https://github.com/PyCQA/flake8
+    rev: 7.3.0
+    hooks:
+    -   id: flake8
+        additional_dependencies: ["Flake8-pyproject"]
+
 -   repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
     hooks:
     -   id: check-added-large-files
         args: ['--maxkb=5120']
     -   id: trailing-whitespace
-        files: (\.py|\.rst|\.yaml|)$
     -   id: end-of-file-fixer
-    -   id: trailing-whitespace
     -   id: check-yaml
     -   id: check-json
     -   id: check-toml
-
--   repo: https://github.com/PyCQA/flake8
-    rev: 7.3.0
-    hooks:
-    -   id: flake8
-        additional_dependencies: ["Flake8-pyproject"]
+    -   id: check-merge-conflict
+    -   id: detect-private-key
+    -   id: debug-statements
 
 -   repo: https://github.com/python-poetry/poetry
     rev: '2.3.2'
