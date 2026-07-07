@@ -17,6 +17,10 @@ dev = [
     "fake-bpy-module (>=20260501,<20260502)",
     "pytest (>=9.1.1,<10.0.0)",
     "pre-commit (>=4.6.0,<5.0.0)",
+    "sphinx (>=9.1.0,<10.0.0)",
+    "furo (>=2025.12.19,<2026.0.0)",
+    "sphinx-autodoc-typehints (>=3.12.1,<4.0.0)",
+    "sphinx-autobuild (>=2025.8.25,<2026.0.0)",
 ]
 
 [tool.black]
