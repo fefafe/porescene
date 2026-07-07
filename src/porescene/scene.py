@@ -34,24 +34,40 @@ class Scene:
         self.has_spheres = False
         self.has_void = False
 
-        bpy.data.worlds["World"].node_tree.nodes["Background"].inputs[0].default_value = (
-            1,
-            1,
-            1,
-            1,
-        )
+        # remove default objects from scene
+        self.remove_defaults()
+
+        # create collection for scene layers and add it to the scene
+        col = bpy.data.collections.new("Layers")
+        bpy.context.scene.collection.children.link(col)
+
+        # cycles configuration
         bpy.context.scene.render.engine = "CYCLES"
-        bpy.context.preferences.addons["cycles"].preferences.compute_device_type = "CUDA"
-        bpy.context.preferences.addons["cycles"].preferences.get_devices()
+
+        prefs = bpy.context.preferences.addons["cycles"].preferences
+        prefs.compute_device_type = "OPTIX"  # falls back to CUDA if no RTX-capable device
+        prefs.get_devices()
+        for device in prefs.devices:
+            device.use = device.type in {"OPTIX", "CUDA"}
+
+        bpy.context.scene.cycles.device = "GPU"
+
         bpy.context.scene.render.resolution_percentage = 100
         bpy.context.scene.render.film_transparent = True
         bpy.context.scene.render.use_persistent_data = True
         bpy.context.scene.render.image_settings.color_mode = "RGBA"
-        bpy.context.scene.render.image_settings.color_depth = "8"
-        bpy.context.scene.cycles.device = "GPU"
-        bpy.context.scene.view_settings.look = "AgX - Medium High Contrast"
-        # bpy.context.scene.cycles.transparent_max_bounces = 100
-        # bpy.context.scene.cycles.transmission_bounces = 100
+        bpy.context.scene.render.image_settings.color_depth = "16"
+
+        bpy.context.scene.cycles.samples = 1024
+        bpy.context.scene.cycles.use_adaptive_sampling = True
+        bpy.context.scene.cycles.adaptive_threshold = 0.01
+        bpy.context.scene.cycles.adaptive_min_samples = 32
+
+        bpy.context.scene.cycles.use_denoising = True
+        bpy.context.scene.cycles.denoiser = "OPENIMAGEDENOISE"
+
+        bpy.context.scene.cycles.transmission_bounces = 12
+        bpy.context.scene.cycles.transparent_max_bounces = 64
 
     @classmethod
     def from_json(cls, dims: tuple[float, float, float], pth_config: Path) -> Self:
