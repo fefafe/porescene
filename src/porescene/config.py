@@ -684,7 +684,7 @@ class AxesConfiguration:
 
     @property
     def font_family(self) -> Path | None:
-        """Font family for axis labels specified as :class:``Path`` to TTF file."""
+        """Font family for axis labels specified as :class:`Path <pathlib.Path>` to TTF file."""
         return self._font_family
 
     @font_family.setter
