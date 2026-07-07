@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Self
 
-from .conversion import hex2rgb, nrgb2lnrgb, nrgb2rgb, rgb2hex, rgb2nrgb
+from porescene.color.conversion import hex2rgb, nrgb2lnrgb, nrgb2rgb, rgb2hex, rgb2nrgb
 
 
 class Color:
@@ -231,6 +231,4 @@ class Color:
         """
         Current color formatted as `rgb(R, G, B, A)`.
         """
-        return (
-            f"rgba({self.rgba[0]}, {self.rgba[1]}, " f"{self.rgba[2]}, {self.rgba[3]})"
-        )
+        return f"rgba({self.rgba[0]}, {self.rgba[1]}, " f"{self.rgba[2]}, {self.rgba[3]})"
