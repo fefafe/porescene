@@ -925,15 +925,16 @@ class Scene:
         """
         Adds the solid into the scene.
         """
-        bpy.ops.wm.obj_import(filepath=str(pth))
-        obj = bpy.data.objects["solid"]
-        obj.rotation_euler = (math.radians(0), 0, math.radians(0))
-        obj.scale = (self.scale, self.scale, self.scale)
-        obj.location = self.shift
-        # obj.location += Vector((10, 0, 0))
-        obj.data.materials.clear()
-        obj.data.materials.append(self.get_material(style, "solid"))
-        self.has_solid = True
+        with _get_spinner(f"Loading object: {pth.name}") as p:
+            p.add_task("load", total=None)
+            bpy.ops.wm.obj_import(filepath=str(pth))
+            obj = bpy.data.objects["solid"]
+            obj.rotation_euler = (math.radians(0), 0, math.radians(0))
+            obj.scale = (self.scale, self.scale, self.scale)
+            obj.location = self.shift
+            obj.data.materials.clear()
+            obj.data.materials.append(self.get_material(style, "solid"))
+            self.has_solid = True
 
         return self
 
@@ -943,7 +944,9 @@ class Scene:
         r: np.ndarray,
         style: str = "STRUCTURE_DEFAULT",
     ) -> Self:
-        """Places a sphere for each pore in the scene."""
+        """
+        Places a sphere for each pore in the scene.
+        """
         loc = pos * self.scale + self.shift
         r = r * self.scale
 
@@ -1249,21 +1252,27 @@ class Scene:
         bpy.context.scene.render.resolution_x = self.config_image.width
         bpy.context.scene.render.resolution_y = self.config_image.height
         bpy.context.scene.render.filepath = str(pth)
-        bpy.ops.render.render(write_still=True)
+        with _get_spinner(f"Rendering {pth.name}") as p:
+            p.add_task("render", total=None)
+            bpy.ops.render.render(write_still=True)
         return pth
 
     def save(self, pth: Path) -> Self:
         """
         Saves the current scene as BLEND file.
         """
-        bpy.ops.wm.save_as_mainfile(filepath=str(pth))
+        with _get_spinner(f"Saving scene: {str(pth.name)}") as p:
+            p.add_task("save", total=None)
+            bpy.ops.wm.save_as_mainfile(filepath=str(pth))
         return self
 
     def load(self, pth: Path) -> Self:
         """
-        Saves the current scene as BLEND file.
+        Loads the current scene from BLEND file.
         """
-        bpy.ops.wm.open_mainfile(filepath=str(pth))
+        with _get_spinner(f"Loading scene: {str(pth.name)}") as p:
+            p.add_task("load", total=None)
+            bpy.ops.wm.open_mainfile(filepath=str(pth))
         return self
 
     def show_axes(self) -> Self:
@@ -1343,3 +1352,11 @@ class Scene:
     @config_scene.setter
     def config_scene(self, arg: SceneConfiguration):
         self._config_scene = arg
+
+
+def _get_spinner(text: str) -> progress.Progress:
+    return progress.Progress(
+        progress.SpinnerColumn(),
+        progress.TextColumn(text),
+        progress.TimeElapsedColumn(),
+    )
