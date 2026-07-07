@@ -7,6 +7,7 @@ from typing import Self, cast
 import bpy
 import numpy as np
 from rich import progress
+from rich.console import Console
 
 from porescene.color import Color
 from porescene.config import AxesConfiguration, ImageConfiguration, SceneConfiguration
@@ -1373,4 +1374,5 @@ def _get_spinner(text: str) -> progress.Progress:
         progress.SpinnerColumn(),
         progress.TextColumn(text),
         progress.TimeElapsedColumn(),
+        console=Console(stderr=True),
     )
