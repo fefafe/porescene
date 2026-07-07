@@ -91,20 +91,26 @@ class Scene:
 
     def apply_colors(
         self,
-        col_name: str,
+        name_mesh: str,
         colors: list[Color],
         frame: int = 0,
     ) -> Self:
         """
         Sets the colors for all items in a collection for given frame.
         """
-        col = bpy.data.collections.get(col_name)
-        for [k, obj] in enumerate(
-            track(col.objects, description=f"Coloring collection {col_name}")
-        ):
-            obj.data.materials[0].node_tree.nodes.get("Principled BSDF").inputs[
-                0
-            ].default_value = colors[k].lnrgba
+        mesh = bpy.data.meshes.get(name_mesh)
+
+        if mesh is None:
+            raise Exception(f"There is no object with name '{name_mesh}'")
+
+        color_array = np.ndarray(shape=(len(colors), 4))
+
+        for idx, color in enumerate(colors):
+            color_array[idx, :] = color.lnrgba
+
+        color_attr = mesh.attributes.get("color")
+        color_attr.data.foreach_set("color", color_array.astype(np.float32).ravel())
+
         return self
 
     def create_axes(self) -> Self:
