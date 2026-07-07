@@ -63,9 +63,7 @@ class PropertyConfiguration:
 
     @property
     def align(self) -> CompassDirection:
-        """
-        Point of alignment of the layout image.
-        """
+        """Point of alignment of the layout image."""
         return self._align
 
     @align.setter
@@ -256,6 +254,7 @@ class ImageConfiguration:
 
     @property
     def width(self) -> int:
+        """Width of the image in px."""
         return self._width
 
     @width.setter
@@ -264,6 +263,7 @@ class ImageConfiguration:
 
     @property
     def height(self) -> int:
+        """Height of the image in px."""
         return self._height
 
     @height.setter
@@ -272,10 +272,12 @@ class ImageConfiguration:
 
     @property
     def resolution(self) -> list[int]:
+        """Image resolution in px [width,height]."""
         return [self._width, self.height]
 
     @property
     def aspect_ratio(self) -> float:
+        """Image aspect ratio."""
         return self._width / self.height
 
 
@@ -606,9 +608,7 @@ class AxesConfiguration:
 
     @property
     def factor(self) -> tuple[float, float, float]:
-        """
-        Factor to scale axis labels.
-        """
+        """Factor to scale axis labels."""
         return self._factor
 
     @factor.setter
@@ -617,9 +617,7 @@ class AxesConfiguration:
 
     @property
     def precision(self) -> tuple[int, int, int]:
-        """
-        Precision of axis labels. Applies after scaling.
-        """
+        """Precision of axis labels. Applies after scaling."""
         return self._precision
 
     @precision.setter
@@ -650,6 +648,7 @@ class AxesConfiguration:
 
     @property
     def line_width(self) -> float:
+        """Axis line width."""
         return self._line_width
 
     @line_width.setter
@@ -658,6 +657,7 @@ class AxesConfiguration:
 
     @property
     def label_x(self) -> str:
+        """x-axis label."""
         return self._label_x
 
     @label_x.setter
@@ -666,6 +666,7 @@ class AxesConfiguration:
 
     @property
     def label_y(self) -> str:
+        """y-axis label."""
         return self._label_y
 
     @label_y.setter
@@ -674,6 +675,7 @@ class AxesConfiguration:
 
     @property
     def label_z(self) -> str:
+        """z-axis label."""
         return self._label_z
 
     @label_z.setter
@@ -682,6 +684,7 @@ class AxesConfiguration:
 
     @property
     def font_family(self) -> Path | None:
+        """Font family for axis labels specified as :class:``Path`` to TTF file."""
         return self._font_family
 
     @font_family.setter
@@ -690,6 +693,7 @@ class AxesConfiguration:
 
     @property
     def font_size_labels(self) -> float:
+        """Axis label font-size."""
         return self._font_size
 
     @font_size_labels.setter
@@ -698,6 +702,7 @@ class AxesConfiguration:
 
     @property
     def font_size_ticks(self) -> float:
+        """Tick label font-size."""
         return self._font_size
 
     @font_size_ticks.setter
@@ -706,6 +711,7 @@ class AxesConfiguration:
 
     @property
     def tick_length(self) -> float:
+        """Tick length."""
         return self._tick_length
 
     @tick_length.setter
