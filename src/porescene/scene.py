@@ -6,7 +6,7 @@ from typing import Self
 
 import bpy
 import numpy as np
-from rich.progress import track
+from rich import progress
 
 from porescene.color import Color
 from porescene.config import AxesConfiguration, ImageConfiguration, SceneConfiguration
@@ -648,7 +648,7 @@ class Scene:
         if not col:
             col = bpy.data.collections.new("Cells")
             bpy.context.scene.collection.children.link(col)
-        for p in track(p_selection, description="Creating cells"):
+        for p in progress.track(p_selection, description="Creating cells"):
             # select current cell vertex list
             verts = pos[vtx_cv[p], :] * self.scale + self.shift
             # create point cloud mesh and object of cell vertices
@@ -708,7 +708,7 @@ class Scene:
         mat = self.get_material(style, "default")
         col = bpy.data.collections.new("Clusters")
         col_default = bpy.data.collections.get("Collection")
-        for obj in track(
+        for obj in progress.track(
             sorted(bpy.data.objects, key=lambda c: handler(c.name)),
             description="Creating cluster geometries",
         ):
@@ -719,7 +719,7 @@ class Scene:
                 col_default.objects.unlink(obj)
                 col.objects.link(obj)
 
-        for obj in track(col.objects, description="Creating cluster materials"):
+        for obj in progress.track(col.objects, description="Creating cluster materials"):
             obj.data.materials.append(mat.copy())
             obj.data.materials[0].name = obj.name
         bpy.context.scene.collection.children.link(col)
