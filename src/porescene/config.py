@@ -72,7 +72,11 @@ class PropertyConfiguration:
 
     @property
     def color_nan(self) -> Color | None:
-        """Color of NaN values. See :attr:``.Gradient.color_nan``."""
+        """
+        Color of NaN values.
+        
+        See also :attr:`Gradient.color_nan <porescene.color.gradient.Gradient.color_nan>`.
+        """
         return self._color_nan
 
     @color_nan.setter
@@ -82,7 +86,9 @@ class PropertyConfiguration:
     @property
     def color_below(self) -> Color | None:
         """
-        Color of values below the range. See :attr:`.Gradient.color_below`.
+        Color of values below the range.
+        
+        See also :attr:`.Gradient.color_below`.
         """
         return self._color_below
 
@@ -93,7 +99,9 @@ class PropertyConfiguration:
     @property
     def color_above(self) -> Color | None:
         """
-        Color of values above the range. See :attr:``.Gradient.color_above``.
+        Color of values above the range.
+        
+        See also :attr:`.Gradient.color_above`.
         """
         return self._color_above
 
@@ -106,7 +114,7 @@ class PropertyConfiguration:
         """
         Colors of the gradient to visualize the property.
 
-        See :attr:``.Gradient.colors``.
+        See also :attr:`.Gradient.colors`.
         """
         return self._colors
 
