@@ -979,6 +979,21 @@ files = [
 windows-terminal = ["colorama (>=0.4.6)"]
 
 [[package]]
+name = "pygments-styles"
+version = "0.3.0"
+description = "A curated collection of Pygments styles based on VS Code themes."
+optional = false
+python-versions = ">=3.9"
+groups = ["dev"]
+files = [
+    {file = "pygments_styles-0.3.0-py3-none-any.whl", hash = "sha256:c6c45e9939eb7590345bc9084113bac46c45f12b009d13422be02e80e84a034c"},
+    {file = "pygments_styles-0.3.0.tar.gz", hash = "sha256:67746b8fc6ff72c1179ca4d9a8bc89c7f54c196c2ff9d087f07392cd6fde3ecf"},
+]
+
+[package.dependencies]
+pygments = "*"
+
+[[package]]
 name = "pytest"
 version = "9.1.1"
 description = "pytest: simple powerful testing with Python"
@@ -1758,4 +1773,4 @@ cffi = ["cffi (>=1.17,<2.0) ; platform_python_implementation != \"PyPy\" and pyt
 [metadata]
 lock-version = "2.1"
 python-versions = "=3.13.*"
-content-hash = "79f1c3f19ffd2623847a62ce9111adb332e12656d6068f01290c34aa9e8a659a"
+content-hash = "8b963f40fb79470d027b90d51a5c8fe530fe0ef9486fbd389d80cde7e4ec161a"
