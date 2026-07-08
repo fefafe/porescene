@@ -34,7 +34,20 @@ class Palette:
 
     @classmethod
     def load(cls, name: str) -> Self:
+        """
+        Creates a :class:`Palette` instance by loading colormap data from file.
 
+        :mod:`PoreScene` includes a large set of scientific colormaps, including:
+        
+        - `Fabio Crameris collection <>`_
+        - :mod:`matplotlib` colormaps
+        
+
+        Parameters
+        ----------
+        name : str
+            Name of the colormap to be loaded from file.
+        """
         colorlist: list[Color] = []
 
         pattern = re.compile("^[a-z0-9]+$")
@@ -75,13 +88,23 @@ class Palette:
 
     def subset(self, n: int = 5) -> list[Color]:
         """
-        Returns a color subset from the palette.
+        Returns a subset of ``n`` equidistant sampled colors from the palette.
+        
+        Parameters
+        ----------
+        n : int, optional
+            Number of colors in the subset, by default 5
         """
         return util.n_equidistant(self.colors, n)
 
     def random(self, n: int = 1) -> list[Color]:
         """
-        Returns :arg:`n` randomly selected color from the palette.
+        Returns randomly selected colors from the palette.
+
+        Parameters
+        ----------
+        n : int, optional
+            Number of colors to return, by default 1
         """
         colors = []
         for k in range(n):
@@ -90,6 +113,6 @@ class Palette:
 
     def reversed(self) -> list[Color]:
         """
-        Returns selected colors from a color palette with named colors.
+        Returns the colors from the palette in reversed order.
         """
         return list(reversed(self.colors))
