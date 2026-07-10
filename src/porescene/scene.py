@@ -48,7 +48,8 @@ class Scene:
 
         prefs = bpy.context.preferences.addons["cycles"].preferences
         prefs.compute_device_type = "OPTIX"  # falls back to CUDA if no RTX-capable device
-        prefs.get_devices()
+        with suppress_stdout():
+            prefs.get_devices()
         for device in prefs.devices:
             device.use = device.type in {"OPTIX", "CUDA"}
 
