@@ -8,17 +8,14 @@ from porescene.scene import Scene
 # ============================================================================
 # Import Parameters
 
-# absolute data path
-pth_abs_data = Path("/Data/")
-
 # relative CT scan path
-pth_rel_scan = Path(
-    "Scan\Maltodextrin_DE12_w5\MD_DE12_w5_I\section_ori@668x668x1_res@600x600x800"
-)
+pth_data = Path.cwd() / "./data/"
+pth_tmp = Path.cwd() / "./tmp/"
 
 # domain extent
-extent = np.array((600, 600, 800)) * 3.87592e-06
+extent = np.array((100, 100, 100)) * 1e-06
 
+do_axes = True
 do_solid = True
 do_void = False
 do_clusters = False
@@ -32,16 +29,16 @@ sc.config_axes.font_family = Path.cwd() / "asset/Inter-Regular.ttf"
 sc.config_axes.font_size_labels = 1
 sc.config_axes.line_width = 0.05 * 1
 sc.config_axes.precision = (2, 2, 2)
-sc.config_axes.factor = (1e3, 1e3, 1e3)
+sc.config_axes.factor = (1e6, 1e6, 1e6)
 sc.config_axes.set_labels(*extent)
-sc.config_axes.label_z = "[mm]"
+sc.config_axes.label_z = "[µm]"
 sc.config_axes.enable_ticks = True
 sc.config_axes.ticks_z = [0, 0.5, 1, 1.5, 2]
 sc.scale = sc.size_bounding_box / max(extent)
 sc.shift = (sc.size_bounding_box - extent * sc.scale) / 2
 sc.aspect = extent / max(extent)
-sc.config_image.width = 2048 * 2
-sc.config_image.height = 2048 * 2
+sc.config_image.width = int(2048 * 0.5)
+sc.config_image.height = int(2048 * 0.5)
 sc.config_scene.enable_spheres = False
 sc.config_scene.enable_cylinders = False
 sc.config_scene.enable_clusters = True
@@ -54,21 +51,26 @@ sc.config_scene.enable_axes = False
 sc.remove_defaults()
 sc.create_camera("3D")
 sc.create_lights()
-sc.create_axes()
+# sc.create_axes()
+
+if do_axes:
+    sc.create_axes()
+    fname = sc.render(pth_tmp / "Image", "axes")
+    sc.hide_axes()
 
 if do_solid:
-    sc.create_solid(pth_abs_data / pth_rel_scan / "Solid.obj")
-    fname = sc.render(pth_abs_data / pth_rel_scan / "Image", "solid")
+    sc.create_solid(pth_tmp / "Solid.obj")
+    fname = sc.render(pth_tmp / "Image", "solid")
     img_trim(fname)
 
 if do_void:
-    sc.create_void(pth_abs_data / pth_rel_scan / "Void.obj")
-    fname = sc.render(pth_abs_data / pth_rel_scan / "Image", "void")
+    sc.create_void(pth_tmp / "Void.obj")
+    fname = sc.render(pth_tmp / "Image", "void")
     img_trim(fname)
 
 if do_clusters:
-    sc.create_clusters(pth_abs_data / pth_rel_scan / "SegmentationVoid.obj")
-    sc.create_solid(pth_abs_data / pth_rel_scan / "Solid.obj")
+    sc.create_clusters(pth_tmp / "SegmentationVoid.obj")
+    sc.create_solid(pth_tmp / "Solid.obj")
     sc.apply_colors("Clusters", sc.config_scene.palette.random(5000))
-    fname = sc.render(pth_abs_data / pth_rel_scan / "Image", "clusters@random_solid")
+    fname = sc.render(pth_tmp / "Image", "clusters@random_solid")
     img_trim(fname)
