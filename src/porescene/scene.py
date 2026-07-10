@@ -707,8 +707,7 @@ class Scene:
             else:
                 return 0
 
-        with suppress_stdout():
-            bpy.ops.wm.obj_import(filepath=str(pth))
+        _import_object(pth)
         mat = self.get_material(style, "default")
         col = bpy.data.collections.new("Clusters")
         col_default = bpy.data.collections.get("Collection")
@@ -931,8 +930,7 @@ class Scene:
         """
         with _get_spinner(f"Loading object: {pth.name}") as p:
             p.add_task("load", total=None)
-            with suppress_stdout():
-                bpy.ops.wm.obj_import(filepath=str(pth))
+            _import_object(pth)
             selected = bpy.context.selected_objects
             assert selected
             obj = selected[0]
@@ -1028,8 +1026,7 @@ class Scene:
         """
         with _get_spinner(f"Loading object: {pth.name}") as p:
             p.add_task("load", total=None)
-            with suppress_stdout():
-                bpy.ops.wm.obj_import(filepath=str(pth))
+            _import_object(pth)
             selected = bpy.context.selected_objects
             assert selected
             obj = selected[0]
@@ -1377,3 +1374,36 @@ def _get_spinner(text: str) -> progress.Progress:
         progress.TimeElapsedColumn(),
         console=Console(stderr=True),
     )
+
+
+# maps file suffixes to their Blender import operator
+_IMPORTERS: dict[str, tuple[str, str]] = {
+    ".obj": ("wm", "obj_import"),
+    ".ply": ("wm", "ply_import"),
+    ".stl": ("wm", "stl_import"),
+    ".abc": ("wm", "alembic_import"),
+    ".usd": ("wm", "usd_import"),
+    ".usda": ("wm", "usd_import"),
+    ".usdc": ("wm", "usd_import"),
+    ".fbx": ("import_scene", "fbx"),
+    ".glb": ("import_scene", "gltf"),
+    ".gltf": ("import_scene", "gltf"),
+}
+
+
+def _import_object(pth: Path) -> None:
+    """
+    Imports a 3D object file using the Blender importer matching its file extension.
+    """
+    suffix = pth.suffix.lower()
+    try:
+        namespace, operator = _IMPORTERS[suffix]
+    except KeyError:
+        raise ValueError(
+            f"Unsupported file format {suffix!r} for {pth.name}. "
+            f"Supported formats: {', '.join(sorted(_IMPORTERS))}"
+        ) from None
+
+    import_op = getattr(getattr(bpy.ops, namespace), operator)
+    with suppress_stdout():
+        import_op(filepath=str(pth))
