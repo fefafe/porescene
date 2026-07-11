@@ -180,7 +180,10 @@ class Color:
 
     @property
     def lnrgba_str(self) -> str:
-        return f"lnrgba({self.lnrgba[0]}, {self.lnrgba[1]}, {self.lnrgba[2]}, {self.lnrgba[3]})"
+        return (
+            f"lnrgba({self.lnrgba[0]}, {self.lnrgba[1]}, "
+            f"{self.lnrgba[2]}, {self.lnrgba[3]})"
+        )
 
     @property
     def nrgb(self) -> tuple[float, float, float]:
