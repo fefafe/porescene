@@ -1190,8 +1190,8 @@ class Scene:
                 # AO mixing node
                 n_ao_mix = nodes.new("ShaderNodeMixRGB")
                 n_ao_mix.blend_type = "MULTIPLY"
-                n_ao_mix.inputs["Factor"].default_value = 0.8
-                n_ao_mix.inputs["Color1"].default_value = Color("#A0805A").lnrgba
+                n_ao_mix.inputs["Factor"].default_value = 0.3
+                n_ao_mix.inputs["Color1"].default_value = Color("#C6A87A").lnrgba
 
                 # principal node
                 n_pr.inputs["Metallic"].default_value = 0
