@@ -27,6 +27,7 @@ class Scene:
         self.size = (10, 10, 10)
         self.shift = (0, 0, 0)
         self.scale = 1e5
+        self._ang_azimuth = 0.0
 
         self.has_axes = False
         self.has_clusters = False
@@ -922,6 +923,59 @@ class Scene:
             bg.inputs["Strength"].default_value = 0.25
 
         self.has_lights = True
+        return self
+
+    def _orbit(self, obj, angle: float) -> None:
+        """
+        Rotates an object's location and yaw around the scene's vertical
+        (Z) axis, through the scene's center, by ``angle`` radians.
+        """
+        center = self.size_bounding_box / 2
+        cos_a, sin_a = math.cos(angle), math.sin(angle)
+        x, y, z = obj.location
+        x, y = x - center, y - center
+        obj.location = (
+            x * cos_a - y * sin_a + center,
+            x * sin_a + y * cos_a + center,
+            z,
+        )
+        rx, ry, rz = obj.rotation_euler
+        obj.rotation_euler = (rx, ry, rz + angle)
+
+    def rotate_azimuth(self, ang_rot: float) -> Self:
+        """
+        Rotates the camera and all lights around the scene's vertical (Z)
+        axis by the given azimuth angle ``ang_rot`` (in degrees), orbiting
+        them around the scene's center while keeping the camera aimed there.
+
+        The axes are literal rulers built along fixed edges of the
+        (stationary) bounding box, so they can't simply follow the camera's
+        continuous rotation without drifting off the box they are meant to
+        measure. Instead they are snapped in 90-degree steps -- which maps
+        one cube corner exactly onto another -- to keep them attached to the
+        box while staying on the side that currently faces the camera.
+        """
+        self._orbit(bpy.data.objects["Camera"], math.radians(ang_rot))
+
+        for obj in bpy.data.collections["Lights"].objects:
+            rx, ry, rz = obj.rotation_euler
+            obj.rotation_euler = (rx, ry, rz + math.radians(ang_rot))
+
+        if self.has_axes:
+
+            def _nearest_corner(deg: float) -> float:
+                return math.floor(deg / 90 + 0.5) * 90
+
+            corner_before = _nearest_corner(self._ang_azimuth)
+            self._ang_azimuth += ang_rot
+            corner_after = _nearest_corner(self._ang_azimuth)
+            corner_delta = math.radians(corner_after - corner_before)
+            if corner_delta:
+                for obj in bpy.data.collections["Axes"].objects:
+                    self._orbit(obj, corner_delta)
+        else:
+            self._ang_azimuth += ang_rot
+
         return self
 
     def create_solid(self, pth: Path, style: str = "SOLID_DEFAULT", name: str = "solid"):
