@@ -708,7 +708,9 @@ class Scene:
             else:
                 return 0
 
-        _import_object(pth)
+        with _get_spinner(f"[cyan]Loading object: {pth.name}") as p:
+            p.add_task("load", total=None)
+            _import_object(pth)
         mat = self.get_material(style, "default")
         col = bpy.data.collections.new("Clusters")
         col_default = bpy.data.collections.get("Collection")
@@ -982,7 +984,7 @@ class Scene:
         """
         Adds the solid into the scene.
         """
-        with _get_spinner(f"Loading object: {pth.name}") as p:
+        with _get_spinner(f"[cyan]Loading object: {pth.name}") as p:
             p.add_task("load", total=None)
             _import_object(pth)
             selected = bpy.context.selected_objects
@@ -1078,7 +1080,7 @@ class Scene:
         """
         Adds a 3D object of the void space to the scene.
         """
-        with _get_spinner(f"Loading object: {pth.name}") as p:
+        with _get_spinner(f"[cyan]Loading object: {pth.name}") as p:
             p.add_task("load", total=None)
             _import_object(pth)
             selected = bpy.context.selected_objects
@@ -1339,7 +1341,7 @@ class Scene:
         bpy.context.scene.render.resolution_x = self.config_image.width
         bpy.context.scene.render.resolution_y = self.config_image.height
         bpy.context.scene.render.filepath = str(pth)
-        with _get_spinner(f"Rendering: {pth.name}") as p:
+        with _get_spinner(f"[green]Rendering: {pth.name}") as p:
             p.add_task("render", total=None)
             with suppress_stdout():
                 bpy.ops.render.render(write_still=True)
