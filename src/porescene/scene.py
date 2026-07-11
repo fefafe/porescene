@@ -920,7 +920,7 @@ class Scene:
         bg = world.node_tree.nodes.get("Background")
         if bg:
             bg.inputs["Color"].default_value = (1.0, 1.0, 1.0, 1.0)
-            bg.inputs["Strength"].default_value = 0.25
+            bg.inputs["Strength"].default_value = 0.15
 
         self.has_lights = True
         return self
