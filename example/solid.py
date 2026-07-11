@@ -7,9 +7,11 @@ from porescene.scene import Scene
 # ==============================================================
 # Import Parameters
 
-# relative CT scan path
-pth_data = Path.cwd() / "./data/"
-pth_tmp = Path.cwd() / "./tmp/"
+# data directory
+pth_data = Path("./data/")
+
+# temporary directory for rendered images
+pth_tmp = Path("./tmp/")
 
 # [m] domain dimensions
 dims = (100e-06, 100e-06, 100e-06)
@@ -18,11 +20,17 @@ dims = (100e-06, 100e-06, 100e-06)
 # ==============================================================
 # Scene configuration and rendering
 
+# create a new scene from PoreScene JSON configuration
 sc = Scene.from_json(dims, pth_data / "porescene.json")
-sc.create_camera("3D")
-sc.create_lights()
+
+# add axes around the scene
 sc.create_axes()
-sc.create_solid(pth_data / "Solid.obj")
+
+# add a solid object to the scene
+sc.create_solid(pth_data / "Solid.ply")
+
+# render the scene
 pth_img = sc.render(pth_tmp, "solid")
 
+# trim whitespace from the renderen PNG, add a padding of 50 px
 image.img_trim(pth_img, 50)
