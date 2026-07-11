@@ -1450,7 +1450,7 @@ class Scene:
 
 def _get_spinner(text: str) -> progress.Progress:
     return progress.Progress(
-        progress.SpinnerColumn(),
+        progress.SpinnerColumn(style="white"),
         progress.TextColumn(text),
         progress.TimeElapsedColumn(),
         console=Console(stderr=True),
