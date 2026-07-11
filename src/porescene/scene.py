@@ -1110,18 +1110,18 @@ class Scene:
             nodes = mat.node_tree.nodes
             output = nodes.get("Material Output")
             links = mat.node_tree.links
-            n_prcpl = nodes.get("Principled BSDF")
-            n_prcpl.subsurface_method = "BURLEY"
-            links.new(n_prcpl.outputs["BSDF"], output.inputs["Surface"])
+            n_pr = nodes.get("Principled BSDF")
+            n_pr.subsurface_method = "BURLEY"
+            links.new(n_pr.outputs["BSDF"], output.inputs["Surface"])
 
             if style in ["STRUCTURE_DEFAULT", "CLUSTER_DEFAULT"]:
-                n_prcpl.inputs["Base Color"].default_value = Color("#58646E").lnrgba
-                n_prcpl.inputs["Metallic"].default_value = 0.4
-                n_prcpl.inputs["Roughness"].default_value = 0.5
-                n_prcpl.inputs["Subsurface Weight"].default_value = 0.1
-                n_prcpl.inputs["Specular IOR Level"].default_value = 0.1
-                n_prcpl.inputs["Sheen Weight"].default_value = 0.1
-                n_prcpl.inputs["Sheen Roughness"].default_value = 0
+                n_pr.inputs["Base Color"].default_value = Color("#58646E").lnrgba
+                n_pr.inputs["Metallic"].default_value = 0.4
+                n_pr.inputs["Roughness"].default_value = 0.5
+                n_pr.inputs["Subsurface Weight"].default_value = 0.1
+                n_pr.inputs["Specular IOR Level"].default_value = 0.1
+                n_pr.inputs["Sheen Weight"].default_value = 0.1
+                n_pr.inputs["Sheen Roughness"].default_value = 0
             elif style == "VOID_FROZEN":
                 # links.clear()
                 # node_mix = nodes.new("ShaderNodeMixShader")
@@ -1130,12 +1130,12 @@ class Scene:
                 # node_trans = nodes.new("ShaderNodeBsdfTransparent")
                 # links.new(node_trans.outputs[0], node_mix.inputs[1])
                 # links.new(node_princ.outputs[0], node_mix.inputs[2])
-                n_prcpl.inputs["Base Color"].default_value = Color("#0E86C7").lnrgba
-                n_prcpl.inputs["Metallic"].default_value = 0.4
-                n_prcpl.inputs["Roughness"].default_value = 0.5
-                n_prcpl.inputs["Specular IOR Level"].default_value = 0.1
-                n_prcpl.inputs["Sheen Weight"].default_value = 0.1
-                n_prcpl.inputs["Sheen Roughness"].default_value = 0
+                n_pr.inputs["Base Color"].default_value = Color("#0E86C7").lnrgba
+                n_pr.inputs["Metallic"].default_value = 0.4
+                n_pr.inputs["Roughness"].default_value = 0.5
+                n_pr.inputs["Specular IOR Level"].default_value = 0.1
+                n_pr.inputs["Sheen Weight"].default_value = 0.1
+                n_pr.inputs["Sheen Roughness"].default_value = 0
             elif style == "VOID_DRY":
                 links.clear()
                 node_mix = nodes.new("ShaderNodeMixShader")
@@ -1143,21 +1143,21 @@ class Scene:
                 links.new(node_mix.outputs[0], output.inputs["Surface"])
                 node_trans = nodes.new("ShaderNodeBsdfTransparent")
                 links.new(node_trans.outputs["BSDF"], node_mix.inputs[1])
-                links.new(n_prcpl.outputs["BSDF"], node_mix.inputs[2])
-                n_prcpl.inputs["Base Color"].default_value = Color("#E5BE0F").lnrgba
-                n_prcpl.inputs["Metallic"].default_value = 0.4
-                n_prcpl.inputs["Roughness"].default_value = 0.5
-                n_prcpl.inputs["Specular IOR Level"].default_value = 0.1
-                n_prcpl.inputs["Sheen Weight"].default_value = 0.1
-                n_prcpl.inputs["Sheen Roughness"].default_value = 0
+                links.new(n_pr.outputs["BSDF"], node_mix.inputs[2])
+                n_pr.inputs["Base Color"].default_value = Color("#E5BE0F").lnrgba
+                n_pr.inputs["Metallic"].default_value = 0.4
+                n_pr.inputs["Roughness"].default_value = 0.5
+                n_pr.inputs["Specular IOR Level"].default_value = 0.1
+                n_pr.inputs["Sheen Weight"].default_value = 0.1
+                n_pr.inputs["Sheen Roughness"].default_value = 0
             elif style == "CELL_DEFAULT":
-                node_bevel = nodes.new("ShaderNodeBevel")
-                links.new(node_bevel.outputs["Normal"], n_prcpl.inputs["Normal"])
-                node_bevel.inputs["Radius"].default_value = 0.025 * 2
-                n_prcpl.inputs["Base Color"].default_value = Color("#947C5E").lnrgba
-                n_prcpl.inputs["Metallic"].default_value = 0.2
-                n_prcpl.inputs["Roughness"].default_value = 0.8
-                n_prcpl.inputs["Alpha"].default_value = 0.8
+                n_bevel = nodes.new("ShaderNodeBevel")
+                links.new(n_bevel.outputs["Normal"], n_pr.inputs["Normal"])
+                n_bevel.inputs["Radius"].default_value = 0.025 * 2
+                n_pr.inputs["Base Color"].default_value = Color("#947C5E").lnrgba
+                n_pr.inputs["Metallic"].default_value = 0.2
+                n_pr.inputs["Roughness"].default_value = 0.8
+                n_pr.inputs["Alpha"].default_value = 0.8
             elif style == "CELL_TRANSPARENT":
                 links.clear()
                 node_mix = nodes.new("ShaderNodeMixShader")
@@ -1165,14 +1165,14 @@ class Scene:
                 links.new(node_mix.outputs[0], output.inputs["Surface"])
                 node_trans = nodes.new("ShaderNodeBsdfTransparent")
                 links.new(node_trans.outputs["BSDF"], node_mix.inputs[1])
-                links.new(n_prcpl.outputs["BSDF"], node_mix.inputs[2])
-                node_bevel = nodes.new("ShaderNodeBevel")
-                links.new(node_bevel.outputs["Normal"], n_prcpl.inputs["Normal"])
-                node_bevel.inputs["Radius"].default_value = 0.025 * 5
-                n_prcpl.inputs["Base Color"].default_value = Color("#947C5E").lnrgba
-                n_prcpl.inputs["Metallic"].default_value = 0.2
-                n_prcpl.inputs["Roughness"].default_value = 0.8
-                n_prcpl.inputs["Alpha"].default_value = 0.8
+                links.new(n_pr.outputs["BSDF"], node_mix.inputs[2])
+                n_bevel = nodes.new("ShaderNodeBevel")
+                links.new(n_bevel.outputs["Normal"], n_pr.inputs["Normal"])
+                n_bevel.inputs["Radius"].default_value = 0.025 * 5
+                n_pr.inputs["Base Color"].default_value = Color("#947C5E").lnrgba
+                n_pr.inputs["Metallic"].default_value = 0.2
+                n_pr.inputs["Roughness"].default_value = 0.8
+                n_pr.inputs["Alpha"].default_value = 0.8
             elif style == "SOLID_DEFAULT":
                 # bevel node
                 n_bevel = nodes.new("ShaderNodeBevel")
@@ -1209,35 +1209,35 @@ class Scene:
                 links.new(node_mix.outputs[0], output.inputs["Surface"])
                 node_trans = nodes.new("ShaderNodeBsdfTransparent")
                 links.new(node_trans.outputs["BSDF"], node_mix.inputs[1])
-                links.new(n_prcpl.outputs["BSDF"], node_mix.inputs[2])
-                n_prcpl.inputs["Base Color"].default_value = Color("#947C5E").lnrgba
-                n_prcpl.inputs["Metallic"].default_value = 0
-                n_prcpl.inputs["Roughness"].default_value = 1
-                n_prcpl.inputs["Specular IOR Level"].default_value = 0.5
+                links.new(n_pr.outputs["BSDF"], node_mix.inputs[2])
+                n_pr.inputs["Base Color"].default_value = Color("#947C5E").lnrgba
+                n_pr.inputs["Metallic"].default_value = 0
+                n_pr.inputs["Roughness"].default_value = 1
+                n_pr.inputs["Specular IOR Level"].default_value = 0.5
             elif style == "BACTERIA_GREEN":
-                n_prcpl.inputs["Base Color"].default_value = Color("#3F901A").lnrgba
-                n_prcpl.inputs["Metallic"].default_value = 0.2
-                n_prcpl.inputs["Roughness"].default_value = 1
-                n_prcpl.inputs["Specular IOR Level"].default_value = 0
+                n_pr.inputs["Base Color"].default_value = Color("#3F901A").lnrgba
+                n_pr.inputs["Metallic"].default_value = 0.2
+                n_pr.inputs["Roughness"].default_value = 1
+                n_pr.inputs["Specular IOR Level"].default_value = 0
             elif style.startswith("ICE"):
                 if "ICE_TILED" == style:
                     color = random.choice(
                         ["#7891e3", "#92b2e8", "#95c5e8", "#b7d2e7", "#d6edff"]
                     )
-                    n_prcpl.inputs["Base Color"].default_value = Color(color).lnrgba
+                    n_pr.inputs["Base Color"].default_value = Color(color).lnrgba
                 else:
-                    n_prcpl.inputs["Base Color"].default_value = Color("#85A2E6").lnrgba
-                n_prcpl.inputs["Metallic"].default_value = 0
-                n_prcpl.inputs["Roughness"].default_value = 1
-                n_prcpl.inputs["Subsurface Weight"].default_value = 0.1
-                n_prcpl.inputs["Specular IOR Level"].default_value = 1
-                n_prcpl.inputs["Sheen Weight"].default_value = 0
-                n_prcpl.inputs["Sheen Roughness"].default_value = 1
+                    n_pr.inputs["Base Color"].default_value = Color("#85A2E6").lnrgba
+                n_pr.inputs["Metallic"].default_value = 0
+                n_pr.inputs["Roughness"].default_value = 1
+                n_pr.inputs["Subsurface Weight"].default_value = 0.1
+                n_pr.inputs["Specular IOR Level"].default_value = 1
+                n_pr.inputs["Sheen Weight"].default_value = 0
+                n_pr.inputs["Sheen Roughness"].default_value = 1
             elif style == "AXES":
-                n_prcpl.inputs["Base Color"].default_value = Color("#0001").lnrgba
-                n_prcpl.inputs["Metallic"].default_value = 0
-                n_prcpl.inputs["Roughness"].default_value = 1
-                n_prcpl.inputs["Specular IOR Level"].default_value = 0
+                n_pr.inputs["Base Color"].default_value = Color("#0001").lnrgba
+                n_pr.inputs["Metallic"].default_value = 0
+                n_pr.inputs["Roughness"].default_value = 1
+                n_pr.inputs["Specular IOR Level"].default_value = 0
 
             return mat
 
