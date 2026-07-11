@@ -40,6 +40,10 @@ class Scene:
         # remove default objects from scene
         self.remove_defaults()
 
+        # add camera and lights
+        self.create_camera("3D")
+        self.create_lights()
+
         # create collection for scene layers and add it to the scene
         col = bpy.data.collections.new("Layers")
         bpy.context.scene.collection.children.link(col)
