@@ -8,9 +8,7 @@ import PIL.Image
 def img_trim(pth_vis: Path, pad: int = ...) -> Path: ...
 @overload
 def img_trim(pth_vis: Path, pad: tuple[int, int, int, int] = ...) -> Path: ...
-def img_trim(
-    pth_vis: Path, pad: int | tuple[int, int, int, int] = (0, 0, 0, 0)
-) -> Path:
+def img_trim(pth_vis: Path, pad: int | tuple[int, int, int, int] = (0, 0, 0, 0)) -> Path:
     """
     Trims the transparent padding of an image.
     """
