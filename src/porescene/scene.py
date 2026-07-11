@@ -1172,13 +1172,34 @@ class Scene:
                 n_prcpl.inputs["Roughness"].default_value = 0.8
                 n_prcpl.inputs["Alpha"].default_value = 0.8
             elif style == "SOLID_DEFAULT":
-                # node_bevel = nodes.new("ShaderNodeBevel")
-                # links.new(node_bevel.outputs["Normal"], node_princ.inputs["Normal"])
-                # node_bevel.inputs["Radius"].default_value = 0.025 * 2
-                n_prcpl.inputs["Base Color"].default_value = Color("#947C5E").lnrgba
-                n_prcpl.inputs["Metallic"].default_value = 0
-                n_prcpl.inputs["Roughness"].default_value = 1
-                n_prcpl.inputs["Specular IOR Level"].default_value = 0.5
+                # bevel node
+                n_bevel = nodes.new("ShaderNodeBevel")
+                n_bevel.inputs["Radius"].default_value = 0.02
+
+                # ambient occlusion node
+                n_ao = nodes.new("ShaderNodeAmbientOcclusion")
+                n_ao.only_local = True
+                n_ao.inputs["Distance"].default_value = 0.5
+
+                # AO mixing node
+                n_ao_mix = nodes.new("ShaderNodeMixRGB")
+                n_ao_mix.blend_type = "MULTIPLY"
+                n_ao_mix.inputs["Factor"].default_value = 0.8
+                n_ao_mix.inputs["Color1"].default_value = Color("#A0805A").lnrgba
+
+                # principal node
+                n_pr.inputs["Metallic"].default_value = 0
+                n_pr.inputs["Roughness"].default_value = 0.5
+                n_pr.inputs["Specular IOR Level"].default_value = 0.5
+                n_pr.inputs["Sheen Weight"].default_value = 0.1
+                n_pr.inputs["Sheen Roughness"].default_value = 0.3
+                n_pr.inputs["Subsurface Weight"].default_value = 0.12
+                n_pr.inputs["Subsurface Scale"].default_value = 0.15
+
+                links.new(n_bevel.outputs["Normal"], n_pr.inputs["Normal"])
+                links.new(n_ao.outputs["Color"], n_ao_mix.inputs["Color2"])
+                links.new(n_ao_mix.outputs["Color"], n_pr.inputs["Base Color"])
+
             elif style == "SOLID_TRANSPARENT":
                 links.clear()
                 node_mix = nodes.new("ShaderNodeMixShader")
