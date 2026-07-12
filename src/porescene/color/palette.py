@@ -37,11 +37,10 @@ class Palette:
         """
         Creates a :class:`Palette` instance by loading colormap data from file.
 
-        :mod:`PoreScene` includes a large set of scientific colormaps, including:
-        
-        - `Fabio Crameris collection <>`_
+        :mod:`porescene` includes a large set of scientific colormaps, including:
+
+        - `Fabio Crameris collection <https://www.fabiocrameri.ch/colourmaps/>`_
         - :mod:`matplotlib` colormaps
-        
 
         Parameters
         ----------
@@ -89,7 +88,7 @@ class Palette:
     def subset(self, n: int = 5) -> list[Color]:
         """
         Returns a subset of ``n`` equidistant sampled colors from the palette.
-        
+
         Parameters
         ----------
         n : int, optional
