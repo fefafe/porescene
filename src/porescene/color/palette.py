@@ -1,5 +1,6 @@
 import random
 import re
+from enum import Enum
 from importlib import resources
 from typing import Self
 
@@ -7,6 +8,86 @@ import numpy as np
 
 import porescene.utility as util
 from porescene.color import Color
+
+
+class Colormap(Enum):
+    """
+    All colormaps bundled with :mod:`porescene`.
+
+    Each member's value is the file name (without extension) of the
+    corresponding colormap in ``porescene/data/colormap`` and can be passed
+    to :meth:`Palette.load`. The collection comprises
+    `Fabio Crameri's scientific colormaps
+    <https://www.fabiocrameri.ch/colourmaps/>`_ and a selection of
+    :mod:`matplotlib` colormaps.
+    """
+
+    ACTON = "acton"
+    ACTONS = "actonS"
+    BAM = "bam"
+    BAMO = "bamO"
+    BAMAKO = "bamako"
+    BAMAKOS = "bamakoS"
+    BATLOW = "batlow"
+    BATLOWK = "batlowK"
+    BATLOWKS = "batlowKS"
+    BATLOWS = "batlowS"
+    BATLOWW = "batlowW"
+    BATLOWWS = "batlowWS"
+    BERLIN = "berlin"
+    BILBAO = "bilbao"
+    BILBAOS = "bilbaoS"
+    BROC = "broc"
+    BROCO = "brocO"
+    BUDA = "buda"
+    BUDAS = "budaS"
+    BUKAVU = "bukavu"
+    CIVIDIS = "cividis"
+    CORK = "cork"
+    CORKO = "corkO"
+    DAVOS = "davos"
+    DAVOSS = "davosS"
+    DEVON = "devon"
+    DEVONS = "devonS"
+    EMBER = "ember"
+    FES = "fes"
+    GLASGOW = "glasgow"
+    GLASGOWS = "glasgowS"
+    GRAYC = "grayC"
+    GRAYCS = "grayCS"
+    HAWAII = "hawaii"
+    HAWAIIS = "hawaiiS"
+    IMOLA = "imola"
+    IMOLAS = "imolaS"
+    INFERNO = "inferno"
+    LAJOLLA = "lajolla"
+    LAJOLLAS = "lajollaS"
+    LAPAZ = "lapaz"
+    LAPAZS = "lapazS"
+    LIPARI = "lipari"
+    LIPARIS = "lipariS"
+    LISBON = "lisbon"
+    MAGMA = "magma"
+    MANAGUA = "managua"
+    NAVIA = "navia"
+    NAVIAS = "naviaS"
+    NUUK = "nuuk"
+    NUUKS = "nuukS"
+    OLERON = "oleron"
+    OSLO = "oslo"
+    OSLOS = "osloS"
+    PLASMA = "plasma"
+    ROMA = "roma"
+    ROMAO = "romaO"
+    TOFINO = "tofino"
+    TOKYO = "tokyo"
+    TOKYOS = "tokyoS"
+    TURKU = "turku"
+    TURKUS = "turkuS"
+    VANIMO = "vanimo"
+    VIK = "vik"
+    VIKO = "vikO"
+    VIRIDIS = "viridis"
 
 
 class Palette:
@@ -33,23 +114,27 @@ class Palette:
             raise StopIteration
 
     @classmethod
-    def load(cls, name: str) -> Self:
+    def load(cls, name: str | Colormap) -> Self:
         """
         Creates a :class:`Palette` instance by loading colormap data from file.
 
         :mod:`porescene` includes a large set of scientific colormaps, including:
 
-        - `Fabio Crameris collection <https://www.fabiocrameri.ch/colourmaps/>`_
+        - `Fabio Crameri's collection <https://www.fabiocrameri.ch/colourmaps/>`_
         - :mod:`matplotlib` colormaps
 
         Parameters
         ----------
-        name : str
-            Name of the colormap to be loaded from file.
+        name : str | Colormap
+            Colormap to be loaded from file, either as a :class:`Colormap`
+            member or the corresponding colormap name.
         """
         colorlist: list[Color] = []
 
-        pattern = re.compile("^[a-z0-9]+$")
+        if isinstance(name, Colormap):
+            name = name.value
+
+        pattern = re.compile("^[a-zA-Z0-9]+$")
 
         if not pattern.match(name):
             raise Exception("Specified colormap is not available")
