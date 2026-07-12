@@ -20,4 +20,7 @@
     "svg.preview.background": "transparent",
     "python-envs.defaultEnvManager": "ms-python.python:poetry",
     "python-envs.defaultPackageManager": "ms-python.python:poetry",
+    "flake8.args": [
+        "--max-line-length=90"
+    ],
 }
