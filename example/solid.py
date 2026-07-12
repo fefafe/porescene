@@ -8,10 +8,10 @@ from porescene.scene import Scene
 # Import Parameters
 
 # data directory
-pth_data = Path("./data/")
+pth_data = Path.cwd() / "data"
 
 # temporary directory for rendered images
-pth_tmp = Path("./tmp/")
+pth_tmp = Path.cwd() / "tmp"
 
 # [m] domain dimensions
 dims = (100e-06, 100e-06, 100e-06)
