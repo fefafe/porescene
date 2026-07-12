@@ -1,3 +1,7 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Copyright (C) 2026 Felix Faber /
+# Otto von Guericke University Magdeburg, Thermal Process Engineering
+
 type ColorTupleInt3 = tuple[int, int, int]
 type ColorTupleInt3Float1 = tuple[int, int, int, float]
 type ColorTupleFloat3 = tuple[float, float, float]

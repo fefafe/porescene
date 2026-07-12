@@ -4,6 +4,8 @@ version = "0.1.0"
 description = ""
 authors = [{ name = "Felix Faber", email = "felix.faber@ovgu.de" }]
 readme = "README.md"
+license = "GPL-3.0-only"
+license-files = ["LICENSE"]
 requires-python = "=3.13.*"
 dependencies = ["bpy", "numpy", "rich", "h5py", "pillow"]
 
