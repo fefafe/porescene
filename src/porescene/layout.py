@@ -332,6 +332,13 @@ class TitleOverlay(BackgroundOverlay):
                 sign_y = 1
                 anchor = "start"
                 baseline = "auto"
+            case CompassDirection.EAST:
+                x = self.resolution[0] - self.padding[1]
+                y = self.padding[0]
+                sign_x = -1
+                sign_y = 1
+                anchor = "end"
+                baseline = "auto"
         return x, y, sign_x, sign_y, anchor, baseline
 
     @property
