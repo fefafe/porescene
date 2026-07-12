@@ -27,7 +27,7 @@ sc = Scene.from_json(dims, pth_data / "porescene.json")
 sc.create_axes()
 
 # add a solid object to the scene
-sc.create_solid(pth_data / "Solid.ply")
+sc.create_solid(pth_data / "solid.ply")
 
 # render the scene
 pth_img = sc.render(pth_tmp, "solid")
