@@ -3,8 +3,7 @@ from pathlib import Path
 from porescene import image
 from porescene.scene import Scene
 
-
-# ==============================================================
+# =============================================================================
 # Import Parameters
 
 # data directory
@@ -17,7 +16,7 @@ pth_tmp = Path.cwd() / "tmp"
 dims = (100e-06, 100e-06, 100e-06)
 
 
-# ==============================================================
+# =============================================================================
 # Scene configuration and rendering
 
 # create a new scene from PoreScene JSON configuration
@@ -32,5 +31,5 @@ sc.create_solid(pth_data / "solid.ply")
 # render the scene
 pth_img = sc.render(pth_tmp, "solid")
 
-# trim whitespace from the renderen PNG, add a padding of 50 px
-image.img_trim(pth_img, 50)
+# add padding of 10 %
+image.img_pad(pth_img, 0.1)

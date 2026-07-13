@@ -34,5 +34,5 @@ sc.apply_colors("Clusters", Palette.load(Colormap.BATLOW).random(4000))
 # render the scene
 pth_img = sc.render(pth_tmp, "cluster-random")
 
-# trim whitespace from the renderen PNG, add a padding of 50 px
-image.img_trim(pth_img, 50)
+# add padding of 10 %
+image.img_pad(pth_img, 0.1)

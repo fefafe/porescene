@@ -33,5 +33,5 @@ worker.build_structure(sc, pn, False)
 # render the scene
 sc, pth_img = worker.make_structure(pth_tmp, pn, sc)
 
-# trim whitespace from the rendered image, add padding of 50 px
-image.img_trim(pth_img, 50)
+# add padding of 10 %
+image.img_pad(pth_img, 0.1)
