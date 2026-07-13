@@ -272,15 +272,18 @@ def make_structure(pth: Path, pn: PoreNetwork, sc: Scene) -> tuple[Scene, Path]:
     """
     do_spheres = sc.config_scene.enable_spheres and pn.pore_radius is not None
     do_cylinders = sc.config_scene.enable_cylinders and pn.throat_radius is not None
-    do_clusters = sc.config_scene.enable_clusters
+    do_clusters = sc.config_scene.enable_clusters and sc.has_clusters
+
+    color_grey = Color("#7A828C")
+
     sc, fname = make_img(
         pth,
         sc,
         do_spheres,
         do_cylinders,
         do_clusters,
-        [fefa.gray for _ in range(pn.pore_count)] if do_spheres else [],
-        [fefa.gray for _ in range(pn.throat_count)] if do_cylinders else [],
+        [color_grey for _ in range(len(pn.pore_radius))] if do_spheres else [],
+        [color_grey for _ in range(len(pn.throat_radius))] if do_cylinders else [],
         sc.config_scene.palette.random(pn.pore_count) if do_clusters else [],
         "structure",
         "structure",
