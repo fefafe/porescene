@@ -78,7 +78,7 @@ class PropertyConfiguration:
     def color_nan(self) -> Color | None:
         """
         Color of NaN values.
-        
+
         See also :attr:`Gradient.color_nan <porescene.color.gradient.Gradient.color_nan>`.
         """
         return self._color_nan
@@ -91,7 +91,7 @@ class PropertyConfiguration:
     def color_below(self) -> Color | None:
         """
         Color of values below the range.
-        
+
         See also :attr:`.Gradient.color_below`.
         """
         return self._color_below
@@ -104,7 +104,7 @@ class PropertyConfiguration:
     def color_above(self) -> Color | None:
         """
         Color of values above the range.
-        
+
         See also :attr:`.Gradient.color_above`.
         """
         return self._color_above
@@ -697,7 +697,9 @@ class AxesConfiguration:
 
     @property
     def font_family(self) -> Path | None:
-        """Font family for axis labels specified as :class:`Path <pathlib.Path>` to TTF file."""
+        """
+        Font family for axis labels specified as :class:`Path <pathlib.Path>` to TTF file.
+        """
         return self._font_family
 
     @font_family.setter
