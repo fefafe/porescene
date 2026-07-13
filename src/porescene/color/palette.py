@@ -154,7 +154,7 @@ class Palette:
 
         with resources.as_file(ref) as pth:
 
-            colors = np.fromfile(pth, sep=" ").reshape((256, 3))
+            colors = np.fromfile(pth, sep=" ").reshape((-1, 3))
 
             for color in colors:
                 colorlist.append(Color.from_nrgb(*color))
