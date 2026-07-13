@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import numpy as np
+
 from porescene import worker
 from porescene import image
 from porescene.model import PoreNetwork
@@ -24,11 +26,18 @@ dims = (100e-06, 100e-06, 100e-06)
 # load pore network data from MAT file
 pn = PoreNetwork.from_mat(pth_data / "pnm.mat")
 
+# Unify pore and throat radii
+pn.pore_radius = np.ones(pn.pore_count) * 2e-6
+pn.throat_radius = np.ones(pn.throat_count) * 0.5e-6
+
 # load PoreScene config from JSON file
 sc = Scene.from_json(dims, pth_data / "porescene.json")
 
 # add cylinders and spheres to the scene
 worker.build_structure(sc, pn, False)
+
+# add axes around the scene
+sc.create_axes()
 
 # render the scene
 sc, pth_img = worker.make_structure(pth_tmp, pn, sc)
