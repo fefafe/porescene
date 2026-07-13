@@ -110,20 +110,38 @@ class Scene:
         """
         Sets the colors for all items in a collection for given frame.
         """
+        color_array = np.array([c.lnrgba for c in colors], dtype=np.float32)
+
+        # Single meshes
         mesh = bpy.data.meshes.get(name_mesh)
+        if mesh is not None:
+            color_attr = mesh.attributes.get("color")
+            color_attr.data.foreach_set("color", color_array.ravel())
+            return self
 
-        if mesh is None:
-            raise Exception(f"There is no object with name '{name_mesh}'")
+        # Collection of individual objects
+        col = bpy.data.collections.get(name_mesh)
+        if col is not None:
 
-        color_array = np.ndarray(shape=(len(colors), 4))
+            def label_no(name: str) -> int:
+                parts = name.split("_")
+                return int(parts[1]) if parts[0] == "label" and parts[1].isdigit() else 0
 
-        for idx, color in enumerate(colors):
-            color_array[idx, :] = color.lnrgba
+            for idx, obj in enumerate(
+                sorted(col.objects, key=lambda o: label_no(o.name))
+            ):
+                if idx >= len(color_array):
+                    break
+                obj_mesh = cast(bpy.types.Mesh, obj.data)
+                color_attr = obj_mesh.attributes.get("cluster_color")
+                if color_attr is None:
+                    continue
+                color_attr.data.foreach_set(
+                    "color", np.tile(color_array[idx], len(obj_mesh.vertices))
+                )
+            return self
 
-        color_attr = mesh.attributes.get("color")
-        color_attr.data.foreach_set("color", color_array.astype(np.float32).ravel())
-
-        return self
+        raise Exception(f"There is no mesh or collection named '{name_mesh}'")
 
     def create_axes(self) -> Self:
         """
@@ -719,7 +737,11 @@ class Scene:
         with _get_spinner(f"[cyan]Loading object: {pth.name}") as p:
             p.add_task("load", total=None)
             _import_object(pth)
-        mat = self.get_material(style, "default")
+
+        mat = self.get_material(style, "clusters")
+        if not any(n.type == "ATTRIBUTE" for n in mat.node_tree.nodes):
+            self._apply_object_color(mat)
+
         col = bpy.data.collections.new("Clusters")
         col_default = bpy.data.collections.get("Collection")
         for obj in progress.track(
@@ -733,9 +755,16 @@ class Scene:
                 col_default.objects.unlink(obj)
                 col.objects.link(obj)
 
+        default_color = np.array(Color("#58646E").lnrgba, dtype=np.float32)
         for obj in progress.track(col.objects, description="Creating cluster materials"):
-            obj.data.materials.append(mat.copy())
-            obj.data.materials[0].name = obj.name
+            mesh = cast(bpy.types.Mesh, obj.data)
+            color_attr = mesh.attributes.new(
+                name="cluster_color", type="FLOAT_COLOR", domain="POINT"
+            )
+            color_attr.data.foreach_set(
+                "color", np.tile(default_color, len(mesh.vertices))
+            )
+            mesh.materials.append(mat)
         bpy.context.scene.collection.children.link(col)
         self.has_clusters = True
         return self
@@ -834,6 +863,21 @@ class Scene:
         attr_node = tree.nodes.new("ShaderNodeAttribute")
         attr_node.attribute_type = "INSTANCER"
         attr_node.attribute_name = "color"
+        tree.links.new(attr_node.outputs["Color"], principled.inputs["Base Color"])
+
+    def _apply_object_color(self, mat: bpy.types.Material) -> None:
+        """
+        Connects material base color to the per-object "color" mesh attribute.
+
+        Object counterpart of :meth:`_apply_instance_color`: used for real
+        objects (e.g. clusters) that carry their own "color" attribute rather
+        than being instanced through geometry nodes.
+        """
+        tree = mat.node_tree
+        principled = next(n for n in tree.nodes if n.type == "BSDF_PRINCIPLED")
+        attr_node = tree.nodes.new("ShaderNodeAttribute")
+        attr_node.attribute_type = "GEOMETRY"
+        attr_node.attribute_name = "cluster_color"
         tree.links.new(attr_node.outputs["Color"], principled.inputs["Base Color"])
 
     def _get_node_group(self, template: bpy.types.Object) -> bpy.types.NodeTree:
