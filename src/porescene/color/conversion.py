@@ -64,16 +64,32 @@ def hex2rgb(h: str) -> ColorTupleInt3 | ColorTupleInt3Float1:
 
 def rgb2hex(r: int, g: int, b: int, a: float | None = None) -> str:
     """
-    Convert sRGB into HEX.
+    Convert sRGB channels into a hex color string.
 
-    Returns a three-element or four-element `tuple` depending on whether or
-    not a ``alpha`` value is given.
+    Returns a ``#RRGGBB`` string, or ``#RRGGBBAA`` when ``a`` [0-1] is given.
+
+    Parameters
+    ----------
+    r : int
+        Red color channel [0 - 255]
+    g : int
+        Green color channel [0 - 255]
+    b : int
+        Blue color channel [0 - 255]
+    a : float | None, optional
+        Alpha color channel [0 - 1], by default None
+
+    Returns
+    -------
+    str
+        Hex color string
     """
+    r, g, b = (max(0, min(255, int(round(v)))) for v in (r, g, b))
     if a is None:
-        h = "#%02x%02x%02x" % (r, g, b)
-    else:
-        h = "#%02x%02x%02x%02x" % (r, g, b, int(a * 255))
-    return h.upper()
+        return "#%02X%02X%02X" % (r, g, b)
+    alpha = max(0, min(255, round(a * 255)))
+    return "#%02X%02X%02X%02X" % (r, g, b, alpha)
+
 
 
 @overload
