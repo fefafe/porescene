@@ -1267,9 +1267,9 @@ class Scene:
 
     def hide_cylinders(self) -> Self:
         """Hides all cylinders from render scene."""
-        col = bpy.data.collections.get("Cylinders")
-        if col:
-            col.hide_render = True
+        obj = bpy.data.objects.get("Cylinders")
+        if obj:
+            obj.hide_render = True
         return self
 
     def hide_solid(self) -> Self:
@@ -1282,9 +1282,9 @@ class Scene:
 
     def hide_spheres(self) -> Self:
         """Hides all spheres from render scene."""
-        col = bpy.data.collections.get("Spheres")
-        if col:
-            col.hide_render = True
+        obj = bpy.data.objects.get("Spheres")
+        if obj:
+            obj.hide_render = True
         return self
 
     def hide_void(self) -> Self:
@@ -1390,10 +1390,10 @@ class Scene:
         return self
 
     def show_cylinders(self) -> Self:
-        """Hides all cylinders from render scene."""
-        col = bpy.data.collections.get("Cylinders")
-        if col:
-            col.hide_render = False
+        """Shows all cylinders in the render scene."""
+        obj = bpy.data.objects.get("Cylinders")
+        if obj:
+            obj.hide_render = False
         return self
 
     def show_solid(self) -> Self:
@@ -1405,10 +1405,10 @@ class Scene:
         return self
 
     def show_spheres(self) -> Self:
-        """Hides all spheres from render scene."""
-        col = bpy.data.collections.get("Spheres")
-        if col:
-            col.hide_render = False
+        """Shows all spheres in the render scene."""
+        obj = bpy.data.objects.get("Spheres")
+        if obj:
+            obj.hide_render = False
         return self
 
     def show_void(self) -> Self:
