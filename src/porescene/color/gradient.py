@@ -36,7 +36,7 @@ class Gradient(ABC):
 
     def __call__(self, value) -> list[Color]:
         """
-        Returns the equivalent :class:``Color`` to `value`.
+        Returns the equivalent :class:`Color <porescene.color.Color>` to ``value``.
         """
 
         return self.get_color(value)
@@ -72,9 +72,10 @@ class Gradient(ABC):
     @abstractmethod
     def get_color(self, values) -> list[Color]:
         """
-        Returns the equivalent :class:``Color`` to ``value``.
+        Returns the equivalent :class:`Color <porescene.color.Color>` to ``values``.
 
-        Returns ``list`` of :class:``Color``, if several values given.
+        Returns :class:`list` of :class:`Color <porescene.color.Color>`, if several
+        ``values`` given.
         """
 
     @property
@@ -136,7 +137,7 @@ class Gradient(ABC):
     @property
     def color_nan(self) -> Color:
         """
-        Color of NaN values.
+        :class:`Color <porescene.color.Color>` of NaN values.
         """
         return self._color_nan
 
@@ -268,7 +269,7 @@ class DiscreteGradient:
 
     def __call__(self, value) -> Color | list[Color]:
         """
-        Returns the equivalent :class:``Color`` for `value`.
+        Returns the equivalent :class:`Color <porescene.color.Color>` for ``value``.
         """
         return self.get_color(value)
 
