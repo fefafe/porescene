@@ -3,58 +3,108 @@
 # Otto von Guericke University Magdeburg, Thermal Process Engineering
 
 from pathlib import Path
-from typing import overload
 
 import PIL.Image
 
+from porescene.utility import CompassDirection, Orientation
 
-@overload
-def img_trim(pth_vis: Path, pad: int = ...) -> Path: ...
-@overload
-def img_trim(pth_vis: Path, pad: tuple[int, int, int, int] = ...) -> Path: ...
-def img_trim(pth_vis: Path, pad: int | tuple[int, int, int, int] = (0, 0, 0, 0)) -> Path:
+
+def img_trim(pth_img: Path) -> Path:
     """
     Trims the transparent padding of an image.
     """
 
-    if isinstance(pad, int):
-        pad = (pad, pad, pad, pad)
-
-    img_vis = PIL.Image.open(pth_vis)
-
+    img_vis = PIL.Image.open(pth_img)
     img_vis = img_vis.crop(img_vis.getbbox())
 
-    width, height = img_vis.size
-    top, right, bottom, left = pad
-
-    new_width = width + right + left
-    new_height = height + top + bottom
-
-    # filepath of the trimmed image
-    parts_fname = pth_vis.stem.split("_")
+    parts_fname = pth_img.stem.split("_")
     del parts_fname[-1]
 
-    pth_trimmed = pth_vis.with_stem("_".join(parts_fname))
+    pth_trimmed = pth_img.with_stem("_".join(parts_fname))
 
-    result = PIL.Image.new(img_vis.mode, (new_width, new_height), (0, 0, 0, 0))
-    result.paste(img_vis, (left, top))
-    result.save(pth_trimmed, "PNG")
+    img_vis.save(pth_trimmed, "PNG")
 
     return pth_trimmed
 
 
-def img_add_colorbar(pth_vis: Path, pth_cb: Path) -> Path:
+def img_pad(
+    pth_img: Path,
+    pad: int | float | tuple[int | float, int | float, int | float, int | float] = (
+        0,
+        0,
+        0,
+        0,
+    ),
+    /,
+    trim: bool = True,
+) -> Path:
     """
-    Trims the transparent padding of an image.
+    Adds padding to the given image
+
+    Parameters
+    ----------
+    pth_img : Path
+        Path of the image file
+    pad : int | tuple[int, int, int, int], optional
+        Amount of padding to add on each side (top, right, bottom, left),
+        by default (0, 0, 0, 0)
+    trim: bool
+        If ``True``, existing whitespace gets trimmed from the image before padding gets
+        applied, by default True
+
+    Returns
+    -------
+    Path
+        File path of the padded image.
+    """
+    if isinstance(pad, int | float):
+        pad = (pad, pad, pad, pad)
+
+    img_trimmed = PIL.Image.open(pth_img)
+
+    if trim:
+        img_trimmed = img_trimmed.crop(img_trimmed.getbbox())
+
+    width, height = img_trimmed.size
+    top, right, bottom, left = pad
+
+    if top < 1:
+        pad_top = int(round(top * height))
+    if bottom < 1:
+        pad_bottom = int(round(bottom * height))
+    if left < 1:
+        pad_left = int(round(left * width))
+    if right < 1:
+        pad_right = int(round(right * width))
+
+    new_width = width + pad_right + pad_left
+    new_height = height + pad_top + pad_bottom
+
+    parts_fname = pth_img.stem.split("_")
+    parts_fname.append("padded")
+
+    pth_padded = pth_img.with_stem("_".join(parts_fname))
+
+    img_padded = PIL.Image.new(img_trimmed.mode, (new_width, new_height), (0, 0, 0, 0))
+    img_padded.paste(img_trimmed, (pad_left, pad_top))
+    img_padded.save(pth_padded, "PNG")
+
+    return pth_img
+
+
+def img_add_colorbar(
+    pth_vis: Path,
+    pth_cb: Path,
+    direction: CompassDirection = CompassDirection.SOUTH,
+    orientation: Orientation = Orientation.HORIZONTAL,
+    *,
+    center_rendering: bool = False,
+) -> Path:
+    """
+    Composites the colorbar next to the visualization image.
     """
 
-    # padding
-    right = 0
-    left = 0
-    top = 0
-    bottom = 0
-
-    img_ax = PIL.Image.open(pth_cb)
+    img_ax = PIL.Image.open(pth_cb).convert("RGBA")
     img_vis = PIL.Image.open(pth_vis).convert("RGBA")
 
     img_ax = img_ax.crop(img_ax.getbbox())
@@ -63,21 +113,73 @@ def img_add_colorbar(pth_vis: Path, pth_cb: Path) -> Path:
     w_vis, h_vis = img_vis.size
     asp_cb = img_ax.width / img_ax.height
 
-    w_cb = int(0.5 * w_vis)
-    h_cb = int(w_cb / asp_cb)
-    spacing = int(h_cb * 0.25)
+    compass = direction.value  # e.g. "N", "SE", "W"
 
-    img_ax = img_ax.resize((w_cb, h_cb), PIL.Image.Resampling.LANCZOS)
+    if orientation is Orientation.VERTICAL:
+        # Tall colorbar stacked to the left/right of the visualization.
+        h_cb = int(0.6 * h_vis)
+        w_cb = int(h_cb * asp_cb)
+        spacing = int(w_cb * 0.25)
+        img_ax = img_ax.resize((w_cb, h_cb), PIL.Image.Resampling.LANCZOS)
 
-    new_width = w_vis + right + left
-    new_height = bottom + h_vis + spacing + h_cb + top
-    pad_cb = int((new_width - right - left - w_cb) / 2)
+        canvas_w = w_vis + spacing + w_cb
+        canvas_h = max(h_vis, h_cb)
 
-    pth_comp = pth_vis.with_stem(pth_vis.stem + "_colorbar")
+        if center_rendering:
+            canvas_w += spacing + w_cb
 
-    img_comp = PIL.Image.new(img_vis.mode, (new_width, new_height), (0, 0, 0, 0))
-    img_comp.paste(img_vis, (left, top))
-    img_comp.paste(img_ax, (left + pad_cb, top + h_vis + spacing))
+        # left for a westward direction, right otherwise (default east side)
+        if "W" in compass:
+            cb_x, vis_x = 0, w_cb + spacing
+        else:
+            vis_x, cb_x = 0, w_vis + spacing
+            if center_rendering:
+                cb_x += spacing + w_cb
+
+        # north -> top, south -> bottom, else vertically centered
+        def vpos(h: int) -> int:
+            if "N" in compass:
+                return 0
+            if "S" in compass:
+                return canvas_h - h
+            return (canvas_h - h) // 2
+
+        vis_y, cb_y = vpos(h_vis), vpos(h_cb)
+    else:
+        # Wide colorbar stacked above/below the visualization.
+        w_cb = int(0.5 * w_vis)
+        h_cb = int(w_cb / asp_cb)
+        spacing = int(h_cb * 0.25)
+        img_ax = img_ax.resize((w_cb, h_cb), PIL.Image.Resampling.LANCZOS)
+
+        canvas_w = max(w_vis, w_cb)
+        canvas_h = h_vis + spacing + h_cb
+
+        # north -> top, south -> bottom (default south side)
+        if "N" in compass:
+            cb_y, vis_y = 0, h_cb + spacing
+        else:
+            vis_y, cb_y = 0, h_vis + spacing
+
+        # west -> left, east -> right, else horizontally centered
+        def hpos(w: int) -> int:
+            if "W" in compass:
+                return 0
+            if "E" in compass:
+                return canvas_w - w
+            return (canvas_w - w) // 2
+
+        vis_x, cb_x = hpos(w_vis), hpos(w_cb)
+
+    parts_fname = pth_vis.stem.split("_")
+    del parts_fname[-1]
+    parts_fname.append("colorbar")
+
+    pth_comp = pth_vis.with_stem("_".join(parts_fname))
+
+    img_comp = PIL.Image.new("RGBA", (canvas_w, canvas_h), (0, 0, 0, 0))
+    img_comp.alpha_composite(img_vis, (vis_x, vis_y))
+    img_comp.alpha_composite(img_ax, (cb_x, cb_y))
     img_comp.save(pth_comp, "PNG")
 
     return pth_comp
