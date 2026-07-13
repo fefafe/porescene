@@ -5,7 +5,7 @@ from porescene import image
 from porescene.model import PoreNetwork
 from porescene.scene import Scene
 
-# ==============================================================
+# =============================================================================
 # Import Parameters
 
 # data directory
@@ -18,7 +18,7 @@ pth_tmp = Path.cwd() / "tmp"
 dims = (100e-06, 100e-06, 100e-06)
 
 
-# ==============================================================
+# =============================================================================
 # Scene configuration
 
 # load pore network data from MAT file
