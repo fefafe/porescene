@@ -29,7 +29,7 @@ sc.create_axes()
 
 # add a solid object to the scene
 sc.create_clusters(pth_data / "segmentation-void.obj")
-sc.apply_colors("Clusters", Palette.load(Colormap.BATLOW).random(4000))
+sc.apply_colors("Clusters", Palette.load(Colormap.TURBO).random(3913))
 
 # render the scene
 pth_img = sc.render(pth_tmp, "cluster-random")
