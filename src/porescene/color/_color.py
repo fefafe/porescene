@@ -219,7 +219,7 @@ class Color:
     @property
     def str_hex(self) -> str:
         """HEX `str` with hash."""
-        return rgb2hex(*nrgb2rgb(*self.rgb)).upper()
+        return rgb2hex(*self.rgb)
 
     @property
     def str_hexa(self) -> str:
