@@ -4,7 +4,6 @@ from porescene import image
 from porescene.color.palette import Colormap, Palette
 from porescene.scene import Scene
 
-
 # ==============================================================
 # Import Parameters
 

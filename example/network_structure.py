@@ -2,8 +2,7 @@ from pathlib import Path
 
 import numpy as np
 
-from porescene import worker
-from porescene import image
+from porescene import image, worker
 from porescene.model import PoreNetwork
 from porescene.scene import Scene
 
