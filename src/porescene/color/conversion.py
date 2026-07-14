@@ -91,7 +91,6 @@ def rgb2hex(r: int, g: int, b: int, a: float | None = None) -> str:
     return "#%02X%02X%02X%02X" % (r, g, b, alpha)
 
 
-
 @overload
 def rgb2nrgb(r: int, g: int, b: int, a: None = None) -> ColorTupleFloat3: ...
 @overload
