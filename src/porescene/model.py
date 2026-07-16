@@ -574,10 +574,8 @@ class PoreNetwork:
     def throat_coordination_number(self, arg: np.ndarray | None):
         self._throat_coordination_number = arg
 
-    @property
     def throat_count(
         self,
-        *,
         left: bool = False,
         right: bool = False,
         front: bool = False,
