@@ -242,7 +242,7 @@ class PoreNetwork:
             if "r_t_out_top" in f:
                 pn.throat_radius_top = np.array(f["r_t_out_top"]).transpose()
             if "r_t_out_bot" in f:
-                pn.throat_radius_bot = np.array(f["r_t_out_bot"]).transpose()
+                pn.throat_radius_bottom = np.array(f["r_t_out_bot"]).transpose()
             if "r_t_out_left" in f:
                 pn.throat_radius_left = np.array(f["r_t_out_left"]).transpose()
             if "r_t_out_right" in f:
@@ -632,15 +632,15 @@ class PoreNetwork:
         self._throat_radius_top = arg
 
     @property
-    def throat_radius_bot(self) -> np.ndarray | None:
+    def throat_radius_bottom(self) -> np.ndarray | None:
         """
         Radius of each throat connection into the surrounding at the sample top
         interface.
         """
         return self._throat_radius_bot
 
-    @throat_radius_bot.setter
-    def throat_radius_bot(self, arg: np.ndarray | None):
+    @throat_radius_bottom.setter
+    def throat_radius_bottom(self, arg: np.ndarray | None):
         self._throat_radius_bot = arg
 
     @property
