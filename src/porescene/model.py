@@ -575,23 +575,32 @@ class PoreNetwork:
         self._throat_coordination_number = arg
 
     @property
-    def throat_count(self) -> int:
+    def throat_count(
+        self,
+        *,
+        left: bool = False,
+        right: bool = False,
+        front: bool = False,
+        back: bool = False,
+        bottom: bool = False,
+        top: bool = False,
+    ) -> int:
         """
         Number of throats in the network.
         """
         if self.throat_radius is not None:
             cnt = len(self.throat_radius)
-            if self.throat_radius_top is not None:
+            if top and self.throat_radius_top is not None:
                 cnt += len(self.throat_radius_top)
-            if self.throat_radius_bot is not None:
-                cnt += len(self.throat_radius_bot)
-            if self.throat_radius_left is not None:
+            if bottom and self.throat_radius_bottom is not None:
+                cnt += len(self.throat_radius_bottom)
+            if left and self.throat_radius_left is not None:
                 cnt += len(self.throat_radius_left)
-            if self.throat_radius_right is not None:
+            if right and self.throat_radius_right is not None:
                 cnt += len(self.throat_radius_right)
-            if self.throat_radius_front is not None:
+            if front and self.throat_radius_front is not None:
                 cnt += len(self.throat_radius_front)
-            if self.throat_radius_back is not None:
+            if back and self.throat_radius_back is not None:
                 cnt += len(self.throat_radius_back)
         else:
             cnt = 0
