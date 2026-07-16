@@ -23,38 +23,110 @@ from porescene.scene import Scene
 from porescene.utility import _get_bounds, svg2png
 
 
-def build_structure(sc: Scene, pn: PoreNetwork, top: bool = False):
+def build_structure(
+    sc: Scene,
+    pn: PoreNetwork,
+    *,
+    left: bool = False,
+    right: bool = False,
+    front: bool = False,
+    back: bool = False,
+    bottom: bool = False,
+    top: bool = False,
+) -> Scene:
+    """
+    Constructs the cylinder and sphere meshes in the Blender scene based on the given
+    :class:`PoreNetwork <porescene.model.PoreNetwork>` instance.
+
+    Parameters
+    ----------
+    sc : Scene
+        The scene to add the objects to.
+    pn : PoreNetwork
+        The pore network that is used to calculate cylinder and sphere positions
+        as well as dimensions
+    left : bool, optional
+        If true, boundary pores (as well as their connections into the central network)
+        at the start of the x-dimension are added into the scene, by default False
+    right : bool, optional
+        If true, boundary pores (as well as their connections into the central network)
+        at the end of the x-dimension are added into the scene, by default False
+    front : bool, optional
+        If true, boundary pores (as well as their connections into the central network)
+        at the start of the y-dimension are added into the scene, by default False
+    back : bool, optional
+        If true, boundary pores (as well as their connections into the central network)
+        at the end of the y-dimension are added into the scene, by default False
+    bottom : bool, optional
+        If true, boundary pores (as well as their connections into the central network)
+        at the start of the z-dimension are added into the scene, by default False
+    top : bool, optional
+        If true, boundary pores (as well as their connections into the central network)
+        at the end of the z-dimension are added into the scene, by default False
+
+    Returns
+    -------
+    Scene
+        The scene with added objects.
+    """
     if (
-        pn.pore_position is not None
-        and pn.throat_radius is not None
-        and pn.tnp is not None
+        pn.pore_position
+        and pn.throat_radius
+        and pn.tnp
         and sc.config_scene.enable_cylinders
     ):
-        sc.create_cylinders(
-            np.hstack(
-                [
-                    pn.pore_position[pn.tnp[:, 0], :],
-                    pn.pore_position[pn.tnp[:, 1], :],
-                ]
-            ),
-            pn.throat_radius,
+        pos_t = np.hstack(
+            [
+                pn.pore_position[pn.tnp[:, 0], :],
+                pn.pore_position[pn.tnp[:, 1], :],
+            ]
         )
-        if top:
-            sc.create_cylinders(
-                np.hstack(
-                    [
-                        pn.pore_position[pn.pores_top, :],
-                        pn.pore_position_top,
-                    ]
-                ),
-                pn.throat_radius_top,
-            )
+        r_t = pn.throat_radius
+
+        boundaries = {
+            "left": left,
+            "right": right,
+            "front": front,
+            "back": back,
+            "bottom": bottom,
+            "top": top,
+        }
+
+        for b_name, b_value in boundaries.items():
+            if b_value:
+                if getattr(pn, f"throat_radius_{b_name}") and getattr(
+                    pn, f"pore_position_{b_name}"
+                ):
+                    pos_t = np.vstack(
+                        [
+                            pos_t,
+                            np.hstack(
+                                [
+                                    pn.pore_position[getattr(pn, f"pores_{b_name}"), :],
+                                    getattr(pn, f"pore_position_{b_name}"),
+                                ]
+                            ),
+                        ]
+                    )
+                    r_t = np.vstack([r_t, getattr(pn, f"throat_radius_{b_name}")])
+                else:
+                    raise Exception(
+                        (
+                            "Missing data: make sure that PoreNetwork.throat_radius_"
+                            f"{b_name} and PoreNetwork.pore_position_{b_name} are not "
+                            "empty."
+                        )
+                    )
+
+        sc.create_cylinders(pos_t, r_t)
+
     if (
         pn.pore_position is not None
         and pn.pore_radius is not None
         and sc.config_scene.enable_spheres
     ):
         sc.create_spheres(pn.pore_position, pn.pore_radius)
+
     sc.hide_cylinders()
     sc.hide_spheres()
     return sc
