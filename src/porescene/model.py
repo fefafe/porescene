@@ -445,15 +445,15 @@ class PoreNetwork:
         self._pore_position_back = arg
 
     @property
-    def pore_position_bot(self) -> np.ndarray | None:
+    def pore_position_bottom(self) -> np.ndarray | None:
         """
         Position of each node at the sample bottom surface.
         """
-        return self._pore_position_bot
+        return self._pore_position_bottom
 
-    @pore_position_bot.setter
-    def pore_position_bot(self, arg: np.ndarray | None):
-        self._pore_position_bot = arg
+    @pore_position_bottom.setter
+    def pore_position_bottom(self, arg: np.ndarray | None):
+        self._pore_position_bottom = arg
 
     @property
     def pore_position_top(self) -> np.ndarray | None:
