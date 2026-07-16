@@ -210,7 +210,7 @@ class PoreNetwork:
             if "p_top" in f:
                 pn.pores_top = np.array(f["p_top"]).flatten() - 1
             if "p_bot" in f:
-                pn.pores_bot = np.array(f["p_bot"]).flatten() - 1
+                pn.pores_bottom = np.array(f["p_bot"]).flatten() - 1
             if "p_left" in f:
                 pn.pores_left = np.array(f["p_left"]).flatten() - 1
             if "p_right" in f:
@@ -490,16 +490,16 @@ class PoreNetwork:
         self._pores_top = arg
 
     @property
-    def pores_bot(self) -> np.ndarray | None:
+    def pores_bottom(self) -> np.ndarray | None:
         """
         Pores located at the sample bot interface that have a connection to the
         surrounding.
         """
-        return self._pores_bot
+        return self._pores_bottom
 
-    @pores_bot.setter
-    def pores_bot(self, arg: np.ndarray | None):
-        self._pores_bot = arg
+    @pores_bottom.setter
+    def pores_bottom(self, arg: np.ndarray | None):
+        self._pores_bottom = arg
 
     @property
     def pores_left(self) -> np.ndarray | None:
