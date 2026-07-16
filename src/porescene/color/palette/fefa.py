@@ -1,7 +1,6 @@
 from porescene.color import Color
 from porescene.color.palette import Palette
 
-
 yellow = Color("#e5be0f")
 orange = Color("#d97b09")
 red = Color("#c30444")
