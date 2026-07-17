@@ -281,15 +281,20 @@ def make_img(
         sc.show_clusters()
         sc.apply_colors("Clusters", color_clusters)
         fname_fragments.append("cluster" + sep + name_clusters)
+
     if solid is not None:
         sc.create_solid(solid)
-        fname_fragments.append("solid")
     if void is not None:
         sc.create_void(void)
+    if sc.has_solid:
+        fname_fragments.append("solid")
+    if sc.has_void:
         fname_fragments.append("void")
+
     if sc.config_scene.enable_axes:
         sc.show_axes()
         fname_fragments.append("axes")
+
     if no_state is not None:
         fname_fragments.append(f"state-{no_state}")
 
