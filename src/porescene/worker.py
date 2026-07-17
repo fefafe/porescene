@@ -12,7 +12,7 @@ from mathutils import Matrix, Vector
 from porescene.color import Color
 from porescene.color.gradient import DiscreteGradient, SegmentedGradient, SmoothGradient
 from porescene.config import PropertyConfiguration
-from porescene.image import img_add_colorbar, img_trim
+from porescene.image import img_add_colorbar
 from porescene.layout import (
     DiscreteGradientOverlay,
     Overlay,
@@ -307,7 +307,7 @@ def make_img(
 
 
 def make_radius(
-    pth: Path,
+    dir_save: Path,
     pn: PoreNetwork,
     sc: Scene,
     *,
@@ -317,9 +317,57 @@ def make_radius(
     back: bool = False,
     bottom: bool = False,
     top: bool = False,
-) -> tuple[Scene, Path]:
+) -> Path:
     """
-    Create images of the model colored depending on radius.
+    Renders the pore network with pores and throats colored by their radius and
+    composites a matching colorbar onto the image.
+
+    A smooth color gradient is fitted to the radius range (across pore and throat radii),
+    the sphere and cylinder layers are colored accordingly via
+    :func:`make_img`, the rendered image is trimmed, and a colorbar for the gradient is
+    added. Spheres and cylinders are only colored and shown when enabled in the scene
+    configuration *and* the corresponding radius data is present. The boundary flags
+    include the throat radii of the selected boundaries in the colored data and the color
+    range, and must match the boundaries added by :func:`build_structure`.
+
+    Parameters
+    ----------
+    dir_save : Path
+        Directory to save the rendered image and colorbar at.
+    pn : PoreNetwork
+        The pore network providing the pore and throat radii.
+    sc : Scene
+        The scene holding the already-built geometry and the ``radius`` property
+        configuration.
+    left : bool, optional
+        If true, the throat radii of the boundary at the start of the x-dimension are
+        included in the colored data, by default False
+    right : bool, optional
+        If true, the throat radii of the boundary at the end of the x-dimension are
+        included in the colored data, by default False
+    front : bool, optional
+        If true, the throat radii of the boundary at the start of the y-dimension are
+        included in the colored data, by default False
+    back : bool, optional
+        If true, the throat radii of the boundary at the end of the y-dimension are
+        included in the colored data, by default False
+    bottom : bool, optional
+        If true, the throat radii of the boundary at the start of the z-dimension are
+        included in the colored data, by default False
+    top : bool, optional
+        If true, the throat radii of the boundary at the end of the z-dimension are
+        included in the colored data, by default False
+
+    Returns
+    -------
+    Path
+        The file path to the rendered image with colorbar.
+
+    Raises
+    ------
+    Exception
+        If a boundary flag is set but the matching ``throat_radius_*`` /
+        ``pore_position_*`` data is missing on the pore network.
     """
     # check scene components
     do_spheres = sc.config_scene.enable_spheres and pn.pore_radius is not None
@@ -329,6 +377,7 @@ def make_radius(
     conf = sc.config_scene["radius"]
     prop = PoreNetworkProperty("radius")
 
+    # collect throat radiii
     if pn.throat_radius is not None:
         r_t = pn.throat_radius
 
@@ -358,10 +407,14 @@ def make_radius(
                 )
 
     prop.set_data(pn.pore_radius, r_t)
+
+    # setup colorbar
     mn, mx = _get_bounds(prop.min, prop.max, conf.precision, conf.factor)
     grad = SmoothGradient(conf.colors, mn / conf.factor, mx / conf.factor, fit=True)
+
+    # render given configuration
     pth_vis = make_img(
-        pth,
+        dir_save,
         sc,
         do_spheres,
         do_cylinders,
@@ -372,16 +425,20 @@ def make_radius(
         "radius",
         "radius",
     )
-    img_trim(pth_vis)
-    pth_cb = pth_vis.with_name("colorbar_radius.svg")
+
+    # render the colorbar image
+    pth_cb = dir_save / "colorbar-radius.svg"
     make_gradient_overlay(
         pth_cb,
         sc.config_scene["radius"],
         mn,
         mx,
     )
+
+    # compose rendered scene and colorbar
     img_add_colorbar(pth_vis, pth_cb.with_suffix(".png"))
-    return sc, pth_vis
+
+    return pth_vis
 
 
 def make_coordination_number(pth: Path, pn: PoreNetwork, sc: Scene) -> tuple[Scene, Path]:
