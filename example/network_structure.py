@@ -41,7 +41,7 @@ worker.build_structure(sc, pn)
 sc.create_axes()
 
 # render the scene
-sc, pth_img = worker.make_structure(pth_tmp, pn, sc)
+pth_img = worker.make_structure(pth_tmp, pn, sc)
 
 # add padding of 10 %
 image.img_pad(pth_img, 0.1)

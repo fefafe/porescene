@@ -31,7 +31,7 @@ sc.create_clusters(pth_data / "segmentation-void.obj")
 sc.apply_colors("Clusters", Palette.load(Colormap.TURBO).random(3913))
 
 # render the scene
-pth_img = sc.render(pth_tmp, "cluster-random")
+pth_img = sc.render(pth_tmp / "cluster-random_axes.png")
 
 # add padding of 10 %
 image.img_pad(pth_img, 0.1)

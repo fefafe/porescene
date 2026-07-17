@@ -29,7 +29,7 @@ sc.create_axes()
 sc.create_solid(pth_data / "solid.ply")
 
 # render the scene
-pth_img = sc.render(pth_tmp, "solid")
+pth_img = sc.render(pth_tmp / "solid+axes.png")
 
 # add padding of 10 %
 image.img_pad(pth_img, 0.1)
