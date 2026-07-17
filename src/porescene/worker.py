@@ -195,7 +195,7 @@ def make_clusters(pth: Path, sc: Scene, no: list[int] = [0]):
 
 
 def make_img(
-    pth: Path,
+    dir_img: Path,
     sc: Scene,
     show_spheres: bool = True,
     show_cylinders: bool = True,
@@ -224,7 +224,7 @@ def make_img(
 
     Parameters
     ----------
-    pth : Path
+    dir_img : Path
         Directory to save the rendered image at.
     sc : Scene
         Scene to populate and render.
@@ -300,7 +300,7 @@ def make_img(
 
     # render image in given config
     fname = "+".join(fname_fragments) + ".png"
-    pth_render = sc.render(pth / fname)
+    pth_render = sc.render(dir_img / fname)
 
     # reset scene
     sc.hide_cylinders()
