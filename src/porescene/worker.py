@@ -402,7 +402,18 @@ def make_random(pth: Path, pn: PoreNetwork, sc: Scene) -> tuple[Scene, Path]:
     return sc, fname
 
 
-def make_structure(pth: Path, pn: PoreNetwork, sc: Scene) -> tuple[Scene, Path]:
+def make_structure(
+    pth: Path,
+    pn: PoreNetwork,
+    sc: Scene,
+    *,
+    left: bool = False,
+    right: bool = False,
+    front: bool = False,
+    back: bool = False,
+    bottom: bool = False,
+    top: bool = False,
+) -> tuple[Scene, Path]:
     """
     Create images of the model colored depending on radius.
     """
@@ -412,14 +423,17 @@ def make_structure(pth: Path, pn: PoreNetwork, sc: Scene) -> tuple[Scene, Path]:
 
     color_grey = Color("#7A828C")
 
-    sc, fname = make_img(
+    N_p = pn.pore_count
+    N_t = pn.throat_count(left, right, front, back, bottom, top)
+
+    fname = make_img(
         pth,
         sc,
         do_spheres,
         do_cylinders,
         do_clusters,
-        [color_grey for _ in range(len(pn.pore_radius))] if do_spheres else [],
-        [color_grey for _ in range(len(pn.throat_radius))] if do_cylinders else [],
+        [color_grey for _ in range(N_p)] if do_spheres else [],
+        [color_grey for _ in range(N_t)] if do_cylinders else [],
         sc.config_scene.palette.random(pn.pore_count) if do_clusters else [],
         "structure",
         "structure",
