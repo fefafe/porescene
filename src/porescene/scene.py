@@ -82,7 +82,7 @@ class Scene:
         bpy.context.scene.cycles.transparent_max_bounces = 64
 
     @classmethod
-    def from_json(cls, dims: tuple[float, float, float], pth_config: Path) -> Self:
+    def from_json(cls, dims: tuple[float, float, float] | np.ndarray, pth_config: Path) -> Self:
         ins = cls()
 
         extent = np.array(dims)
