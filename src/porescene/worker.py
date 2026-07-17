@@ -317,7 +317,7 @@ def make_radius(pth: Path, pn: PoreNetwork, sc: Scene) -> tuple[Scene, Path]:
     prop.set_data(pn.pore_radius, np.vstack((pn.throat_radius, pn.throat_radius_top)))
     mn, mx = _get_bounds(prop.min, prop.max, conf.precision, conf.factor)
     grad = SmoothGradient(conf.colors, mn / conf.factor, mx / conf.factor, fit=True)
-    sc, pth_vis = make_img(
+    pth_vis = make_img(
         pth,
         sc,
         do_spheres,
@@ -353,7 +353,7 @@ def make_coordination_number(pth: Path, pn: PoreNetwork, sc: Scene) -> tuple[Sce
     prop.set_data(pn.pore_coordination_number, pn.throat_coordination_number)
     mn, mx = _get_bounds(prop.min, prop.max, conf.precision, conf.factor)
     grad = conf.gradient_class(conf.colors, mn / conf.factor, mx / conf.factor)
-    sc, pth_vis = make_img(
+    pth_vis = make_img(
         pth,
         sc,
         do_spheres,
@@ -385,7 +385,7 @@ def make_random(pth: Path, pn: PoreNetwork, sc: Scene) -> tuple[Scene, Path]:
     do_spheres = sc.config_scene.enable_spheres and pn.pore_radius is not None
     do_cylinders = sc.config_scene.enable_cylinders and pn.throat_radius is not None
     do_clusters = sc.config_scene.enable_clusters
-    sc, fname = make_img(
+    fname = make_img(
         pth,
         sc,
         do_spheres,
@@ -487,7 +487,7 @@ def make_state(pth: Path, pn: PoreNetwork, sc: Scene):
             else:
                 grad = grad_dict[conf.name]
                 mn, mx = _get_bounds(conf.min, conf.max, conf.precision, conf.factor)
-            sc, pth_vis = make_img(
+            pth_vis = make_img(
                 pth,
                 sc,
                 do_spheres,
