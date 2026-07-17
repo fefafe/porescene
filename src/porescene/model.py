@@ -274,7 +274,7 @@ class PoreNetwork:
         no_states : list[int], optional
             In case there is state data contained in the ``.mat`` file, the state indices
             given in ``states``, are wrapped into :class:`PoreNetworkState` instances.
-            
+
             Foe example, if 1000 states have been calculated, but only every 100th state
             should be visualized, then ``no_states`` could be:
 
@@ -429,23 +429,23 @@ class PoreNetwork:
             # f"  - Pore radius: {self.throat_radius.mean() * 1e6:.2f} µm\n"
         )
 
-    def add_state(self, st: PoreNetworkState) -> Self:
+    def add_state(self, no_state: PoreNetworkState) -> Self:
         """
-        Add a :class:`PoreNetworkState` to the current model instance.
+        Adds a :class:`PoreNetworkState` to the current model instance.
         """
-        self.states.append(st)
+        self.states.append(no_state)
         return self
 
-    def get_state(self, idx: int) -> PoreNetworkState:
+    def get_state(self, no_state: int) -> PoreNetworkState:
         """
-        Returns a :class:`PoreNetworkProperty` from the instance.
+        Returns a :class:`PoreNetworkState` from the instance.
         """
-        return self.states[idx]
+        return self.states[no_state]
 
     @property
     def length_x(self) -> float:
         """
-        Radius of each throat.
+        Physical extent of the pore network domain in first dimension.
         """
         return self._length_x
 
@@ -456,7 +456,7 @@ class PoreNetwork:
     @property
     def length_y(self) -> float:
         """
-        Radius of each throat.
+        Physical extent of the pore network domain in second dimension.
         """
         return self._length_y
 
@@ -467,7 +467,7 @@ class PoreNetwork:
     @property
     def length_z(self) -> float:
         """
-        Radius of each throat.
+        Physical extent of the pore network domain in third dimension.
         """
         return self._length_z
 
@@ -500,7 +500,7 @@ class PoreNetwork:
     @property
     def pore_neighboring_pores(self) -> np.ndarray | None:
         """
-        Neighbor pores of each throat.
+        Neighbor pores of each pore.
         """
         return self._pore_neighboring_pores
 
@@ -511,7 +511,7 @@ class PoreNetwork:
     @property
     def pnp(self) -> np.ndarray | None:
         """
-        Neighbor pores of each throat.
+        Neighbor pores of each pore.
         """
         return self._pore_neighboring_pores
 
@@ -618,7 +618,7 @@ class PoreNetwork:
     @property
     def pores_bottom(self) -> np.ndarray | None:
         """
-        Pores located at the sample bot interface that have a connection to the
+        Pores located at the sample bottom interface that have a connection to the
         surrounding.
         """
         return self._pores_bottom
@@ -630,7 +630,7 @@ class PoreNetwork:
     @property
     def pores_left(self) -> np.ndarray | None:
         """
-        Pores located at the sample left interface that have a connection to the
+        Pores located at the left domain interface that have a connection to the
         surrounding.
         """
         return self._pores_left
@@ -642,7 +642,7 @@ class PoreNetwork:
     @property
     def pores_right(self) -> np.ndarray | None:
         """
-        Pores located at the sample right interface that have a connection to the
+        Pores located at the right domain interface that have a connection to the
         surrounding.
         """
         return self._pores_right
@@ -654,7 +654,7 @@ class PoreNetwork:
     @property
     def pores_front(self) -> np.ndarray | None:
         """
-        Pores located at the sample front interface that have a connection to the
+        Pores located at the front domain interface that have a connection to the
         surrounding.
         """
         return self._pores_front
@@ -666,7 +666,7 @@ class PoreNetwork:
     @property
     def pores_back(self) -> np.ndarray | None:
         """
-        Pores located at the sample back interface that have a connection to the
+        Pores located at the back domain interface that have a connection to the
         surrounding.
         """
         return self._pores_back
@@ -713,6 +713,32 @@ class PoreNetwork:
     ) -> int:
         """
         Number of throats in the network.
+
+        Parameters
+        ----------
+        left : bool, optional
+            If true, outgoing throats on the left domain boundary are included in the
+            throat count, by default False.
+        right : bool, optional
+            If true, outgoing throats on the right domain boundary are included in the
+            throat count, by default False.
+        front : bool, optional
+            If true, outgoing throats on the front domain boundary are included in the
+            throat count, by default False.
+        back : bool, optional
+            If true, outgoing throats on the back domain boundary are included in the
+            throat count, by default False.
+        bottom : bool, optional
+            If true, outgoing throats on the bottom domain boundary are included in the
+            throat count, by default False.
+        top : bool, optional
+            If true, outgoing throats on the top domain boundary are included in the
+            throat count, by default False.
+
+        Returns
+        -------
+        int
+            Number of throats.
         """
         if self.throat_radius is not None:
             cnt = len(self.throat_radius)
@@ -735,7 +761,7 @@ class PoreNetwork:
     @property
     def throat_length(self) -> np.ndarray | None:
         """
-        Radius of each throat.
+        Length of each throat.
         """
         return self._throat_length
 
@@ -757,8 +783,8 @@ class PoreNetwork:
     @property
     def throat_radius_top(self) -> np.ndarray | None:
         """
-        Radius of each throat connection into the surrounding at the sample top
-        interface.
+        Radius of each throat connection into the surrounding at the top domain
+        boundary.
         """
         return self._throat_radius_top
 
@@ -769,8 +795,8 @@ class PoreNetwork:
     @property
     def throat_radius_bottom(self) -> np.ndarray | None:
         """
-        Radius of each throat connection into the surrounding at the sample top
-        interface.
+        Radius of each throat connection into the surrounding at the bottom domain
+        boundary.
         """
         return self._throat_radius_bot
 
@@ -781,8 +807,8 @@ class PoreNetwork:
     @property
     def throat_radius_left(self) -> np.ndarray | None:
         """
-        Radius of each throat connection into the surrounding at the sample left
-        interface.
+        Radius of each throat connection into the surrounding at the left domain
+        boundary.
         """
         return self._throat_radius_left
 
@@ -793,8 +819,8 @@ class PoreNetwork:
     @property
     def throat_radius_right(self) -> np.ndarray | None:
         """
-        Radius of each throat connection into the surrounding at the sample right
-        interface.
+        Radius of each throat connection into the surrounding at the right domain
+        boundary.
         """
         return self._throat_radius_right
 
@@ -805,8 +831,8 @@ class PoreNetwork:
     @property
     def throat_radius_front(self) -> np.ndarray | None:
         """
-        Radius of each throat connection into the surrounding at the sample front
-        interface.
+        Radius of each throat connection into the surrounding at the front domain
+        boundary.
         """
         return self._throat_radius_front
 
@@ -817,8 +843,8 @@ class PoreNetwork:
     @property
     def throat_radius_back(self) -> np.ndarray | None:
         """
-        Radius of each throat connection into the surrounding at the sample back
-        interface.
+        Radius of each throat connection into the surrounding at the back domain
+        boundary.
         """
         return self._throat_radius_back
 
