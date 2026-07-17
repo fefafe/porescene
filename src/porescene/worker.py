@@ -311,13 +311,6 @@ def make_radius(
     dir_save: Path,
     pn: PoreNetwork,
     sc: Scene,
-    *,
-    left: bool = False,
-    right: bool = False,
-    front: bool = False,
-    back: bool = False,
-    bottom: bool = False,
-    top: bool = False,
 ) -> Path:
     """
     Renders the pore network with pores and throats colored by their radius and
@@ -327,9 +320,7 @@ def make_radius(
     the sphere and cylinder layers are colored accordingly via
     :func:`make_img`, the rendered image is trimmed, and a colorbar for the gradient is
     added. Spheres and cylinders are only colored and shown when enabled in the scene
-    configuration *and* the corresponding radius data is present. The boundary flags
-    include the throat radii of the selected boundaries in the colored data and the color
-    range, and must match the boundaries added by :func:`build_structure`.
+    configuration *and* the corresponding radius data is present.
 
     Parameters
     ----------
@@ -340,24 +331,6 @@ def make_radius(
     sc : Scene
         The scene holding the already-built geometry and the ``radius`` property
         configuration.
-    left : bool, optional
-        If true, the throat radii of the boundary at the start of the x-dimension are
-        included in the colored data, by default False
-    right : bool, optional
-        If true, the throat radii of the boundary at the end of the x-dimension are
-        included in the colored data, by default False
-    front : bool, optional
-        If true, the throat radii of the boundary at the start of the y-dimension are
-        included in the colored data, by default False
-    back : bool, optional
-        If true, the throat radii of the boundary at the end of the y-dimension are
-        included in the colored data, by default False
-    bottom : bool, optional
-        If true, the throat radii of the boundary at the start of the z-dimension are
-        included in the colored data, by default False
-    top : bool, optional
-        If true, the throat radii of the boundary at the end of the z-dimension are
-        included in the colored data, by default False
 
     Returns
     -------
@@ -367,8 +340,8 @@ def make_radius(
     Raises
     ------
     Exception
-        If a boundary flag is set but the matching ``throat_radius_*`` /
-        ``pore_position_*`` data is missing on the pore network.
+        If any boundary throats are included in the scene and matching ``throat_radius_*``
+        data is missing on the :class:`PoreNetwork` instance.
     """
     # check scene components
     do_spheres = sc.config_scene.enable_spheres and pn.pore_radius is not None
@@ -382,14 +355,7 @@ def make_radius(
     if pn.throat_radius is not None:
         r_t = pn.throat_radius
 
-    boundaries = {
-        "left": left,
-        "right": right,
-        "front": front,
-        "back": back,
-        "bottom": bottom,
-        "top": top,
-    }
+    boundaries = sc._boundary_cylinder
 
     for b_name, b_value in boundaries.items():
         if b_value:

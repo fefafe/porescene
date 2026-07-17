@@ -54,7 +54,7 @@ sc.create_axes()
 sc.create_solid(pth_data / "solid.ply")
 
 # render the scene and color pores and throat according to their radius
-sc, pth_img = worker.make_radius(pth_tmp, pn, sc, top=True, bottom=True)
+pth_img = worker.make_radius(pth_tmp, pn, sc)
 
 # add padding of 10 %
 image.img_pad(pth_img, 0.1, trim=False)
