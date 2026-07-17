@@ -300,7 +300,7 @@ def make_img(
 
     # render image in given config
     fname = "+".join(fname_fragments) + ".png"
-    pth_render = sc.render(pth.with_name(fname))
+    pth_render = sc.render(pth / fname)
 
     # reset scene
     sc.hide_cylinders()
