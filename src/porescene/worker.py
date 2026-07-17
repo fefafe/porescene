@@ -306,15 +306,58 @@ def make_img(
     return pth_render
 
 
-def make_radius(pth: Path, pn: PoreNetwork, sc: Scene) -> tuple[Scene, Path]:
+def make_radius(
+    pth: Path,
+    pn: PoreNetwork,
+    sc: Scene,
+    *,
+    left: bool = False,
+    right: bool = False,
+    front: bool = False,
+    back: bool = False,
+    bottom: bool = False,
+    top: bool = False,
+) -> tuple[Scene, Path]:
     """
     Create images of the model colored depending on radius.
     """
+    # check scene components
     do_spheres = sc.config_scene.enable_spheres and pn.pore_radius is not None
     do_cylinders = sc.config_scene.enable_cylinders and pn.throat_radius is not None
+
+    # create property instance
     conf = sc.config_scene["radius"]
     prop = PoreNetworkProperty("radius")
-    prop.set_data(pn.pore_radius, np.vstack((pn.throat_radius, pn.throat_radius_top)))
+
+    if pn.throat_radius is not None:
+        r_t = pn.throat_radius
+
+    boundaries = {
+        "left": left,
+        "right": right,
+        "front": front,
+        "back": back,
+        "bottom": bottom,
+        "top": top,
+    }
+
+    for b_name, b_value in boundaries.items():
+        if b_value:
+            if (
+                getattr(pn, f"throat_radius_{b_name}") is not None
+                and getattr(pn, f"pore_position_{b_name}") is not None
+            ):
+                r_t = np.concatenate([r_t, getattr(pn, f"throat_radius_{b_name}")])
+            else:
+                raise Exception(
+                    (
+                        "Missing data: make sure that PoreNetwork.throat_radius_"
+                        f"{b_name} and PoreNetwork.pore_position_{b_name} are not "
+                        "empty."
+                    )
+                )
+
+    prop.set_data(pn.pore_radius, r_t)
     mn, mx = _get_bounds(prop.min, prop.max, conf.precision, conf.factor)
     grad = SmoothGradient(conf.colors, mn / conf.factor, mx / conf.factor, fit=True)
     pth_vis = make_img(
