@@ -108,7 +108,7 @@ def build_structure(
                             ),
                         ]
                     )
-                    r_t = np.vstack([r_t, getattr(pn, f"throat_radius_{b_name}")])
+                    r_t = np.concatenate([r_t, getattr(pn, f"throat_radius_{b_name}")])
                 else:
                     raise Exception(
                         (
