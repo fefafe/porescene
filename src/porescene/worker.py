@@ -405,24 +405,51 @@ def make_radius(
     return pth_vis
 
 
-def make_coordination_number(pth: Path, pn: PoreNetwork, sc: Scene) -> tuple[Scene, Path]:
+def make_coordination_number(pth: Path, pn: PoreNetwork, sc: Scene) -> Path:
     """
-    Create images of the model colored depending on coordination number.
+    Renders the pore network with pores, throats, and clusters colored by their
+    coordination number and composites a matching colorbar onto the image.
+
+    A color gradient (the gradient class configured for the ``coordination_number``
+    property) is fitted to the coordination-number range, the sphere, cylinder, and
+    cluster layers are colored accordingly via :func:`make_img`, and a colorbar for the
+    gradient is added. Each layer is only colored and shown when it is enabled in the
+    scene configuration and the corresponding data is available.
+
+    Parameters
+    ----------
+    pth : Path
+        Directory to save the rendered image and colorbar at.
+    pn : PoreNetwork
+        The pore network providing the pore and throat coordination numbers.
+    sc : Scene
+        The scene holding the already-built geometry and the ``coordination_number``
+        property configuration.
+
+    Returns
+    -------
+    Path
+        The file path to the rendered image with colorbar.
     """
-    do_spheres = sc.config_scene.enable_spheres and pn.pore_radius is not None
-    do_cylinders = sc.config_scene.enable_cylinders and pn.throat_radius is not None
-    do_clusters = sc.config_scene.enable_clusters
+    # check scene components
+    do_spheres = sc.config_scene.enable_spheres and sc.has_spheres
+    do_cylinders = sc.config_scene.enable_cylinders and sc.has_cylinders
+    do_clusters = sc.config_scene.enable_clusters and sc.has_clusters
+
+    # create property instance
     conf = sc.config_scene["coordination_number"]
     prop = PoreNetworkProperty("coordination_number")
+
     prop.set_data(pn.pore_coordination_number, pn.throat_coordination_number)
     mn, mx = _get_bounds(prop.min, prop.max, conf.precision, conf.factor)
     grad = conf.gradient_class(conf.colors, mn / conf.factor, mx / conf.factor)
+
     pth_vis = make_img(
         pth,
         sc,
         do_spheres,
         do_cylinders,
-        False,
+        do_clusters,
         grad(prop.pore_values) if do_spheres else [],
         grad(prop.throat_values) if do_cylinders else [],
         grad(prop.pore_values) if do_clusters else [],
@@ -431,6 +458,7 @@ def make_coordination_number(pth: Path, pn: PoreNetwork, sc: Scene) -> tuple[Sce
         "coordination-number",
     )
 
+    # render the colorbar image
     pth_cb = pth_vis.with_name("colorbar_coordination_number.svg")
     make_gradient_overlay(
         pth_cb,
@@ -438,8 +466,11 @@ def make_coordination_number(pth: Path, pn: PoreNetwork, sc: Scene) -> tuple[Sce
         mn,
         mx,
     )
+
+    # compose rendered scene and colorbar
     img_add_colorbar(pth_vis, pth_cb.with_suffix(".png"))
-    return sc, pth_vis
+
+    return pth_vis
 
 
 def make_random(dir_img: Path, pn: PoreNetwork, sc: Scene) -> Path:
@@ -450,6 +481,8 @@ def make_random(dir_img: Path, pn: PoreNetwork, sc: Scene) -> Path:
     do_spheres = sc.config_scene.enable_spheres and pn.pore_radius is not None
     do_cylinders = sc.config_scene.enable_cylinders and pn.throat_radius is not None
     do_clusters = sc.config_scene.enable_clusters
+
+    boundaries = sc._boundary_cylinder
 
     # render scene configuration
     pth_img = make_img(
