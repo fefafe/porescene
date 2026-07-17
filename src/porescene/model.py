@@ -195,66 +195,155 @@ class PoreNetwork:
         states: list[int] = [],
         state_vars: dict[str, tuple[str, str]] = {},
     ) -> Self:
+        """
+        Creates a :class:`PoreNetwork` instance from a ``.mat`` file.
+
+        .. attention::
+
+            Variable import from ``.mat`` files is only supported for MATLAB files in
+            version 7.3 that are based on HDF5. When saving the MATLAB file, make sure to
+            set the ``-v7.3`` flag.
+
+            .. code-block:: matlab
+
+                save('myfile.mat', "-v7.3");
+
+        Parameters
+        ----------
+        pth : Path
+            Path to the ``.mat`` file.
+        states : list[int], optional
+            _description_, by default []
+        state_vars : dict[str, tuple[str, str]], optional
+            _description_, by default {}
+
+        Returns
+        -------
+        Self
+            :class:`PoreNetwork` instance created from given ``.mat`` file
+        """
+
+        map_var = {
+            "length_x": "L_sample_x",
+            "length_y": "L_sample_y",
+            "length_z": "L_sample_z",
+            "pore_coordination_number": "cn_p",
+            "throat_coordination_number": "cn_t",
+            "pores_left": "p_left",
+            "pores_right": "p_right",
+            "pores_front": "p_front",
+            "pores_back": "p_back",
+            "pores_bottom": "p_bot",
+            "pores_top": "p_top",
+            "pore_position": "pos_p",
+            "pore_position_top": "pos_p_out_top",
+            "pore_position_bottom": "pos_p_out_bot",
+            "pore_position_left": "pos_p_out_left",
+            "pore_position_right": "pos_p_out_right",
+            "pore_position_front": "pos_p_out_front",
+            "pore_position_back": "pos_p_out_back",
+            "pore_radius": "r_p",
+            "throat_radius": "r_t",
+            "throat_radius_top": "r_t_out_top",
+            "throat_radius_bottom": "r_t_out_bot",
+            "throat_radius_left": "r_t_out_left",
+            "throat_radius_right": "r_t_out_right",
+            "throat_radius_front": "r_t_out_front",
+            "throat_radius_back": "r_t_out_back",
+            "throat_neighboring_pores": "tnp",
+            "pore_neighboring_pores": "pnp",
+        }
+
         with File(pth) as f:
             pn = cls()
-            if "L_sample_x" in f:
-                pn.length_x = np.array(f["L_sample_x"]).item()
-            if "L_sample_y" in f:
-                pn.length_y = np.array(f["L_sample_y"]).item()
-            if "L_sample_z" in f:
-                pn.length_z = np.array(f["L_sample_z"]).item()
-            if "cn_p" in f:
-                pn.pore_coordination_number = np.array(f["cn_p"]).transpose()
-            if "cn_t" in f:
-                pn.throat_coordination_number = np.array(f["cn_t"]).transpose()
-            if "p_top" in f:
-                pn.pores_top = np.array(f["p_top"]).flatten() - 1
-            if "p_bot" in f:
-                pn.pores_bottom = np.array(f["p_bot"]).flatten() - 1
-            if "p_left" in f:
-                pn.pores_left = np.array(f["p_left"]).flatten() - 1
-            if "p_right" in f:
-                pn.pores_right = np.array(f["p_right"]).flatten() - 1
-            if "p_front" in f:
-                pn.pores_front = np.array(f["p_front"]).flatten() - 1
-            if "p_back" in f:
-                pn.pores_back = np.array(f["p_back"]).flatten() - 1
-            if "pos_p" in f:
-                pn.pore_position = np.array(f["pos_p"]).transpose()
-            if "pos_p_out_top" in f:
-                pn.pore_position_top = np.array(f["pos_p_out_top"]).transpose()
-            if "pos_p_out_bot" in f:
-                pn.pore_position_bottom = np.array(f["pos_p_out_bot"]).transpose()
-            if "pos_p_out_left" in f:
-                pn.pore_position_left = np.array(f["pos_p_out_left"]).transpose()
-            if "pos_p_out_right" in f:
-                pn.pore_position_right = np.array(f["pos_p_out_right"]).transpose()
-            if "pos_p_out_front" in f:
-                pn.pore_position_front = np.array(f["pos_p_out_front"]).transpose()
-            if "pos_p_out_back" in f:
-                pn.pore_position_back = np.array(f["pos_p_out_back"]).transpose()
-            if "r_p" in f:
-                pn.pore_radius = np.array(f["r_p"]).ravel()
-            if "r_p_eqs" in f:
+            if map_var["length_x"] in f:
+                pn.length_x = np.array(f[map_var["length_x"]]).item()
+            if map_var["length_y"] in f:
+                pn.length_y = np.array(f[map_var["length_y"]]).item()
+            if map_var["length_z"] in f:
+                pn.length_z = np.array(f[map_var["length_z"]]).item()
+            if map_var["pore_coordination_number"] in f:
+                pn.pore_coordination_number = np.asarray(
+                    f[map_var["pore_coordination_number"]]
+                ).ravel()
+            if map_var["throat_coordination_number"] in f:
+                pn.throat_coordination_number = np.asarray(
+                    f[map_var["throat_coordination_number"]]
+                ).ravel()
+            if map_var["pores_top"] in f:
+                pn.pores_top = np.array(f[map_var["pores_top"]]).ravel() - 1
+            if map_var["pores_bottom"] in f:
+                pn.pores_bottom = np.array(f[map_var["pores_bottom"]]).ravel() - 1
+            if map_var["pores_left"] in f:
+                pn.pores_left = np.array(f[map_var["pores_left"]]).ravel() - 1
+            if map_var["pores_right"] in f:
+                pn.pores_right = np.array(f[map_var["pores_right"]]).ravel() - 1
+            if map_var["pores_front"] in f:
+                pn.pores_front = np.array(f[map_var["pores_front"]]).ravel() - 1
+            if map_var["pores_back"] in f:
+                pn.pores_back = np.array(f[map_var["pores_back"]]).ravel() - 1
+            if map_var["pore_position"] in f:
+                pn.pore_position = np.array(f[map_var["pore_position"]]).transpose()
+            if map_var["pore_position_top"] in f:
+                pn.pore_position_top = np.array(
+                    f[map_var["pore_position_top"]]
+                ).transpose()
+            if map_var["pore_position_bottom"] in f:
+                pn.pore_position_bottom = np.array(
+                    f[map_var["pore_position_bottom"]]
+                ).transpose()
+            if map_var["pore_position_left"] in f:
+                pn.pore_position_left = np.array(
+                    f[map_var["pore_position_left"]]
+                ).transpose()
+            if map_var["pore_position_right"] in f:
+                pn.pore_position_right = np.array(
+                    f[map_var["pore_position_right"]]
+                ).transpose()
+            if map_var["pore_position_front"] in f:
+                pn.pore_position_front = np.array(
+                    f[map_var["pore_position_front"]]
+                ).transpose()
+            if map_var["pore_position_back"] in f:
+                pn.pore_position_back = np.array(
+                    f[map_var["pore_position_back"]]
+                ).transpose()
+            if map_var["pore_radius"] in f:
+                pn.pore_radius = np.array(f[map_var["pore_radius"]]).ravel()
+            if "r_p_eqs" in f:  # equivalent-sphere radius overrides r_p if present
                 pn.pore_radius = np.array(f["r_p_eqs"]).ravel()
-            if "r_t" in f:
-                pn.throat_radius = np.array(f["r_t"]).ravel()
-            if "r_t_out_top" in f:
-                pn.throat_radius_top = np.array(f["r_t_out_top"]).ravel()
-            if "r_t_out_bot" in f:
-                pn.throat_radius_bottom = np.array(f["r_t_out_bot"]).ravel()
-            if "r_t_out_left" in f:
-                pn.throat_radius_left = np.array(f["r_t_out_left"]).ravel()
-            if "r_t_out_right" in f:
-                pn.throat_radius_right = np.array(f["r_t_out_right"]).ravel()
-            if "r_t_out_front" in f:
-                pn.throat_radius_front = np.array(f["r_t_out_front"]).ravel()
-            if "r_t_out_back" in f:
-                pn.throat_radius_back = np.array(f["r_t_out_back"]).ravel()
-            if "tnp" in f:
-                pn.throat_neighboring_pores = np.array(f["tnp"]).transpose() - 1
-            if "pnp" in f:
-                pn.pore_neighboring_pores = np.array(f["pnp"])
+            if map_var["throat_radius"] in f:
+                pn.throat_radius = np.array(f[map_var["throat_radius"]]).ravel()
+            if map_var["throat_radius_top"] in f:
+                pn.throat_radius_top = np.array(f[map_var["throat_radius_top"]]).ravel()
+            if map_var["throat_radius_bottom"] in f:
+                pn.throat_radius_bottom = np.array(
+                    f[map_var["throat_radius_bottom"]]
+                ).ravel()
+            if map_var["throat_radius_left"] in f:
+                pn.throat_radius_left = np.array(
+                    f[map_var["throat_radius_left"]]
+                ).ravel()
+            if map_var["throat_radius_right"] in f:
+                pn.throat_radius_right = np.array(
+                    f[map_var["throat_radius_right"]]
+                ).ravel()
+            if map_var["throat_radius_front"] in f:
+                pn.throat_radius_front = np.array(
+                    f[map_var["throat_radius_front"]]
+                ).ravel()
+            if map_var["throat_radius_back"] in f:
+                pn.throat_radius_back = np.array(
+                    f[map_var["throat_radius_back"]]
+                ).ravel()
+            if map_var["throat_neighboring_pores"] in f:
+                pn.throat_neighboring_pores = (
+                    np.array(f[map_var["throat_neighboring_pores"]]).transpose() - 1
+                )
+            if map_var["pore_neighboring_pores"] in f:
+                pn.pore_neighboring_pores = np.array(
+                    f[map_var["pore_neighboring_pores"]]
+                )
             for state in states:
                 st = PoreNetworkState()
                 st.no = state
