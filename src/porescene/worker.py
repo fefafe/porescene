@@ -3,10 +3,11 @@
 # Otto von Guericke University Magdeburg, Thermal Process Engineering
 
 
+from pathlib import Path
+
 import bpy
 import numpy as np
 from mathutils import Matrix, Vector
-from pathlib import Path
 
 from porescene.color import Color
 from porescene.color.gradient import DiscreteGradient, SegmentedGradient, SmoothGradient
@@ -207,20 +208,78 @@ def make_img(
     no_state: int | None = None,
     solid: Path | None = None,
     void: Path | None = None,
-):
+) -> Path:
+    """
+    Populates the scene with the specified components, renders it, and resets the
+    scene afterwards.
+
+    The pore spheres, throat cylinders, and pore clusters are shown (and colored) only
+    when their respective ``show_*`` flag is set; a solid and/or void object are added
+    when their paths are given, and axes are shown when enabled in the scene
+    configuration. The output file name is assembled from the enabled components (e.g.
+    ``sphere-radius+cylinder-radius+axes``), so each rendered combination gets a
+    distinct, descriptive name. After rendering, all layers are hidden and the solid and
+    void objects are removed, leaving the scene ready for the next render.
+
+    Parameters
+    ----------
+    pth : Path
+        Directory to save the rendered image at.
+    sc : Scene
+        Scene to populate and render.
+    show_spheres : bool, optional
+        Whether to show the pore spheres, by default True.
+    show_cylinders : bool, optional
+        Whether to show the throat cylinders, by default True.
+    show_clusters : bool, optional
+        Whether to show the pore clusters, by default True.
+    color_spheres : list[Color], optional
+        Per-pore colors applied to the sphere layer (one :class:`Color` per pore); used
+        only when ``show_spheres`` is set, by default [].
+    color_cylinders : list[Color], optional
+        Per-throat colors applied to the cylinder layer (one :class:`Color` per throat);
+        used only when ``show_cylinders`` is set, by default [].
+    color_clusters : list[Color], optional
+        Per-cluster colors applied to the cluster layer; used only when ``show_clusters``
+        is set, by default [].
+    name_spheres : str, optional
+        Label describing the sphere coloring, embedded in the output file name with
+        underscores replaced by hyphens (e.g. ``"radius"``), by default "".
+    name_cylinders : str, optional
+        Label describing the cylinder coloring, embedded in the output file name with
+        underscores replaced by hyphens, by default "".
+    name_clusters : str, optional
+        Label describing the cluster coloring, embedded in the output file name with
+        underscores replaced by hyphens, by default "".
+    no_state : int | None, optional
+        Index of the network state being rendered; when given, appended to the file name
+        as ``state@<no_state>``, by default None.
+    solid : Path | None, optional
+        Path to a solid-structure object to add to the scene; when given, the solid is
+        created and ``solid`` is added to the file name, by default None.
+    void : Path | None, optional
+        Path to a void-space object to add to the scene; when given, the void is created
+        and ``void`` is added to the file name, by default None.
+
+    Returns
+    -------
+    Path
+        File path to the rendered image.
+    """
     fname_fragments = []
+    sep = "-"
     if show_cylinders:
         sc.show_cylinders()
         sc.apply_colors("Cylinders", color_cylinders)
-        fname_fragments.append("sticks@" + name_cylinders.replace("_", "-"))
+        fname_fragments.append("cylinder" + sep + name_cylinders)
     if show_spheres:
         sc.show_spheres()
         sc.apply_colors("Spheres", color_spheres)
-        fname_fragments.append("spheres@" + name_spheres.replace("_", "-"))
+        fname_fragments.append("sphere" + sep + name_spheres)
     if show_clusters:
         sc.show_clusters()
         sc.apply_colors("Clusters", color_clusters)
-        fname_fragments.append("clusters@" + name_clusters.replace("_", "-"))
+        fname_fragments.append("cluster" + sep + name_clusters)
     if solid is not None:
         sc.create_solid(solid)
         fname_fragments.append("solid")
@@ -231,16 +290,20 @@ def make_img(
         sc.show_axes()
         fname_fragments.append("axes")
     if no_state is not None:
-        fname_fragments.append(f"state@{no_state}")
-    fname_fragments.append("solid_bulk")
-    fname = "_".join(fname_fragments)
-    fname = sc.render(pth, fname)
+        fname_fragments.append(f"state-{no_state}")
+
+    # render image in given config
+    fname = "+".join(fname_fragments)
+    pth_render = sc.render(pth, fname)
+
+    # reset scene
     sc.hide_cylinders()
     sc.hide_spheres()
     sc.hide_clusters()
     sc.remove_solid()
     sc.remove_void()
-    return sc, fname
+
+    return pth_render
 
 
 def make_radius(pth: Path, pn: PoreNetwork, sc: Scene) -> tuple[Scene, Path]:
