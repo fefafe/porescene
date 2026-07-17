@@ -349,8 +349,8 @@ def make_radius(
         data is missing on the :class:`PoreNetwork` instance.
     """
     # check scene components
-    do_spheres = sc.config_scene.enable_spheres and pn.pore_radius is not None
-    do_cylinders = sc.config_scene.enable_cylinders and pn.throat_radius is not None
+    do_spheres = sc.config_scene.enable_spheres and sc.has_spheres
+    do_cylinders = sc.config_scene.enable_cylinders and sc.has_cylinders
 
     # create property instance
     conf = sc.config_scene["radius"]
@@ -360,9 +360,7 @@ def make_radius(
     if pn.throat_radius is not None:
         r_t = pn.throat_radius
 
-    boundaries = sc._boundary_cylinder
-
-    for b_name, b_value in boundaries.items():
+    for b_name, b_value in sc._boundary_cylinder.items():
         if b_value:
             if getattr(pn, f"throat_radius_{b_name}") is not None:
                 r_t = np.concatenate([r_t, getattr(pn, f"throat_radius_{b_name}")])
