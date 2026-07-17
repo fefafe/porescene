@@ -14,17 +14,11 @@ def img_trim(pth_img: Path) -> Path:
     Trims the transparent padding of an image.
     """
 
-    img_vis = PIL.Image.open(pth_img)
-    img_vis = img_vis.crop(img_vis.getbbox())
+    img = PIL.Image.open(pth_img)
+    img = img.crop(img.getbbox())
+    img.save(pth_img, "PNG")
 
-    parts_fname = pth_img.stem.split("_")
-    del parts_fname[-1]
-
-    pth_trimmed = pth_img.with_stem("_".join(parts_fname))
-
-    img_vis.save(pth_trimmed, "PNG")
-
-    return pth_trimmed
+    return pth_img
 
 
 def img_pad(
