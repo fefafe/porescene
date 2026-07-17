@@ -475,14 +475,33 @@ def make_coordination_number(pth: Path, pn: PoreNetwork, sc: Scene) -> Path:
 
 def make_random(dir_img: Path, pn: PoreNetwork, sc: Scene) -> Path:
     """
-    Create images of the model colored depending on radius.
+    Renders the pore network with pores, throats, and clusters assigned random colors.
+
+    Each layer is drawn with colors picked at random from the scene's palette, so that
+    individual pores, throats, and clusters can be told apart visually. A layer is only
+    colored and shown when it is enabled in the scene configuration *and* has actually
+    been built in the scene. Unlike the property-based renders, no colorbar is added,
+    since the random colors carry no scale.
+
+    Parameters
+    ----------
+    dir_img : Path
+        Directory to save the rendered image at.
+    pn : PoreNetwork
+        The pore network providing the pore, throat, and cluster counts used to size the
+        random color sets.
+    sc : Scene
+        The scene holding the already-built geometry and the color palette.
+
+    Returns
+    -------
+    Path
+        The file path to the rendered image.
     """
     # check scene components
-    do_spheres = sc.config_scene.enable_spheres and pn.pore_radius is not None
-    do_cylinders = sc.config_scene.enable_cylinders and pn.throat_radius is not None
-    do_clusters = sc.config_scene.enable_clusters
-
-    boundaries = sc._boundary_cylinder
+    do_spheres = sc.config_scene.enable_spheres and sc.has_spheres
+    do_cylinders = sc.config_scene.enable_cylinders and sc.has_cylinders
+    do_clusters = sc.config_scene.enable_clusters and sc.has_clusters
 
     # render scene configuration
     pth_img = make_img(
@@ -492,7 +511,11 @@ def make_random(dir_img: Path, pn: PoreNetwork, sc: Scene) -> Path:
         do_cylinders,
         do_clusters,
         sc.config_scene.palette.random(pn.pore_count) if do_spheres else [],
-        sc.config_scene.palette.random(pn.throat_count) if do_cylinders else [],
+        (
+            sc.config_scene.palette.random(pn.throat_count(**sc._boundary_cylinder))
+            if do_cylinders
+            else []
+        ),
         sc.config_scene.palette.random(pn.pore_count) if do_clusters else [],
         "random",
         "random",
