@@ -47,30 +47,18 @@ class FeFaPalette(Palette):
 
     """
 
-    yellow = Color("#e5be0f")
-    orange = Color("#d97b09")
-    red = Color("#c30444")
-    pink = Color("#b70c92")
-    purple = Color("#8704c8")
-    darkblue = Color("#044eb6")
-    lightblue = Color("#0e86c7")
-    teal = Color("#02aba8")
-    darkgreen = Color("#039c48")
-    lightgreen = Color("#81b413")
-    gray = Color("#6F6F7B")
-
     def __init__(self) -> None:
         super().__init__(
             [
-                self.yellow,
-                self.orange,
-                self.red,
-                self.pink,
-                self.purple,
-                self.darkblue,
-                self.lightblue,
-                self.teal,
-                self.darkgreen,
-                self.lightgreen,
+                yellow,
+                orange,
+                red,
+                pink,
+                purple,
+                darkblue,
+                lightblue,
+                teal,
+                darkgreen,
+                lightgreen,
             ]
         )
