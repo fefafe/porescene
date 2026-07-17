@@ -13,6 +13,7 @@ import numpy as np
 from rich import progress
 from rich.console import Console
 
+from porescene import image
 from porescene.color import Color
 from porescene.config import AxesConfiguration, ImageConfiguration, SceneConfiguration
 from porescene.utility import suppress_stdout
@@ -1382,7 +1383,7 @@ class Scene:
             bpy.data.meshes.remove(obj)
         return self
 
-    def render(self, pth_render: Path) -> Path:
+    def render(self, pth_render: Path, trim: bool = True) -> Path:
         """
         Renders the current scene to an image file.
 
@@ -1395,6 +1396,9 @@ class Scene:
         pth_render : Path
             Output path for the rendered image. Blender appends the file-format
             extension when the path has none.
+        trim : bool, optional
+            If true, the saved image is cropped to its content, removing the surrounding
+            empty margins, by default True.
 
         Returns
         -------
@@ -1409,6 +1413,9 @@ class Scene:
             p.add_task("render", total=None)
             with suppress_stdout():
                 bpy.ops.render.render(write_still=True)
+        if trim:
+            image.img_trim(pth_render)
+
         return pth_render
 
     def save(self, pth: Path) -> Self:
