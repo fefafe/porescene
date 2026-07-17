@@ -357,7 +357,9 @@ class PoreNetwork:
                     f[vars_nwk["throat_radius_bottom"]]
                 ).ravel()
             if vars_nwk["throat_radius_left"] in f:
-                pn.throat_radius_left = np.array(f[vars_nwk["throat_radius_left"]]).ravel()
+                pn.throat_radius_left = np.array(
+                    f[vars_nwk["throat_radius_left"]]
+                ).ravel()
             if vars_nwk["throat_radius_right"] in f:
                 pn.throat_radius_right = np.array(
                     f[vars_nwk["throat_radius_right"]]
@@ -367,7 +369,9 @@ class PoreNetwork:
                     f[vars_nwk["throat_radius_front"]]
                 ).ravel()
             if vars_nwk["throat_radius_back"] in f:
-                pn.throat_radius_back = np.array(f[vars_nwk["throat_radius_back"]]).ravel()
+                pn.throat_radius_back = np.array(
+                    f[vars_nwk["throat_radius_back"]]
+                ).ravel()
             if vars_nwk["throat_neighboring_pores"] in f:
                 pn.throat_neighboring_pores = (
                     np.array(f[vars_nwk["throat_neighboring_pores"]]).transpose() - 1
