@@ -121,6 +121,7 @@ def build_structure(
                     )
 
         sc.create_cylinders(pos_t, r_t)
+        sc._boundary_cylinder = boundaries
 
     if (
         pn.pore_position is not None

@@ -33,6 +33,14 @@ class Scene:
         self.shift = (0, 0, 0)
         self.scale = 1e5
         self._ang_azimuth = 0.0
+        self._boundary_cylinder = {
+            "left": False,
+            "right": False,
+            "front": False,
+            "back": False,
+            "bottom": False,
+            "top": False,
+        }
 
         self.has_axes = False
         self.has_clusters = False
