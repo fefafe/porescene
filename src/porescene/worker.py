@@ -526,44 +526,56 @@ def make_random(dir_img: Path, pn: PoreNetwork, sc: Scene) -> Path:
 
 
 def make_structure(
-    pth: Path,
+    dir_img: Path,
     pn: PoreNetwork,
     sc: Scene,
-    *,
-    left: bool = False,
-    right: bool = False,
-    front: bool = False,
-    back: bool = False,
-    bottom: bool = False,
-    top: bool = False,
-) -> tuple[Scene, Path]:
+) -> Path:
     """
-    Create images of the model colored depending on radius.
+    Renders the pore network with all pores, throats, and clusters in a uniform grey.
+
+    This is the plain structure view: every layer is drawn in a single neutral grey,
+    without any property-based coloring or colorbar, giving a clean overview of the
+    network geometry. A layer is only shown when it is enabled in the scene
+    configuration *and* has actually been built in the scene.
+
+    Parameters
+    ----------
+    dir_img : Path
+        Directory to save the rendered image at.
+    pn : PoreNetwork
+        The pore network providing the pore and throat counts.
+    sc : Scene
+        The scene holding the already-built geometry.
+
+    Returns
+    -------
+    Path
+        The file path to the rendered image.
     """
-    do_spheres = sc.config_scene.enable_spheres and pn.pore_radius is not None
-    do_cylinders = sc.config_scene.enable_cylinders and pn.throat_radius is not None
+    do_spheres = sc.config_scene.enable_spheres and sc.has_spheres
+    do_cylinders = sc.config_scene.enable_cylinders and sc.has_cylinders
     do_clusters = sc.config_scene.enable_clusters and sc.has_clusters
 
     color_grey = Color("#7A828C")
 
     N_p = pn.pore_count
-    N_t = pn.throat_count(left, right, front, back, bottom, top)
+    N_t = pn.throat_count(**sc._boundary_cylinder)
 
-    fname = make_img(
-        pth,
+    pth_img = make_img(
+        dir_img,
         sc,
         do_spheres,
         do_cylinders,
         do_clusters,
         [color_grey for _ in range(N_p)] if do_spheres else [],
         [color_grey for _ in range(N_t)] if do_cylinders else [],
-        sc.config_scene.palette.random(pn.pore_count) if do_clusters else [],
+        [color_grey for _ in range(N_p)] if do_clusters else [],
         "structure",
         "structure",
         "structure",
     )
 
-    return sc, fname
+    return pth_img
 
 
 def make_state(pth: Path, pn: PoreNetwork, sc: Scene):
