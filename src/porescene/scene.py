@@ -1061,6 +1061,7 @@ class Scene:
         self,
         pos: np.ndarray,
         r: np.ndarray,
+        name: str = "Spheres",
         style: str = "STRUCTURE_DEFAULT",
     ) -> Self:
         """
@@ -1069,7 +1070,7 @@ class Scene:
         loc = pos * self.scale + self.shift
         r = r * self.scale
 
-        mesh = bpy.data.meshes.new("Spheres")
+        mesh = bpy.data.meshes.new(name)
         mesh.from_pydata(loc.tolist(), [], [])
         mesh.update()
 
@@ -1081,7 +1082,7 @@ class Scene:
 
         mesh.attributes.new(name="color", type="FLOAT_COLOR", domain="POINT")
 
-        obj = bpy.data.objects.new("Spheres", mesh)
+        obj = bpy.data.objects.new(name, mesh)
 
         self._layers.objects.link(obj)
 
