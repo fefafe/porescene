@@ -293,8 +293,8 @@ def make_img(
         fname_fragments.append(f"state-{no_state}")
 
     # render image in given config
-    fname = "+".join(fname_fragments)
-    pth_render = sc.render(pth, fname)
+    fname = "+".join(fname_fragments) + ".png"
+    pth_render = sc.render(pth.with_name(fname))
 
     # reset scene
     sc.hide_cylinders()

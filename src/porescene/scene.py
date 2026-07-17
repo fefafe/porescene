@@ -1382,22 +1382,34 @@ class Scene:
             bpy.data.meshes.remove(obj)
         return self
 
-    def render(self, folder: Path, filename: str) -> Path:
+    def render(self, pth_render: Path) -> Path:
         """
-        Renders the scene.
+        Renders the current scene to an image file.
+
+        The render uses Blender's *Cycles* engine at the width and height taken from
+        the scene's image configuration (``config_image``) and writes the result to
+        ``pth_render``.
+
+        Parameters
+        ----------
+        pth_render : Path
+            Output path for the rendered image. Blender appends the file-format
+            extension when the path has none.
+
+        Returns
+        -------
+        Path
+            The output path the render was written to (``pth_render``).
         """
-        pth = (
-            folder / f"{filename}_"
-            f"{self.config_image.width}x{self.config_image.height}.png"
-        )
         bpy.context.scene.render.resolution_x = self.config_image.width
         bpy.context.scene.render.resolution_y = self.config_image.height
-        bpy.context.scene.render.filepath = str(pth)
-        with _get_spinner(f"[green]Rendering: {pth.name}") as p:
+        bpy.context.scene.render.filepath = str(pth_render)
+
+        with _get_spinner(f"[green]Rendering: {pth_render.name}") as p:
             p.add_task("render", total=None)
             with suppress_stdout():
                 bpy.ops.render.render(write_still=True)
-        return pth
+        return pth_render
 
     def save(self, pth: Path) -> Self:
         """
