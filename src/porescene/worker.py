@@ -71,9 +71,9 @@ def build_structure(
         The scene with added objects.
     """
     if (
-        pn.pore_position
-        and pn.throat_radius
-        and pn.tnp
+        pn.pore_position is not None
+        and pn.throat_radius is not None
+        and pn.tnp is not None
         and sc.config_scene.enable_cylinders
     ):
         pos_t = np.hstack(
