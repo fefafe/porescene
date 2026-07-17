@@ -234,23 +234,23 @@ class PoreNetwork:
             if "pos_p_out_back" in f:
                 pn.pore_position_back = np.array(f["pos_p_out_back"]).transpose()
             if "r_p" in f:
-                pn.pore_radius = np.array(f["r_p"]).transpose()
+                pn.pore_radius = np.array(f["r_p"]).ravel()
             if "r_p_eqs" in f:
-                pn.pore_radius = np.array(f["r_p_eqs"]).transpose()
+                pn.pore_radius = np.array(f["r_p_eqs"]).ravel()
             if "r_t" in f:
-                pn.throat_radius = np.array(f["r_t"]).transpose()
+                pn.throat_radius = np.array(f["r_t"]).ravel()
             if "r_t_out_top" in f:
-                pn.throat_radius_top = np.array(f["r_t_out_top"]).transpose()
+                pn.throat_radius_top = np.array(f["r_t_out_top"]).ravel()
             if "r_t_out_bot" in f:
-                pn.throat_radius_bottom = np.array(f["r_t_out_bot"]).transpose()
+                pn.throat_radius_bottom = np.array(f["r_t_out_bot"]).ravel()
             if "r_t_out_left" in f:
-                pn.throat_radius_left = np.array(f["r_t_out_left"]).transpose()
+                pn.throat_radius_left = np.array(f["r_t_out_left"]).ravel()
             if "r_t_out_right" in f:
-                pn.throat_radius_right = np.array(f["r_t_out_right"]).transpose()
+                pn.throat_radius_right = np.array(f["r_t_out_right"]).ravel()
             if "r_t_out_front" in f:
-                pn.throat_radius_front = np.array(f["r_t_out_front"]).transpose()
+                pn.throat_radius_front = np.array(f["r_t_out_front"]).ravel()
             if "r_t_out_back" in f:
-                pn.throat_radius_back = np.array(f["r_t_out_back"]).transpose()
+                pn.throat_radius_back = np.array(f["r_t_out_back"]).ravel()
             if "tnp" in f:
                 pn.throat_neighboring_pores = np.array(f["tnp"]).transpose() - 1
             if "pnp" in f:
