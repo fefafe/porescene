@@ -640,7 +640,9 @@ class PoreNetwork:
 
     @property
     def extent(self) -> np.ndarray:
-        """ """
+        """
+        Physical dimensions (x, y, z) of the pore network domain.
+        """
         return np.array([self.length_x, self.length_y, self.length_z])
 
     @property
