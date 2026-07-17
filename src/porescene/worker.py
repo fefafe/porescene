@@ -393,10 +393,7 @@ def make_radius(
 
     for b_name, b_value in boundaries.items():
         if b_value:
-            if (
-                getattr(pn, f"throat_radius_{b_name}") is not None
-                and getattr(pn, f"pore_position_{b_name}") is not None
-            ):
+            if getattr(pn, f"throat_radius_{b_name}") is not None:
                 r_t = np.concatenate([r_t, getattr(pn, f"throat_radius_{b_name}")])
             else:
                 raise Exception(
