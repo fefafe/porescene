@@ -1,9 +1,9 @@
+import json
 from pathlib import Path
 
 import numpy as np
 
-from porescene import worker
-from porescene import image
+from porescene import image, worker
 from porescene.color.gradient import SegmentedGradient
 from porescene.color.palette import Colormap, Palette
 from porescene.config import PropertyConfiguration
@@ -21,21 +21,21 @@ pth_data = Path.cwd() / "data"
 # temporary directory for rendered images
 pth_tmp = Path.cwd() / "tmp"
 
-# [m] domain dimensions
-dims = (100e-06, 100e-06, 100e-06)
-
 
 # =============================================================================
 # Scene configuration and rendering
 
-# load pore network data from MAT file
-pn = PoreNetwork.from_mat(pth_data / "pnm.mat")
+# load variable mapping for variable import from .mat file
+with open(pth_data / "map_vars.json") as f:
+    map_vars = json.load(f)
 
-# unify throat radii to 1 µm
-pn.throat_radius = np.ones(pn.throat_count) * 1e-6
+# load pore network data from MAT file
+pn = PoreNetwork.from_mat(pth_data / "pnm.mat", map_vars["data_network"])
 
 # load PoreScene config from JSON file
-sc = Scene.from_json(dims, pth_data / "porescene.json")
+sc = Scene.from_json(pn.extent, pth_data / "porescene.json")
+
+# disable cylinders entirely in the scene
 sc.config_scene.enable_cylinders = False
 
 # initialized PNM property "radius"
@@ -51,7 +51,7 @@ sc.config_scene.add_property(
 )
 
 # add cylinders and spheres to the scene
-worker.build_structure(sc, pn, False)
+worker.build_structure(sc, pn)
 
 # add axes around the scene
 sc.create_axes()
