@@ -50,8 +50,8 @@ class Scene:
         self.create_lights()
 
         # create collection for scene layers and add it to the scene
-        col = bpy.data.collections.new("Layers")
-        bpy.context.scene.collection.children.link(col)
+        self._layers = bpy.data.collections.new("Layers")
+        bpy.context.scene.collection.children.link(self._layers)
 
         # cycles configuration
         bpy.context.scene.render.engine = "CYCLES"
@@ -811,8 +811,7 @@ class Scene:
 
         obj = bpy.data.objects.new(name, mesh)
 
-        col = bpy.data.collections.get("Layers")
-        col.objects.link(obj)
+        self._layers.objects.link(obj)
 
         obj_template = self._get_cylinder_template(style)
         mod = obj.modifiers.new("CylinderInstances", type="NODES")
@@ -1082,8 +1081,7 @@ class Scene:
 
         obj = bpy.data.objects.new("Spheres", mesh)
 
-        col = bpy.data.collections.get("Layers")
-        col.objects.link(obj)
+        self._layers.objects.link(obj)
 
         template = self._get_sphere_template(style)
 
