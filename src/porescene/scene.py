@@ -774,6 +774,7 @@ class Scene:
         self,
         pos: np.ndarray,
         r: np.ndarray,
+        name: str = "Cylinders",
         style: str = "STRUCTURE_DEFAULT",
     ) -> Self:
         """
@@ -788,7 +789,7 @@ class Scene:
         phi = np.arctan2(d[:, 1], d[:, 0])
         loc = d / 2 + pos1 + self.shift
 
-        mesh = bpy.data.meshes.new("Cylinders")
+        mesh = bpy.data.meshes.new(name)
         mesh.from_pydata(loc.tolist(), [], [])
         mesh.update()
 
@@ -808,7 +809,7 @@ class Scene:
 
         mesh.attributes.new(name="color", type="FLOAT_COLOR", domain="POINT")
 
-        obj = bpy.data.objects.new("Cylinders", mesh)
+        obj = bpy.data.objects.new(name, mesh)
 
         col = bpy.data.collections.get("Layers")
         col.objects.link(obj)
