@@ -466,7 +466,7 @@ def make_coordination_number(pth: Path, pn: PoreNetwork, sc: Scene) -> tuple[Sce
         "coordination-number",
         "coordination-number",
     )
-    img_trim(pth_vis)
+
     pth_cb = pth_vis.with_name("colorbar_coordination_number.svg")
     make_gradient_overlay(
         pth_cb,
@@ -478,15 +478,18 @@ def make_coordination_number(pth: Path, pn: PoreNetwork, sc: Scene) -> tuple[Sce
     return sc, pth_vis
 
 
-def make_random(pth: Path, pn: PoreNetwork, sc: Scene) -> tuple[Scene, Path]:
+def make_random(dir_img: Path, pn: PoreNetwork, sc: Scene) -> Path:
     """
     Create images of the model colored depending on radius.
     """
+    # check scene components
     do_spheres = sc.config_scene.enable_spheres and pn.pore_radius is not None
     do_cylinders = sc.config_scene.enable_cylinders and pn.throat_radius is not None
     do_clusters = sc.config_scene.enable_clusters
-    fname = make_img(
-        pth,
+
+    # render scene configuration
+    pth_img = make_img(
+        dir_img,
         sc,
         do_spheres,
         do_cylinders,
@@ -498,8 +501,8 @@ def make_random(pth: Path, pn: PoreNetwork, sc: Scene) -> tuple[Scene, Path]:
         "random",
         "random",
     )
-    img_trim(fname)
-    return sc, fname
+
+    return pth_img
 
 
 def make_structure(
@@ -539,7 +542,7 @@ def make_structure(
         "structure",
         "structure",
     )
-    img_trim(fname)
+
     return sc, fname
 
 
@@ -601,7 +604,7 @@ def make_state(pth: Path, pn: PoreNetwork, sc: Scene):
                 prop.name,
                 no_state=state.no,
             )
-            img_trim(pth_vis)
+
             pth_cb = pth_vis.with_name("colorbar_" + prop.name + ".svg")
             make_gradient_overlay(
                 pth_cb,
