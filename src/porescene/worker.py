@@ -405,7 +405,7 @@ def make_radius(
     return pth_vis
 
 
-def make_coordination_number(pth: Path, pn: PoreNetwork, sc: Scene) -> Path:
+def make_coordination_number(dir_img: Path, pn: PoreNetwork, sc: Scene) -> Path:
     """
     Renders the pore network with pores, throats, and clusters colored by their
     coordination number and composites a matching colorbar onto the image.
@@ -418,7 +418,7 @@ def make_coordination_number(pth: Path, pn: PoreNetwork, sc: Scene) -> Path:
 
     Parameters
     ----------
-    pth : Path
+    dir_img : Path
         Directory to save the rendered image and colorbar at.
     pn : PoreNetwork
         The pore network providing the pore and throat coordination numbers.
@@ -445,7 +445,7 @@ def make_coordination_number(pth: Path, pn: PoreNetwork, sc: Scene) -> Path:
     grad = conf.gradient_class(conf.colors, mn / conf.factor, mx / conf.factor)
 
     pth_vis = make_img(
-        pth,
+        dir_img,
         sc,
         do_spheres,
         do_cylinders,
