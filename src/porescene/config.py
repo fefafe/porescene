@@ -10,7 +10,7 @@ import numpy as np
 
 from porescene.color import Color
 from porescene.color.gradient import Gradient, SmoothGradient
-from porescene.color.palette import Palette
+from porescene.color.palette import Colormap, Palette
 from porescene.utility import (
     CompassDirection,
     Orientation,
@@ -344,7 +344,7 @@ class SceneConfiguration:
         material_clusters: str = "PLASTIC_ROUGH",
         material_solid: str = "SOLID_DEFAULT",
         material_void: str = "ICE",
-        palette: Palette = Palette.load("batlow"),
+        palette: Palette = Palette.load(Colormap.BATLOW),
     ):
         self._properties = []
         self.enable_spheres = enable_spheres
