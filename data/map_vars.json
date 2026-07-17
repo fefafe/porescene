@@ -1,0 +1,32 @@
+{
+    "data_network": {
+        "length_x": "L_sample_x",
+        "length_y": "L_sample_y",
+        "length_z": "L_sample_z",
+        "pore_coordination_number": "cn_p",
+        "throat_coordination_number": "cn_t",
+        "pores_left": "p_left",
+        "pores_right": "p_right",
+        "pores_front": "p_front",
+        "pores_back": "p_back",
+        "pores_bottom": "p_bot",
+        "pores_top": "p_top",
+        "pore_position": "pos_p",
+        "pore_position_top": "pos_p_out_top",
+        "pore_position_bottom": "pos_p_out_bot",
+        "pore_position_left": "pos_p_out_left",
+        "pore_position_right": "pos_p_out_right",
+        "pore_position_front": "pos_p_out_front",
+        "pore_position_back": "pos_p_out_back",
+        "pore_radius": "r_p",
+        "throat_radius": "r_t",
+        "throat_radius_top": "r_t_out_top",
+        "throat_radius_bottom": "r_t_out_bot",
+        "throat_radius_left": "r_t_out_left",
+        "throat_radius_right": "r_t_out_right",
+        "throat_radius_front": "r_t_out_front",
+        "throat_radius_back": "r_t_out_back",
+        "throat_neighboring_pores": "tnp",
+        "pore_neighboring_pores": "pnp"
+    }
+}
