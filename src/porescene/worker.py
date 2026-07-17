@@ -94,8 +94,9 @@ def build_structure(
 
         for b_name, b_value in boundaries.items():
             if b_value:
-                if getattr(pn, f"throat_radius_{b_name}") and getattr(
-                    pn, f"pore_position_{b_name}"
+                if (
+                    getattr(pn, f"throat_radius_{b_name}") is not None
+                    and getattr(pn, f"pore_position_{b_name}") is not None
                 ):
                     pos_t = np.vstack(
                         [
