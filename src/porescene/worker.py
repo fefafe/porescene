@@ -648,26 +648,6 @@ def make_state(pth: Path, pn: PoreNetwork, sc: Scene):
     return sc, pth_vis
 
 
-# def make_structure(pth: Path, pn: PoreNetwork, sc: Scene):
-#     do_spheres = sc.config_scene.enable_spheres and pn.pore_radius is not None
-#     do_cylinders = sc.config_scene.enable_cylinders and pn.throat_radius is not None
-#     do_clusters = sc.config_scene.enable_clusters
-#     sc, fname = make_img(
-#         pth,
-#         sc,
-#         do_spheres,
-#         do_cylinders,
-#         do_clusters,
-#         sc.config_scene.palette.random(pn.pore_count) if do_spheres else [],
-#         sc.config_scene.palette.random(pn.throat_count) if do_cylinders else [],
-#         sc.config_scene.palette.random(pn.pore_count) if do_clusters else [],
-#         "random",
-#         "random",
-#         "random",
-#     )
-#     return sc, fname
-
-
 def make_gradient_overlay(
     pth: Path,
     config: PropertyConfiguration,
