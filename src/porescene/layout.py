@@ -54,8 +54,6 @@ class BackgroundOverlay(Overlay):
 
     _xml_declaration = '<?xml version="1.0" encoding="UTF-8"?>\n'
 
-    __slots__ = ("_background", "_image", "_padding", "_resolution")
-
     def __init__(
         self,
         pth: Path,
@@ -187,24 +185,6 @@ class TitleOverlay(BackgroundOverlay):
     *Look for the save file!*
 
     """
-
-    __slots__ = [
-        "_align",
-        "_color_heading",
-        "_color_subheading",
-        "_color_text",
-        "_font_family",
-        "_font_size_heading",
-        "_font_size_subheading",
-        "_font_size_text",
-        "_heading",
-        "_line_height",
-        "_spacing",
-        "_subheading",
-        "_text",
-        "_x",
-        "_y",
-    ]
 
     def __init__(
         self,
@@ -527,24 +507,6 @@ class Gradient(TitleOverlay, abc.ABC):
     >>>
 
     """
-
-    __slots__ = [
-        "_color_ticks",
-        "_color_nan",
-        "_exponent",
-        "_font_size_ticks",
-        "_gradient_colors",
-        "_gradient_height",
-        "_gradient_length",
-        "_line_width",
-        "_orientation",
-        "_roundness",
-        "_seperator_exponent",
-        "_seperator_decimal",
-        "_text_nan",
-        "_tick_length",
-        "_ticks",
-    ]
 
     def __init__(
         self,
