@@ -5,7 +5,7 @@
 import subprocess
 import tempfile
 from pathlib import Path
-from typing import Sequence
+from typing import Iterator
 
 import imageio_ffmpeg
 import PIL.Image
@@ -250,7 +250,7 @@ def iterate_side_by_side(pthlist_left, pthlist_right, pth_merged):
         )
 
 
-def frames2gif(pth_frames: Sequence[Path], pth_gif: Path, fps: int = 24) -> Path:
+def frames2gif(pth_frames: Iterator[Path], pth_gif: Path, fps: int = 24) -> Path:
     """
     Exports an animated GIF from the given frames.
 
@@ -261,7 +261,7 @@ def frames2gif(pth_frames: Sequence[Path], pth_gif: Path, fps: int = 24) -> Path
 
     Parameters
     ----------
-    pth_frames : Sequence[Path]
+    pth_frames : Iterator[Path]
         Ordered paths of the frame images. The animation follows this order.
     pth_gif : Path
         Output path of the GIF file.
@@ -331,7 +331,7 @@ def frames2gif(pth_frames: Sequence[Path], pth_gif: Path, fps: int = 24) -> Path
 
 
 def frames2mp4(
-    pth_frames: Sequence[Path],
+    pth_frames: Iterator[Path],
     pth_mp4: Path,
     fps: int = 24,
     background: tuple[int, int, int] = (255, 255, 255),
@@ -346,7 +346,7 @@ def frames2mp4(
 
     Parameters
     ----------
-    pth_frames : Sequence[Path]
+    pth_frames : Iterator[Path]
         Ordered paths of the frame images. The video follows this order.
     pth_mp4 : Path
         Output path of the MP4 file.
