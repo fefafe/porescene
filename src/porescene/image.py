@@ -2,8 +2,12 @@
 # Copyright (C) 2026 Felix Faber /
 # Otto von Guericke University Magdeburg, Thermal Process Engineering
 
+import subprocess
+import tempfile
 from pathlib import Path
+from typing import Sequence
 
+import imageio_ffmpeg
 import PIL.Image
 
 from porescene.utility import CompassDirection, Orientation
@@ -296,9 +300,7 @@ def frames2gif(pth_frames: Sequence[Path], pth_gif: Path, fps: int = 24) -> Path
         frame_input = ["-framerate", str(fps), "-i", (tmp / "%05d.png").as_posix()]
 
         def run(args: list[str]) -> None:
-            result = subprocess.run(
-                [ffmpeg, "-y", *args], capture_output=True, text=True
-            )
+            result = subprocess.run([ffmpeg, "-y", *args], capture_output=True, text=True)
             if result.returncode != 0:
                 raise RuntimeError(f"ffmpeg failed:\n{result.stderr}")
 
