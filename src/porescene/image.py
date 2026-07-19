@@ -249,7 +249,12 @@ def iterate_side_by_side(pthlist_left, pthlist_right, pth_merged):
         )
 
 
-def frames2gif(pth_frames: Iterator[Path], pth_gif: Path, fps: int = 24) -> Path:
+def frames2gif(
+    pth_frames: Iterator[Path],
+    pth_gif: Path,
+    fps: int = 24,
+    trim: bool = True,
+) -> Path:
     """
     Exports an animated GIF from the given frames.
 
@@ -266,6 +271,9 @@ def frames2gif(pth_frames: Iterator[Path], pth_gif: Path, fps: int = 24) -> Path
         Output path of the GIF file.
     fps : int, optional
         Playback speed in frames per second, by default 24.
+    trim : bool, optional
+        If ``True``, the transparent padding common to all frames is cropped away
+        before encoding (see :func:`_trim_common_padding`), by default ``True``.
 
     Returns
     -------
@@ -286,6 +294,8 @@ def frames2gif(pth_frames: Iterator[Path], pth_gif: Path, fps: int = 24) -> Path
         # in size, which ffmpeg's image demuxer rejects mid-sequence; centering
         # each frame on the maximum extent yields the uniform sequence it expects.
         images = [PIL.Image.open(frame).convert("RGBA") for frame in frames]
+        if trim:
+            images = _trim_common_padding(images)
         canvas_w = max(img.width for img in images)
         canvas_h = max(img.height for img in images)
         for i, img in enumerate(images):
@@ -334,6 +344,7 @@ def frames2mp4(
     pth_mp4: Path,
     fps: int = 24,
     background: tuple[int, int, int] = (255, 255, 255),
+    trim: bool = True,
 ) -> Path:
     """
     Exports an MP4 (H.264) video from the given frames.
@@ -354,6 +365,9 @@ def frames2mp4(
     background : tuple[int, int, int], optional
         RGB color the (transparent) frames are composited onto, by default white
         ``(255, 255, 255)``.
+    trim : bool, optional
+        If ``True``, the transparent padding common to all frames is cropped away
+        before encoding (see :func:`_trim_common_padding`), by default ``True``.
 
     Returns
     -------
@@ -375,6 +389,8 @@ def frames2mp4(
         # centered on the maximum extent; the canvas is rounded up to even
         # dimensions, as required by the yuv420p H.264 encoder.
         images = [PIL.Image.open(frame).convert("RGBA") for frame in frames]
+        if trim:
+            images = _trim_common_padding(images)
         canvas_w = max(img.width for img in images)
         canvas_h = max(img.height for img in images)
         canvas_w += canvas_w % 2
@@ -411,3 +427,23 @@ def frames2mp4(
             raise RuntimeError(f"ffmpeg failed:\n{result.stderr}")
 
     return pth_mp4
+
+
+def _trim_common_padding(images: list[PIL.Image.Image]) -> list[PIL.Image.Image]:
+    """
+    Crops every image by the padding shared by all of them on each side.
+
+    Each image's transparent margin (top, right, bottom, left) is measured
+    individually, and the minimum margin found on a given side across all images
+    is cropped from that side of every image -- so e.g. margins of 10, 12, 14, 8
+    and 12 px on one side are all trimmed down to 8 px, keeping every frame the
+    same size and its content aligned.
+    """
+    boxes = [img.getbbox() or (0, 0, img.width, img.height) for img in images]
+    left = min(box[0] for box in boxes)
+    top = min(box[1] for box in boxes)
+    right = min(img.width - box[2] for img, box in zip(images, boxes))
+    bottom = min(img.height - box[3] for img, box in zip(images, boxes))
+    return [
+        img.crop((left, top, img.width - right, img.height - bottom)) for img in images
+    ]
