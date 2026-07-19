@@ -93,7 +93,7 @@ def img_pad(
 def img_add_colorbar(
     pth_vis: Path,
     pth_cb: Path,
-    direction: CompassDirection = CompassDirection.SOUTH,
+    align: CompassDirection = CompassDirection.SOUTH,
     orientation: Orientation = Orientation.HORIZONTAL,
     *,
     center_rendering: bool = False,
@@ -111,7 +111,7 @@ def img_add_colorbar(
     w_vis, h_vis = img_vis.size
     asp_cb = img_ax.width / img_ax.height
 
-    compass = direction.value  # e.g. "N", "SE", "W"
+    compass = align.value
 
     if orientation is Orientation.VERTICAL:
         # Tall colorbar stacked to the left/right of the visualization.
@@ -145,7 +145,7 @@ def img_add_colorbar(
         vis_y, cb_y = vpos(h_vis), vpos(h_cb)
     else:
         # Wide colorbar stacked above/below the visualization.
-        w_cb = int(0.5 * w_vis)
+        w_cb = int(0.6 * w_vis)
         h_cb = int(w_cb / asp_cb)
         spacing = int(h_cb * 0.25)
         img_ax = img_ax.resize((w_cb, h_cb), PIL.Image.Resampling.LANCZOS)
@@ -169,11 +169,10 @@ def img_add_colorbar(
 
         vis_x, cb_x = hpos(w_vis), hpos(w_cb)
 
-    parts_fname = pth_vis.stem.split("_")
-    del parts_fname[-1]
-    parts_fname.append("colorbar")
+    parts_fname = pth_vis.stem.split("+")
+    parts_fname.append(f"colorbar-{align.value}-{orientation.value}")
 
-    pth_comp = pth_vis.with_stem("_".join(parts_fname))
+    pth_comp = pth_vis.with_stem("+".join(parts_fname))
 
     img_comp = PIL.Image.new("RGBA", (canvas_w, canvas_h), (0, 0, 0, 0))
     img_comp.alpha_composite(img_vis, (vis_x, vis_y))
