@@ -6,7 +6,7 @@ import json
 import math
 import random
 from pathlib import Path
-from typing import Self, cast
+from typing import NamedTuple, Self, cast
 
 import bpy
 import numpy as np
@@ -19,6 +19,31 @@ from porescene.config import AxesConfiguration, ImageConfiguration, SceneConfigu
 from porescene.utility import suppress_stdout
 
 import bmesh  # isort:skip
+
+
+def _radians(x: float, y: float, z: float) -> tuple[float, float, float]:
+    """Converts an Euler rotation given in degrees to radians."""
+    return (math.radians(x), math.radians(y), math.radians(z))
+
+
+class _AxisSpec(NamedTuple):
+    """Per-axis parameters for drawing major ticks, minor ticks and labels."""
+
+    prefix: str
+    ticks: object
+    positions: object
+    precision: int
+    aspect: float
+    enable_minor: bool
+    base: list[float]
+    dim: int
+    tick_rotation: tuple[float, float, float]
+    label_rotation: tuple[float, float, float]
+    label_dim: int
+    align_first: str
+    align_last: str
+    first_gated: bool
+    minor_special: bool
 
 
 class Scene:
@@ -158,487 +183,140 @@ class Scene:
         """
         Adds axes with ticks and labels to the scene.
         """
-        # axis material
+        cfg = self.config_axes
+        lw = cfg.line_width
+        d = cfg.distance
+        sbb = self.size_bounding_box
+        sx, sy, sz = self.shift
+        ax, ay, az = self.aspect
+
         mat_axis = self.get_material("AXES", "axes")
-
-        # axis font
-        font = bpy.data.fonts.load(str(self.config_axes.font_family))
-
-        # axis collection
+        font = bpy.data.fonts.load(str(cfg.font_family), check_existing=True)
         col = bpy.data.collections.new("Axes")
 
-        # axis mesh
-        mesh_axis = bpy.data.meshes.new("axis")
-        mesh_axis.from_pydata(
-            [
-                (0, 0, 0),
-                (self.config_axes.line_width, 0, 0),
-                (self.config_axes.line_width, self.size_bounding_box, 0),
-                (0, self.size_bounding_box, 0),
-            ],
-            [],
-            [(0, 1, 2, 3)],
-        )
-        mesh_axis.update()
+        # axis lines
+        mesh_axis = self._add_line("axis", lw, sbb)
+        axis_lines = [
+            ("axis_x", (sx, sbb - sy + d + lw, sz), _radians(0, 0, -90), ax),
+            ("axis_y", (sbb - sx + d, sy, sz), _radians(0, 0, 0), ay),
+            ("axis_z", (sbb - sx + d, sy, sz), _radians(90, 0, 0), az),
+        ]
+        for name, location, rotation, aspect in axis_lines:
+            axis = bpy.data.objects.new(name, mesh_axis)
+            col.objects.link(axis)
+            axis.location = location
+            axis.rotation_euler = rotation
+            axis.scale = (1, aspect, 1)
 
-        # x axis object
-        axis_x = bpy.data.objects.new("axis_x", mesh_axis)
-        col.objects.link(axis_x)
-        axis_x.location = (
-            self.shift[0],
-            self.size_bounding_box
-            - self.shift[1]
-            + self.config_axes.distance
-            + self.config_axes.line_width,
-            self.shift[2],
-        )
-        axis_x.rotation_euler = (math.radians(0), math.radians(0), math.radians(-90))
-        axis_x.scale = (1, self.aspect[0], 1)
-
-        # y axis object
-        axis_y = bpy.data.objects.new("axis_y", mesh_axis)
-        col.objects.link(axis_y)
-        axis_y.location = (
-            self.size_bounding_box - self.shift[0] + self.config_axes.distance,
-            self.shift[1],
-            self.shift[2],
-        )
-        axis_y.scale = (1, self.aspect[1], 1)
-
-        # z axis object
-        axis_z = bpy.data.objects.new("axis_z", mesh_axis)
-        col.objects.link(axis_z)
-        axis_z.location = (
-            self.size_bounding_box - self.shift[0] + self.config_axes.distance,
-            self.shift[1],
-            self.shift[2],
-        )
-        axis_z.rotation_euler = (math.radians(90), math.radians(0), math.radians(0))
-        axis_z.scale = (1, self.aspect[2], 1)
-
-        # x axis label
-        if self.config_axes.label_x:
-            font_curve = bpy.data.curves.new(type="FONT", name="scale x")
-            font_curve.body = self.config_axes.label_x
-            font_curve.size = self.config_axes.font_size_labels
-            font_curve.align_x = "CENTER"
-            font_curve.align_y = "TOP"
-            axis_label = bpy.data.objects.new(name="axis label x", object_data=font_curve)
-            col.objects.link(axis_label)
-            axis_label.data.font = font
-            x = self.size_bounding_box / 2
-            y = (
-                self.size_bounding_box
-                - self.shift[1]
-                + self.config_axes.distance * 2
-                + self.config_axes.line_width
-            )
-            z = self.shift[2]
-            if self.config_axes.enable_ticks[0] and len(self.config_axes.ticks_x) > 0:
-                y += self.config_axes.tick_length + self.config_axes.font_size_ticks
-            axis_label.location = (x, y, z)
-            axis_label.rotation_euler = (
-                math.radians(0),
-                math.radians(0),
-                math.radians(180),
+        # axis labels
+        axis_labels = [
+            (
+                cfg.label_x,
+                [sbb / 2, sbb - sy + 2 * d + lw, sz],
+                1,
+                cfg.ticks_x,
+                cfg.enable_ticks[0],
+                _radians(0, 0, 180),
+                "scale x",
+                "axis label x",
+            ),
+            (
+                cfg.label_y,
+                [sbb - sx + 2 * d + lw, sbb / 2, sz],
+                0,
+                cfg.ticks_y,
+                cfg.enable_ticks[1],
+                _radians(0, 0, 90),
+                "scale y",
+                "axis label y",
+            ),
+            (
+                cfg.label_z,
+                [sbb - sx + 2 * d + lw, sy, sbb / 2],
+                0,
+                cfg.ticks_z,
+                cfg.enable_ticks[2],
+                _radians(0, 90, 90),
+                "scale z",
+                "axis label z",
+            ),
+        ]
+        for body, loc, bump, ticks, ticks_on, rotation, curve, name in axis_labels:
+            if not body:
+                continue
+            if ticks_on and len(ticks) > 0:
+                loc[bump] += cfg.tick_length + cfg.font_size_ticks
+            self._add_text(
+                col,
+                font,
+                name,
+                body,
+                cfg.font_size_labels,
+                "CENTER",
+                tuple(loc),
+                rotation,
+                curve_name=curve,
             )
 
-        # y axis label
-        if self.config_axes.label_y:
-            font_curve = bpy.data.curves.new(type="FONT", name="scale y")
-            font_curve.body = self.config_axes.label_y
-            font_curve.size = self.config_axes.font_size_labels
-            font_curve.align_x = "CENTER"
-            font_curve.align_y = "TOP"
-            axis_label = bpy.data.objects.new(name="axis label y", object_data=font_curve)
-            col.objects.link(axis_label)
-            axis_label.data.font = font
-            x = (
-                self.size_bounding_box
-                - self.shift[0]
-                + self.config_axes.distance * 2
-                + self.config_axes.line_width
-            )
-            y = self.size_bounding_box / 2
-            z = self.shift[2]
-            if self.config_axes.enable_ticks[1] and len(self.config_axes.ticks_y) > 0:
-                x += self.config_axes.tick_length + self.config_axes.font_size_ticks
-            axis_label.location = (x, y, z)
-            axis_label.rotation_euler = (
-                math.radians(0),
-                math.radians(0),
-                math.radians(90),
-            )
-
-        # z axis label
-        if self.config_axes.label_z:
-            font_curve = bpy.data.curves.new(type="FONT", name="scale z")
-            font_curve.body = self.config_axes.label_z
-            font_curve.size = self.config_axes.font_size_labels
-            font_curve.align_x = "CENTER"
-            font_curve.align_y = "TOP"
-            axis_label = bpy.data.objects.new(name="axis label z", object_data=font_curve)
-            col.objects.link(axis_label)
-            axis_label.data.font = font
-            x = (
-                self.size_bounding_box
-                - self.shift[0]
-                + self.config_axes.distance * 2
-                + self.config_axes.line_width
-            )
-            y = self.shift[1]
-            z = self.size_bounding_box / 2
-            if self.config_axes.enable_ticks[2] and len(self.config_axes.ticks_z) > 0:
-                x += self.config_axes.tick_length + self.config_axes.font_size_ticks
-            axis_label.location = (x, y, z)
-            axis_label.rotation_euler = (
-                math.radians(0),
-                math.radians(90),
-                math.radians(90),
-            )
-
-        if any(self.config_axes.enable_ticks):
-            # tick mesh
-            mesh_tick = bpy.data.meshes.new("tick")
-            mesh_tick.from_pydata(
-                [
-                    (0, 0, 0),
-                    (self.config_axes.line_width, 0, 0),
-                    (self.config_axes.line_width, self.config_axes.tick_length, 0),
-                    (0, self.config_axes.tick_length, 0),
-                ],
-                [],
-                [(0, 1, 2, 3)],
-            )
-            mesh_tick.update()
-
-            # number of ticks in each dimension
-            N_x = len(self.config_axes.ticks_x)
-            N_y = len(self.config_axes.ticks_y)
-            N_z = len(self.config_axes.ticks_z)
-
-            # x axis ticks
-            if self.config_axes.enable_ticks[0]:
-
-                for [idx, label] in enumerate(self.config_axes.ticks_x):
-                    tick = bpy.data.objects.new(f"x tick {idx}", mesh_tick)
-                    col.objects.link(tick)
-                    x = (
-                        self.shift[0]
-                        + self.size_bounding_box
-                        * self.aspect[0]
-                        * self.config_axes.position_tick_x[idx]
-                        - 0.5 * self.config_axes.line_width
-                    )
-                    y = (
-                        self.size_bounding_box
-                        - self.shift[1]
-                        + self.config_axes.distance
-                        + self.config_axes.line_width
-                    )
-                    z = self.shift[2]
-                    align_x = "CENTER"
-                    if idx == 0 and self.config_axes.indent_ticks:
-                        x += 0.5 * self.config_axes.line_width
-                        align_x = "RIGHT"
-                    if idx == N_x - 1 and self.config_axes.indent_ticks:
-                        x -= 0.5 * self.config_axes.line_width
-                        align_x = "LEFT"
-                    tick.location = (x, y, z)
-
-                    # minor ticks
-                    if self.config_axes.enable_ticks_minor[0]:
-                        spacing_ticks_minor = (
-                            self.config_axes.position_tick_x[1]
-                            - self.config_axes.position_tick_x[0]
-                        ) / (self.config_axes.num_ticks_minor + 1)
-
-                        is_last_tick = idx + 1 == len(self.config_axes.ticks_x)
-
-                        if is_last_tick:
-                            n_ticks = math.floor(
-                                (1 - self.config_axes.position_tick_x[-1])
-                                / spacing_ticks_minor
-                            )
-                        else:
-                            n_ticks = self.config_axes.num_ticks_minor
-
-                        for idx_minor in range(n_ticks):
-                            tick = bpy.data.objects.new(f"x tick minor {idx}", mesh_tick)
-                            col.objects.link(tick)
-
-                            x_minor = (
-                                self.shift[0]
-                                + self.size_bounding_box
-                                * self.aspect[0]
-                                * (
-                                    self.config_axes.position_tick_x[idx]
-                                    + spacing_ticks_minor * (idx_minor + 1)
-                                )
-                                - 0.5 * self.config_axes.line_width
-                            )
-                            y_minor = (
-                                self.size_bounding_box
-                                - self.shift[1]
-                                + self.config_axes.distance
-                                + self.config_axes.line_width
-                            )
-                            z_minor = self.shift[2]
-
-                            tick.location = (x_minor, y_minor, z_minor)
-                            tick.scale = (1, 0.5, 1)
-
-                    # axis labels
-                    font_curve = bpy.data.curves.new(
-                        type="FONT", name=f"x tick label {idx}"
-                    )
-                    font_curve.body = (
-                        str(round(label, self.config_axes.precision[0]))
-                        .rstrip("0")
-                        .rstrip(".")
-                    )
-                    font_curve.size = self.config_axes.font_size_ticks
-                    font_curve.align_x = align_x
-                    font_curve.align_y = "TOP"
-                    tick_label = bpy.data.objects.new(
-                        name=f"x tick label {idx}", object_data=font_curve
-                    )
-                    col.objects.link(tick_label)
-                    tick_label.data.font = font
-                    tick_label.location = (
-                        x,
-                        y + self.config_axes.distance + self.config_axes.tick_length,
-                        z,
-                    )
-                    tick_label.rotation_euler = (
-                        math.radians(0),
-                        math.radians(0),
-                        math.radians(180),
-                    )
-
-            # y axis ticks
-            if self.config_axes.enable_ticks[1]:
-
-                for [idx, label] in enumerate(self.config_axes.ticks_y):
-                    tick = bpy.data.objects.new(f"y tick {idx}", mesh_tick)
-                    col.objects.link(tick)
-                    x = (
-                        self.size_bounding_box
-                        - self.shift[0]
-                        + self.config_axes.distance
-                        + self.config_axes.line_width
-                    )
-                    y = (
-                        self.shift[1]
-                        + self.size_bounding_box
-                        * self.aspect[1]
-                        * self.config_axes.position_tick_y[idx]
-                        + 0.5 * self.config_axes.line_width
-                    )
-                    z = self.shift[2]
-                    align_x = "CENTER"
-                    if idx == 0:
-                        y += 0.5 * self.config_axes.line_width
-                        align_x = "LEFT"
-                    if idx == N_y - 1 and self.config_axes.indent_ticks:
-                        y -= 0.5 * self.config_axes.line_width
-                        align_x = "RIGHT"
-                    tick.location = (x, y, z)
-                    tick.rotation_euler = (
-                        math.radians(0),
-                        math.radians(0),
-                        math.radians(-90),
-                    )
-
-                    # minor ticks
-                    if self.config_axes.enable_ticks_minor[1]:
-                        if self.config_axes.num_ticks_minor == 1:
-                            spacing_ticks_minor = (
-                                self.config_axes.position_tick_y[1]
-                                - self.config_axes.position_tick_y[0] / 2
-                            )
-                        else:
-                            spacing_ticks_minor = (
-                                self.config_axes.position_tick_y[1]
-                                - self.config_axes.position_tick_y[0]
-                            ) / (self.config_axes.num_ticks_minor + 1)
-
-                        is_last_tick = idx + 1 == len(self.config_axes.ticks_y)
-
-                        if is_last_tick:
-                            n_ticks = math.floor(
-                                (1 - self.config_axes.position_tick_y[-1])
-                                / spacing_ticks_minor
-                            )
-                        else:
-                            n_ticks = self.config_axes.num_ticks_minor
-
-                        for idx_minor in range(n_ticks):
-                            tick = bpy.data.objects.new(f"y tick minor {idx}", mesh_tick)
-                            col.objects.link(tick)
-
-                            x_minor = (
-                                self.size_bounding_box
-                                - self.shift[0]
-                                + self.config_axes.distance
-                                + self.config_axes.line_width
-                            )
-                            y_minor = (
-                                self.shift[1]
-                                + self.size_bounding_box
-                                * self.aspect[1]
-                                * (
-                                    self.config_axes.position_tick_y[idx]
-                                    + spacing_ticks_minor * (idx_minor + 1)
-                                )
-                                + 0.5 * self.config_axes.line_width
-                            )
-                            z_minor = self.shift[2]
-
-                            tick.rotation_euler = (
-                                math.radians(0),
-                                math.radians(0),
-                                math.radians(-90),
-                            )
-                            tick.location = (x_minor, y_minor, z_minor)
-                            tick.scale = (1, 0.5, 1)
-
-                    # axis labels
-                    font_curve = bpy.data.curves.new(
-                        type="FONT", name=f"y tick label {idx}"
-                    )
-                    font_curve.body = (
-                        str(round(label, self.config_axes.precision[1]))
-                        .rstrip("0")
-                        .rstrip(".")
-                    )
-                    font_curve.size = self.config_axes.font_size_ticks
-                    font_curve.align_x = align_x
-                    font_curve.align_y = "TOP"
-                    tick_label = bpy.data.objects.new(
-                        name=f"y tick label {idx}", object_data=font_curve
-                    )
-                    col.objects.link(tick_label)
-                    tick_label.data.font = font
-                    tick_label.location = (
-                        x + self.config_axes.distance + self.config_axes.tick_length,
-                        y,
-                        z,
-                    )
-                    tick_label.rotation_euler = (
-                        math.radians(0),
-                        math.radians(0),
-                        math.radians(90),
-                    )
-
-            # z axis ticks
-            if self.config_axes.enable_ticks[2]:
-
-                for [idx, label] in enumerate(self.config_axes.ticks_z):
-                    tick = bpy.data.objects.new(f"z tick {idx}", mesh_tick)
-                    col.objects.link(tick)
-                    x = (
-                        self.size_bounding_box
-                        - self.shift[0]
-                        + self.config_axes.distance
-                        + self.config_axes.line_width
-                    )
-                    y = self.shift[1]
-                    z = (
-                        self.shift[2]
-                        + self.size_bounding_box
-                        * self.aspect[2]
-                        * self.config_axes.position_tick_z[idx]
-                        + 0.5 * self.config_axes.line_width
-                    )
-                    align_x = "CENTER"
-                    if idx == 0:
-                        z += 0.5 * self.config_axes.line_width
-                        align_x = "RIGHT"
-                    if idx == N_z - 1 and self.config_axes.indent_ticks:
-                        z -= 0.5 * self.config_axes.line_width
-                        align_x = "LEFT"
-                    tick.location = (x, y, z)
-                    tick.rotation_euler = (
-                        math.radians(90),
-                        math.radians(90),
-                        math.radians(0),
-                    )
-
-                    # minor ticks
-                    if self.config_axes.enable_ticks_minor[2]:
-                        spacing_ticks_minor = (
-                            self.config_axes.position_tick_z[1]
-                            - self.config_axes.position_tick_z[0]
-                        ) / (self.config_axes.num_ticks_minor + 1)
-
-                        is_last_tick = idx + 1 == len(self.config_axes.ticks_z)
-
-                        if is_last_tick:
-                            n_ticks = math.floor(
-                                (1 - self.config_axes.position_tick_z[-1])
-                                / spacing_ticks_minor
-                            )
-                        else:
-                            n_ticks = self.config_axes.num_ticks_minor
-
-                        for idx_minor in range(n_ticks):
-                            tick = bpy.data.objects.new(f"z tick minor {idx}", mesh_tick)
-                            col.objects.link(tick)
-
-                            x_minor = (
-                                self.size_bounding_box
-                                - self.shift[0]
-                                + self.config_axes.distance
-                                + self.config_axes.line_width
-                            )
-                            y_minor = self.shift[1]
-                            z_minor = (
-                                self.shift[2]
-                                + self.size_bounding_box
-                                * self.aspect[2]
-                                * (
-                                    self.config_axes.position_tick_z[idx]
-                                    + spacing_ticks_minor * (idx_minor + 1)
-                                )
-                                + 0.5 * self.config_axes.line_width
-                            )
-
-                            tick.rotation_euler = (
-                                math.radians(90),
-                                math.radians(90),
-                                math.radians(0),
-                            )
-                            tick.location = (x_minor, y_minor, z_minor)
-                            tick.scale = (1, 0.5, 1)
-
-                    # axis labels
-                    font_curve = bpy.data.curves.new(
-                        type="FONT", name=f"z tick label {idx}"
-                    )
-                    font_curve.body = (
-                        str(round(label, self.config_axes.precision[2]))
-                        .rstrip("0")
-                        .rstrip(".")
-                    )
-                    font_curve.size = self.config_axes.font_size_ticks
-                    font_curve.align_x = align_x
-                    font_curve.align_y = "TOP"
-                    tick_label = bpy.data.objects.new(
-                        name=f"z tick label {idx}", object_data=font_curve
-                    )
-                    col.objects.link(tick_label)
-                    tick_label.data.font = font
-                    tick_label.location = (
-                        x + self.config_axes.distance + self.config_axes.tick_length,
-                        y,
-                        z,
-                    )
-                    tick_label.rotation_euler = (
-                        math.radians(0),
-                        math.radians(90),
-                        math.radians(90),
-                    )
+        # ticks with labels
+        if any(cfg.enable_ticks):
+            mesh_tick = self._add_line("tick", lw, cfg.tick_length)
+            specs = [
+                _AxisSpec(
+                    prefix="x",
+                    ticks=cfg.ticks_x,
+                    positions=getattr(cfg, "position_tick_x", None),
+                    precision=cfg.precision[0],
+                    aspect=ax,
+                    enable_minor=cfg.enable_ticks_minor[0],
+                    base=[sx - 0.5 * lw, sbb - sy + d + lw, sz],
+                    dim=0,
+                    tick_rotation=_radians(0, 0, 0),
+                    label_rotation=_radians(0, 0, 180),
+                    label_dim=1,
+                    align_first="RIGHT",
+                    align_last="LEFT",
+                    first_gated=True,
+                    minor_special=False,
+                ),
+                _AxisSpec(
+                    prefix="y",
+                    ticks=cfg.ticks_y,
+                    positions=getattr(cfg, "position_tick_y", None),
+                    precision=cfg.precision[1],
+                    aspect=ay,
+                    enable_minor=cfg.enable_ticks_minor[1],
+                    base=[sbb - sx + d + lw, sy + 0.5 * lw, sz],
+                    dim=1,
+                    tick_rotation=_radians(0, 0, -90),
+                    label_rotation=_radians(0, 0, 90),
+                    label_dim=0,
+                    align_first="LEFT",
+                    align_last="RIGHT",
+                    first_gated=False,
+                    minor_special=True,
+                ),
+                _AxisSpec(
+                    prefix="z",
+                    ticks=cfg.ticks_z,
+                    positions=getattr(cfg, "position_tick_z", None),
+                    precision=cfg.precision[2],
+                    aspect=az,
+                    enable_minor=cfg.enable_ticks_minor[2],
+                    base=[sbb - sx + d + lw, sy, sz + 0.5 * lw],
+                    dim=2,
+                    tick_rotation=_radians(90, 90, 0),
+                    label_rotation=_radians(0, 90, 90),
+                    label_dim=0,
+                    align_first="RIGHT",
+                    align_last="LEFT",
+                    first_gated=False,
+                    minor_special=False,
+                ),
+            ]
+            for enabled, spec in zip(cfg.enable_ticks, specs):
+                if enabled:
+                    self._draw_axis_ticks_major(col, font, mesh_tick, spec)
 
         # apply axis material
         for obj in col.objects:
@@ -650,6 +328,119 @@ class Scene:
         bpy.context.scene.collection.children.link(col)
         self.has_axes = True
         return self
+
+    def _add_line(self, name: str, width: float, height: float) -> bpy.types.Mesh:
+        """Creates a single rectangular face in the xy-plane."""
+        mesh = bpy.data.meshes.new(name)
+        mesh.from_pydata(
+            [(0, 0, 0), (width, 0, 0), (width, height, 0), (0, height, 0)],
+            [],
+            [(0, 1, 2, 3)],
+        )
+        mesh.update()
+        return mesh
+
+    def _add_text(
+        self,
+        col: bpy.types.Collection,
+        font: bpy.types.VectorFont,
+        name: str,
+        body: str,
+        size: float,
+        align_x: str,
+        location: tuple[float, float, float],
+        rotation: tuple[float, float, float],
+        curve_name: str | None = None,
+    ) -> bpy.types.Object:
+        """Creates a text object from a font curve and links it to ``col``."""
+        curve = bpy.data.curves.new(type="FONT", name=curve_name or name)
+        curve.body = body
+        curve.size = size
+        curve.align_x = align_x
+        curve.align_y = "TOP"
+        obj = bpy.data.objects.new(name=name, object_data=curve)
+        col.objects.link(obj)
+        obj.data.font = font
+        obj.location = location
+        obj.rotation_euler = rotation
+        return obj
+
+    def _draw_axis_ticks_major(
+        self,
+        col: bpy.types.Collection,
+        font: bpy.types.VectorFont,
+        mesh_tick: bpy.types.Mesh,
+        spec: _AxisSpec,
+    ) -> None:
+        """Draws major ticks, minor ticks and tick labels for a single axis."""
+        cfg = self.config_axes
+        lw = cfg.line_width
+        sbb = self.size_bounding_box
+        n = len(spec.ticks)
+
+        for idx, value in enumerate(spec.ticks):
+            loc = list(spec.base)
+            loc[spec.dim] += sbb * spec.aspect * spec.positions[idx]
+            align = "CENTER"
+            if idx == 0 and (cfg.indent_ticks or not spec.first_gated):
+                loc[spec.dim] += 0.5 * lw
+                align = spec.align_first
+            if idx == n - 1 and cfg.indent_ticks:
+                loc[spec.dim] -= 0.5 * lw
+                align = spec.align_last
+
+            tick = bpy.data.objects.new(f"{spec.prefix} tick {idx}", mesh_tick)
+            col.objects.link(tick)
+            tick.location = tuple(loc)
+            tick.rotation_euler = spec.tick_rotation
+
+            if spec.enable_minor:
+                self._draw_axis_ticks_minor(col, mesh_tick, spec, idx)
+
+            label = str(round(value, spec.precision)).rstrip("0").rstrip(".")
+            label_loc = list(loc)
+            label_loc[spec.label_dim] += cfg.distance + cfg.tick_length
+            self._add_text(
+                col,
+                font,
+                f"{spec.prefix} tick label {idx}",
+                label,
+                cfg.font_size_ticks,
+                align,
+                tuple(label_loc),
+                spec.label_rotation,
+            )
+
+    def _draw_axis_ticks_minor(
+        self,
+        col: bpy.types.Collection,
+        mesh_tick: bpy.types.Mesh,
+        spec: _AxisSpec,
+        idx: int,
+    ) -> None:
+        """Draws the minor ticks that follow the major tick at ``idx``."""
+        cfg = self.config_axes
+        sbb = self.size_bounding_box
+        pos = spec.positions
+
+        if spec.minor_special and cfg.num_ticks_minor == 1:
+            spacing = pos[1] - pos[0] / 2
+        else:
+            spacing = (pos[1] - pos[0]) / (cfg.num_ticks_minor + 1)
+
+        if idx + 1 == len(spec.ticks):
+            n_minor = math.floor((1 - pos[-1]) / spacing)
+        else:
+            n_minor = cfg.num_ticks_minor
+
+        for j in range(n_minor):
+            loc = list(spec.base)
+            loc[spec.dim] += sbb * spec.aspect * (pos[idx] + spacing * (j + 1))
+            tick = bpy.data.objects.new(f"{spec.prefix} tick minor {idx}", mesh_tick)
+            col.objects.link(tick)
+            tick.location = tuple(loc)
+            tick.rotation_euler = spec.tick_rotation
+            tick.scale = (1, 0.5, 1)
 
     def create_camera(self, view: str = "3D") -> Self:
         """
@@ -1006,42 +797,6 @@ class Scene:
         )
         rx, ry, rz = obj.rotation_euler
         obj.rotation_euler = (rx, ry, rz + angle)
-
-    def rotate_azimuth(self, ang_rot: float) -> Self:
-        """
-        Rotates the camera and all lights around the scene's vertical (Z)
-        axis by the given azimuth angle ``ang_rot`` (in degrees), orbiting
-        them around the scene's center while keeping the camera aimed there.
-
-        The axes are literal rulers built along fixed edges of the
-        (stationary) bounding box, so they can't simply follow the camera's
-        continuous rotation without drifting off the box they are meant to
-        measure. Instead they are snapped in 90-degree steps -- which maps
-        one cube corner exactly onto another -- to keep them attached to the
-        box while staying on the side that currently faces the camera.
-        """
-        self._orbit(bpy.data.objects["Camera"], math.radians(ang_rot))
-
-        for obj in bpy.data.collections["Lights"].objects:
-            rx, ry, rz = obj.rotation_euler
-            obj.rotation_euler = (rx, ry, rz + math.radians(ang_rot))
-
-        if self.has_axes:
-
-            def _nearest_corner(deg: float) -> float:
-                return math.floor(deg / 90 + 0.5) * 90
-
-            corner_before = _nearest_corner(self._ang_azimuth)
-            self._ang_azimuth += ang_rot
-            corner_after = _nearest_corner(self._ang_azimuth)
-            corner_delta = math.radians(corner_after - corner_before)
-            if corner_delta:
-                for obj in bpy.data.collections["Axes"].objects:
-                    self._orbit(obj, corner_delta)
-        else:
-            self._ang_azimuth += ang_rot
-
-        return self
 
     def create_solid(self, pth: Path, style: str = "SOLID_DEFAULT", name: str = "solid"):
         """
