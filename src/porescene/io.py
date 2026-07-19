@@ -110,9 +110,7 @@ def mesh2ply(pth_ply: Path, mesh: Mesh, binary: bool = True) -> Path:
             file.write(np.ascontiguousarray(vertices, dtype="<f4").tobytes())
             file.write(faces_bin.tobytes())
     else:
-        faces_ascii = np.hstack(
-            [np.full((len(faces), 1), n_corners, dtype=int), faces]
-        )
+        faces_ascii = np.hstack([np.full((len(faces), 1), n_corners, dtype=int), faces])
         with pth_ply.open("w", encoding="utf-8", newline="\n") as file:
             file.write(header)
             np.savetxt(file, vertices, fmt="%.10g %.10g %.10g")
