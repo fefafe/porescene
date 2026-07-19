@@ -2,6 +2,19 @@
 # Copyright (C) 2026 Felix Faber /
 # Otto von Guericke University Magdeburg, Thermal Process Engineering
 
+"""
+Configuration objects that control how a :class:`PoreNetwork
+<porescene.model.PoreNetwork>` and its images are rendered.
+
+This module bundles the settings used throughout :mod:`porescene`:
+
+* :class:`PropertyConfiguration` -- visualization of a single property.
+* :class:`ImageConfiguration` -- resolution of the rendered images.
+* :class:`VideoConfiguration` -- frame settings for rendered videos.
+* :class:`SceneConfiguration` -- overall scene, material and property settings.
+* :class:`AxesConfiguration` -- coordinate axes, ticks and labels.
+"""
+
 from importlib import resources
 from pathlib import Path
 from typing import Callable, Self, Sequence, Type
@@ -245,12 +258,21 @@ class PropertyConfiguration:
 
 
 class ImageConfiguration:
+    """
+    Settings for the resolution of the rendered images.
+    """
+
     def __init__(self) -> None:
         self.width = 4096
         self.height = 4096
 
     @classmethod
     def from_dict(cls, data: dict) -> Self:
+        """
+        Creates an :class:`ImageConfiguration` from a dictionary.
+
+        Only the ``width`` and ``height`` keys are read; other keys are ignored.
+        """
         ins = cls()
 
         keys_valid = [
@@ -294,6 +316,9 @@ class ImageConfiguration:
 
 
 class VideoConfiguration:
+    """
+    Settings for the frames of a rendered video.
+    """
 
     @property
     def frames_fps(self) -> int:
@@ -363,13 +388,16 @@ class SceneConfiguration:
         self.versions_void = versions_void
 
     def __iter__(self) -> Self:
+        """Resets and returns the iterator over the configured properties."""
         self.__i = 0
         return self
 
     def __len__(self) -> int:
+        """Returns the number of configured properties."""
         return len(self._properties)
 
     def __next__(self) -> PropertyConfiguration:
+        """Returns the next :class:`PropertyConfiguration` while iterating."""
         if self.__i < len(self._properties) and self.__i >= 0:
             prop = self._properties[self.__i]
             self.__i += 1
@@ -378,9 +406,11 @@ class SceneConfiguration:
             raise StopIteration
 
     def __setitem__(self, _, prop: PropertyConfiguration):
+        """Adds a :class:`PropertyConfiguration`, see :meth:`add_property`."""
         return self.add_property(prop)
 
     def __getitem__(self, name: str) -> PropertyConfiguration:
+        """Returns the :class:`PropertyConfiguration` for given name."""
         return self.get_property(name)
 
     def add_property(self, prop: PropertyConfiguration):
@@ -488,6 +518,7 @@ class SceneConfiguration:
 
     @property
     def palette(self) -> Palette:
+        """Color palette used to render the network."""
         return self._palette
 
     @palette.setter
@@ -496,6 +527,7 @@ class SceneConfiguration:
 
     @property
     def versions_solid(self) -> list[Path]:
+        """Clipping versions of the solid structure to render."""
         return self._versions_solid
 
     @versions_solid.setter
@@ -504,6 +536,7 @@ class SceneConfiguration:
 
     @property
     def versions_void(self) -> list[Path]:
+        """Clipping versions of the void structure to render."""
         return self._versions_void
 
     @versions_void.setter
@@ -512,6 +545,9 @@ class SceneConfiguration:
 
 
 class AxesConfiguration:
+    """
+    Settings for the coordinate axes, ticks and labels of a scene.
+    """
 
     def __init__(self) -> None:
         self.font_size_labels = 1.5
@@ -540,6 +576,13 @@ class AxesConfiguration:
 
     @classmethod
     def from_dict(cls, extent: np.ndarray, data: dict) -> Self:
+        """
+        Creates an :class:`AxesConfiguration` from a dictionary.
+
+        Ticks and axis labels are derived from ``extent`` (the size of the
+        volume) together with the optional ``tick_interval`` and
+        ``unit_display`` keys.
+        """
         ins = cls()
 
         keys_valid = [
@@ -735,6 +778,7 @@ class AxesConfiguration:
 
     @property
     def ticks_x(self) -> Sequence[float]:
+        """Tick values shown along the x-axis."""
         return self._ticks_x
 
     @ticks_x.setter
@@ -743,6 +787,7 @@ class AxesConfiguration:
 
     @property
     def ticks_y(self) -> list[float]:
+        """Tick values shown along the y-axis."""
         return self._ticks_y
 
     @ticks_y.setter
@@ -751,6 +796,7 @@ class AxesConfiguration:
 
     @property
     def ticks_z(self) -> list[float]:
+        """Tick values shown along the z-axis."""
         return self._ticks_z
 
     @ticks_z.setter
@@ -759,6 +805,7 @@ class AxesConfiguration:
 
     @property
     def indent_ticks(self) -> bool:
+        """Whether tick labels are indented."""
         return self._indent_ticks
 
     @indent_ticks.setter
@@ -767,6 +814,7 @@ class AxesConfiguration:
 
     @property
     def position_tick_x(self) -> tuple[float, ...]:
+        """Normalized positions (0-1) of the x-axis ticks."""
         if hasattr(self, "_position_tick_x"):
             return self._position_tick_x
         else:
@@ -779,6 +827,7 @@ class AxesConfiguration:
 
     @property
     def position_tick_y(self) -> tuple[float, ...]:
+        """Normalized positions (0-1) of the y-axis ticks."""
         if hasattr(self, "_tick_positions_y"):
             return self._tick_positions_y
         else:
@@ -791,6 +840,7 @@ class AxesConfiguration:
 
     @property
     def position_tick_z(self) -> Sequence[float]:
+        """Normalized positions (0-1) of the z-axis ticks."""
         if hasattr(self, "_tick_positions_z"):
             return self._tick_positions_z
         else:
@@ -803,6 +853,7 @@ class AxesConfiguration:
 
     @property
     def value_start(self) -> Sequence[float]:
+        """Tick value at the start of each axis (x, y, z)."""
         return self._value_start
 
     @value_start.setter
@@ -811,6 +862,7 @@ class AxesConfiguration:
 
     @property
     def value_end(self) -> Sequence[float]:
+        """Tick value at the end of each axis (x, y, z)."""
         return self._value_end
 
     @value_end.setter
