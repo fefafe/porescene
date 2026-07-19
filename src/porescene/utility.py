@@ -4,13 +4,14 @@
 
 import contextlib
 import os
-import subprocess
 from enum import Enum
 from math import ceil, floor, isclose
 from pathlib import Path
 from typing import Callable, Iterator
 
+import cairosvg
 import numpy as np
+from PIL import Image
 
 
 @contextlib.contextmanager
@@ -160,23 +161,37 @@ def _get_labels(model, config):
     return tuple(labels)
 
 
-def svg2png(pth: Path):
+def svg2png(pth: Path, crop: bool = True) -> Path:
     """
-    Convert a SVG file to PNG with Inkscape.
+    Convert a SVG file to PNG.
 
-    Make sure that Inkscape is installed and accessible via PATH.
+    Uses :mod:`cairosvg` for the conversion, so no external software is required.
+    With ``crop=True`` the result is trimmed to its visible content by removing the
+    surrounding transparent margin.
+
+    Note that :mod:`cairosvg` only renders content inside the SVG viewport; anything
+    drawn beyond the root ``<svg>`` ``width``/``height`` is clipped before the
+    crop and cannot be recovered.
 
     Parameters
     ----------
     pth
         Path to the file to be converted.
+    crop
+        Trim the PNG to the bounding box of its non-transparent pixels.
+
+    Returns
+    -------
+    Path to the written PNG file.
     """
-    subprocess.call(
-        [
-            "inkscape",
-            "--export-type=png,svg,pdf",
-            "--export-area-drawing",
-            "--export-overwrite",
-            str(pth),
-        ]
-    )
+    pth_png = pth.with_suffix(".png")
+    cairosvg.svg2png(url=pth.as_posix(), write_to=pth_png.as_posix())
+
+    if crop:
+        with Image.open(pth_png) as img:
+            img = img.convert("RGBA")
+            bbox = img.getchannel("A").getbbox()
+            if bbox is not None:
+                img.crop(bbox).save(pth_png)
+
+    return pth_png
