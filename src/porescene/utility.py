@@ -7,7 +7,7 @@ import os
 from enum import Enum
 from math import ceil, floor, isclose
 from pathlib import Path
-from typing import Callable, Iterator
+from typing import Callable, Iterator, Sequence
 
 import cairosvg
 import numpy as np
@@ -108,6 +108,146 @@ class UnitPrefixMetric(Enum):
 def n_equidistant(lst, n):
     indices = np.linspace(0, len(lst) - 1, n, dtype=int)
     return [lst[i] for i in indices]
+
+
+class Mesh:
+    """
+    A simple container pairing a mesh's vertices with its faces.
+    """
+
+    def __init__(
+        self, vertices: np.ndarray, faces: np.ndarray, name: str = "object"
+    ) -> None:
+        self._vertices = vertices
+        self._faces = faces
+        self._name = name
+
+    @property
+    def vertices(self) -> np.ndarray:
+        """``(N, 3)`` array of vertex coordinates."""
+        return self._vertices
+
+    @vertices.setter
+    def vertices(self, arg: np.ndarray) -> None:
+        self._vertices = arg
+
+    @property
+    def faces(self) -> np.ndarray:
+        """``(M, K)`` array of vertex indices, one row per polygon."""
+        return self._faces
+
+    @faces.setter
+    def faces(self, arg: np.ndarray) -> None:
+        self._faces = arg
+
+    @property
+    def name(self) -> str:
+        """Name of the mesh."""
+        return self._name
+
+    @name.setter
+    def name(self, arg: str) -> None:
+        self._name = arg
+
+
+def image2mesh(
+    img: np.ndarray,
+    voxel_size: float | Sequence[float] = (1.0, 1.0, 1.0),
+    labels: int | Sequence[int] = 1,
+    *,
+    per_label: bool = False,
+    name: str = "object",
+) -> Mesh | dict[int, Mesh]:
+    """
+    Builds a rectangular (quad) surface mesh from a labeled voxel image.
+
+    Extracts the axis-aligned boundary faces of the voxels whose label is included in
+    ``labels`` -- every face between a selected voxel and a non-selected neighbour (or
+    the volume border) -- as unit squares scaled by the voxel size. Coincident vertices
+    are merged, so each position is stored once and shared between faces. This is a
+    Python port of the MATLAB ``img2mesh``.
+
+    Parameters
+    ----------
+    img : np.ndarray
+        2D or 3D integer array of voxel labels. A 2D image is treated as a single
+        slice, one voxel thick along the third axis.
+    voxel_size : float | Sequence[float], optional
+        Edge length of a voxel. A scalar applies to all three axes; a 3-element
+        sequence gives the length along x, y and z, by default ``(1.0, 1.0, 1.0)``.
+    labels : int | Sequence[int], optional
+        Label value(s) to include in the mesh, by default 1.
+    per_label : bool, optional
+        If ``False`` (default), all selected labels are meshed into a single surface.
+        If ``True``, a separate mesh is built per label and a ``{label: Mesh}`` mapping
+        is returned.
+    name : str, optional
+        Name assigned to the resulting mesh. In ``per_label`` mode the label is appended
+        as ``"{name}_{label}"``. By default ``"object"``.
+
+    Returns
+    -------
+    Mesh | dict[int, Mesh]
+        For a single mesh, a :class:`Mesh` whose ``vertices`` is an ``(N, 3)`` float
+        array and ``faces`` an ``(M, 4)`` integer array of quad vertex indices. With
+        ``per_label=True``, a ``{label: Mesh}`` dict.
+    """
+    img = np.asarray(img)
+    if img.ndim == 2:
+        img = img[:, :, np.newaxis]
+    if img.ndim != 3:
+        raise ValueError("img must be a 2D or 3D array")
+
+    size = np.asarray(voxel_size, dtype=float)
+    if size.ndim == 0:
+        size = np.repeat(size, 3)
+
+    label_values = np.atleast_1d(labels)
+
+    if per_label:
+        return {
+            int(label): Mesh(*_mask2mesh(img == label, size), f"{name}_{label}")
+            for label in label_values
+        }
+    return Mesh(*_mask2mesh(np.isin(img, label_values), size), name)
+
+
+def _mask2mesh(
+    mask: np.ndarray,
+    voxel_size: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Builds the axis-aligned boundary quad mesh of a boolean voxel mask
+    (see :func:`image2mesh`).
+    """
+    _FACE_CORNERS = (
+        np.array([[0, 0, 0], [0, 0, 1], [0, 1, 1], [0, 1, 0]]),  # face normal to x
+        np.array([[0, 0, 0], [1, 0, 0], [1, 0, 1], [0, 0, 1]]),  # face normal to y
+        np.array([[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]]),  # face normal to z
+    )
+    # pad with a False border so faces on the outer boundary are detected too
+    padded = np.pad(mask.astype(bool), 1)
+
+    faces_corners = []
+    for axis in range(3):
+        # full extent along `axis`, interior along the other two
+        window = [slice(1, -1)] * 3
+        window[axis] = slice(None)
+        layer = padded[tuple(window)]
+        # a face sits wherever two neighbours along `axis` differ
+        lo = [slice(None)] * 3
+        hi = [slice(None)] * 3
+        lo[axis] = slice(0, -1)
+        hi[axis] = slice(1, None)
+        boundary = layer[tuple(hi)] != layer[tuple(lo)]
+        base = np.argwhere(boundary)
+        faces_corners.append(base[:, np.newaxis, :] + _FACE_CORNERS[axis][np.newaxis])
+
+    vertices = np.concatenate(faces_corners).reshape(-1, 3)
+    vertices, inverse = np.unique(vertices, axis=0, return_inverse=True)
+    faces = inverse.ravel().reshape(-1, 4)
+
+    return vertices.astype(float) * voxel_size, faces
 
 
 def _get_bounds(
