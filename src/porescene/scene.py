@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import NamedTuple, Self, cast
 
 import bpy
+from mathutils import Matrix, Vector
 import numpy as np
 from rich import progress
 from rich.console import Console
@@ -44,6 +45,7 @@ class _AxisSpec(NamedTuple):
     align_last: str
     first_gated: bool
     minor_special: bool
+    hide_first_label: bool = False
 
 
 class Scene:
@@ -337,6 +339,7 @@ class Scene:
                     align_last="LEFT",
                     first_gated=False,
                     minor_special=False,
+                    hide_first_label=True,
                 ),
             ]
             for enabled, spec in zip(cfg.enable_ticks, specs):
@@ -421,6 +424,9 @@ class Scene:
 
             if spec.enable_minor:
                 self._draw_axis_ticks_minor(col, mesh_tick, spec, idx)
+
+            if idx == 0 and spec.hide_first_label:
+                continue
 
             label = str(round(value, spec.precision)).rstrip("0").rstrip(".")
             label_loc = list(loc)
@@ -1230,10 +1236,12 @@ class Scene:
         measure. The x and y rulers each stay on whichever of their two
         parallel edges currently faces the camera -- the x ruler flips
         between the front/back edge, the y ruler between the left/right
-        edge -- by mirroring to that edge and turning their tick/axis
-        labels 180 degrees so the text keeps facing outward, rather than
-        rotating (which would swap their x/y labelling, see the fixed bug
-        this replaced). The z ruler sits at the corner shared by the
+        edge -- by mirroring to that edge and turning their ticks and
+        labels 180 degrees, so ticks keep pointing outward and label text
+        stays legible, rather than rotating the whole ruler (which would
+        swap their x/y labelling, see the fixed bug this replaced). The
+        main ruler bar itself is left unrotated since it's symmetric along
+        its own length. The z ruler sits at the corner shared by the
         current x and y edges, so it is snapped there in 90-degree steps
         the same way the whole assembly used to move.
         """
@@ -1287,6 +1295,17 @@ class Scene:
                     if not flips[axis]:
                         continue
 
+                    # record the object's own bounding-box center in world space
+                    # before anything changes, to correct its position afterwards
+                    # (see below)
+                    mat_before = Matrix.LocRotScale(
+                        obj.location, obj.rotation_euler.to_quaternion(), obj.scale
+                    )
+                    local_center = (
+                        sum((Vector(c) for c in obj.bound_box), Vector()) / 8
+                    )
+                    center_before = mat_before @ local_center
+
                     x, y, z = obj.location
                     if axis == "y":
                         x = sbb - x
@@ -1294,9 +1313,23 @@ class Scene:
                         y = sbb - y
                     obj.location = (x, y, z)
 
-                    if "label" in obj.name:
-                        rx, ry, rz = obj.rotation_euler
-                        obj.rotation_euler = (rx, ry, rz + math.radians(180))
+                    if obj.name == f"axis_{axis}":
+                        sx, sy, sz = obj.scale
+                        obj.scale = (-sx, sy, sz)
+                    else:
+                        obj.rotation_euler.z += math.radians(180)
+
+                        mat_after = Matrix.LocRotScale(
+                            obj.location, obj.rotation_euler.to_quaternion(), obj.scale
+                        )
+                        center_after = mat_after @ local_center
+                        desired = Vector(center_before)
+                        if axis == "y":
+                            desired.x = sbb - desired.x
+                        else:
+                            desired.y = sbb - desired.y
+                        obj.location = Vector(obj.location) + (desired - center_after)
+
         else:
             self._ang_azimuth += ang_rot
 

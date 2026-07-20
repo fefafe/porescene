@@ -640,11 +640,11 @@ class AxesConfiguration:
                 extent[2] * ins.factor[2],
             )
         )
-        tick_end = tick_end - 1
 
-        ticks_x = np.arange(tick_start[0], tick_end[0] + 1, tick_interval)
-        ticks_y = np.arange(tick_start[1], tick_end[1] + 1, tick_interval)
-        ticks_z = np.arange(tick_start[2], tick_end[2] + 1, tick_interval)
+        margin = tick_interval * 1e-6
+        ticks_x = np.arange(tick_start[0], tick_end[0] + margin, tick_interval)
+        ticks_y = np.arange(tick_start[1], tick_end[1] + margin, tick_interval)
+        ticks_z = np.arange(tick_start[2], tick_end[2] + margin, tick_interval)
 
         if "ticks_x" not in data:
             ins.ticks_x = ticks_x
