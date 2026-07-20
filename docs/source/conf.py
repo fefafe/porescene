@@ -1,9 +1,8 @@
-import os
 import sys
 import tomllib
 from pathlib import Path
 
-sys.path.insert(0, os.path.abspath("../src"))  # adjust to your package layout
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 
 with (Path(__file__).resolve().parents[2] / "pyproject.toml").open("rb") as f:
     _pyproject = tomllib.load(f)
@@ -39,6 +38,17 @@ autodoc_default_options = {
     "show-inheritance": True,
 }
 autodoc_member_order = "groupwise"  # or "bysource" / "alphabetical"
+autodoc_mock_imports = [
+    "bpy",
+    "bmesh",
+    "mathutils",
+    "numpy",
+    "h5py",
+    "PIL",
+    "rich",
+    "cairosvg",
+    "imageio_ffmpeg",
+]
 
 
 intersphinx_mapping = {
