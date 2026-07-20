@@ -195,6 +195,8 @@ class PoreNetwork:
         vars_nwk: dict[str, str],
         vars_state: dict[str, tuple[str, str]] = {},
         no_states: list[int] = [],
+        *,
+        swap_axes: bool = True,
     ) -> Self:
         """
         Creates a :class:`PoreNetwork` instance by importing the pore network data from a
@@ -230,6 +232,28 @@ class PoreNetwork:
             - :attr:`PoreNetwork.throat_neighboring_pores`
             - :attr:`PoreNetwork.pore_neighboring_pores`
 
+        .. attention::
+
+            MATLAB stores multi-dimensional arrays in column-major order, while numpy
+            defaults to row-major order. Dumping a voxel image out of MATLAB and reading
+            it back with numpy (e.g. via :func:`numpy.fromfile` followed by
+            :meth:`~numpy.ndarray.reshape`) therefore reverses the storage order of its
+            dimensions, which swaps the array's first and third (spatial) axes while
+            leaving the second axis untouched -- what MATLAB calls its first dimension
+            ends up as numpy's third axis, and vice versa, while the second dimension
+            stays in place.
+
+            Since :func:`porescene.utility.image2mesh` builds its mesh directly from such
+            a numpy voxel array, meshes it produces have their first and third axes
+            swapped relative to the coordinate frame the ``.mat`` file's own variables
+            (e.g. ``pos_p``) were written in. By default (``swap_axes=True``), this
+            importer swaps the first and third columns of every imported position array
+            (:attr:`PoreNetwork.pore_position` and its ``_top``/``_bottom``/``_left``/
+            ``_right``/``_front``/``_back`` variants) to match, so pore/throat
+            coordinates line up with meshes built by
+            :func:`~porescene.utility.image2mesh`. Pass ``swap_axes=False`` to import
+            the coordinates verbatim in the MATLAB axis order instead, e.g. when no
+            voxel-image mesh is involved.
 
         Parameters
         ----------
@@ -252,7 +276,7 @@ class PoreNetwork:
             while the variable ``T_throats`` holds the temperature values of each throat.
 
             Imagine, also some acetone concentration has been computed, an additional key
-            ``"concentration_acetone"`` has to be added in similary way to the
+            ``"concentration_acetone"`` has to be added in a similar way to the
             :class:`dict`.
 
             .. code-block:: python
@@ -275,7 +299,7 @@ class PoreNetwork:
             In case there is state data contained in the ``.mat`` file, the state indices
             given in ``states``, are wrapped into :class:`PoreNetworkState` instances.
 
-            Foe example, if 1000 states have been calculated, but only every 100th state
+            For example, if 1000 states have been calculated, but only every 100th state
             should be visualized, then ``no_states`` could be:
 
             .. code-block:: python
@@ -284,11 +308,21 @@ class PoreNetwork:
 
                 no_states = np.linspace(0, 1000, num=10)
 
+        swap_axes : bool, optional
+            If ``True`` (default), swaps the first and third columns of every imported
+            position array to compensate for the MATLAB/numpy axis-order mismatch
+            described above, e.g. aligning coordinates with meshes built by
+            :func:`porescene.utility.image2mesh`. Set to ``False`` to import the
+            coordinates verbatim, in the MATLAB axis order.
+
         Returns
         -------
         Self
             :class:`PoreNetwork` instance created from given ``.mat`` file
         """
+
+        def swap_x_z(a):
+            return a[:, [2, 1, 0]] if swap_axes else a
 
         with File(pth) as f:
             pn = cls()
@@ -319,31 +353,33 @@ class PoreNetwork:
             if vars_nwk["pores_back"] in f:
                 pn.pores_back = np.array(f[vars_nwk["pores_back"]]).ravel() - 1
             if vars_nwk["pore_position"] in f:
-                pn.pore_position = np.array(f[vars_nwk["pore_position"]]).transpose()
+                pn.pore_position = swap_x_z(
+                    np.array(f[vars_nwk["pore_position"]]).transpose()
+                )
             if vars_nwk["pore_position_top"] in f:
-                pn.pore_position_top = np.array(
-                    f[vars_nwk["pore_position_top"]]
-                ).transpose()
+                pn.pore_position_top = swap_x_z(
+                    np.array(f[vars_nwk["pore_position_top"]]).transpose()
+                )
             if vars_nwk["pore_position_bottom"] in f:
-                pn.pore_position_bottom = np.array(
-                    f[vars_nwk["pore_position_bottom"]]
-                ).transpose()
+                pn.pore_position_bottom = swap_x_z(
+                    np.array(f[vars_nwk["pore_position_bottom"]]).transpose()
+                )
             if vars_nwk["pore_position_left"] in f:
-                pn.pore_position_left = np.array(
-                    f[vars_nwk["pore_position_left"]]
-                ).transpose()
+                pn.pore_position_left = swap_x_z(
+                    np.array(f[vars_nwk["pore_position_left"]]).transpose()
+                )
             if vars_nwk["pore_position_right"] in f:
-                pn.pore_position_right = np.array(
-                    f[vars_nwk["pore_position_right"]]
-                ).transpose()
+                pn.pore_position_right = swap_x_z(
+                    np.array(f[vars_nwk["pore_position_right"]]).transpose()
+                )
             if vars_nwk["pore_position_front"] in f:
-                pn.pore_position_front = np.array(
-                    f[vars_nwk["pore_position_front"]]
-                ).transpose()
+                pn.pore_position_front = swap_x_z(
+                    np.array(f[vars_nwk["pore_position_front"]]).transpose()
+                )
             if vars_nwk["pore_position_back"] in f:
-                pn.pore_position_back = np.array(
-                    f[vars_nwk["pore_position_back"]]
-                ).transpose()
+                pn.pore_position_back = swap_x_z(
+                    np.array(f[vars_nwk["pore_position_back"]]).transpose()
+                )
             if vars_nwk["pore_radius"] in f:
                 pn.pore_radius = np.array(f[vars_nwk["pore_radius"]]).ravel()
             if "r_p_eqs" in f:  # equivalent-sphere radius overrides r_p if present
