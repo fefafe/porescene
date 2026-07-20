@@ -33,23 +33,38 @@ furo==2025.12.19
     # via -r docs/requirements.in
 h11==0.16.0
     # via uvicorn
+h5py==3.16.0
+    # via -r docs/requirements.in
 idna==3.18
     # via
     #   anyio
     #   requests
+imageio-ffmpeg==0.6.0
+    # via -r docs/requirements.in
 imagesize==2.0.0
     # via sphinx
 jinja2==3.1.6
     # via sphinx
+markdown-it-py==4.2.0
+    # via rich
 markupsafe==3.0.3
     # via jinja2
+mdurl==0.1.2
+    # via markdown-it-py
+numpy==2.5.1
+    # via
+    #   -r docs/requirements.in
+    #   h5py
 packaging==26.2
     # via sphinx
+pillow==12.3.0
+    # via -r docs/requirements.in
 pygments==2.20.0
     # via
     #   accessible-pygments
     #   furo
     #   pygments-styles
+    #   rich
     #   sphinx
 pygments-styles==0.3.0
     # via -r docs/requirements.in
@@ -57,6 +72,8 @@ pyyaml==6.0.3
     # via -r docs/requirements.in
 requests==2.34.2
     # via sphinx
+rich==15.0.0
+    # via -r docs/requirements.in
 roman-numerals==4.1.0
     # via sphinx
 snowballstemmer==3.1.1

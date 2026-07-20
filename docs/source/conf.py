@@ -43,12 +43,7 @@ autodoc_mock_imports = [
     "bpy",
     "bmesh",
     "mathutils",
-    "numpy",
-    "h5py",
-    "PIL",
-    "rich",
     "cairosvg",
-    "imageio_ffmpeg",
 ]
 
 
