@@ -1,0 +1,15 @@
+{#-
+  Persistent "Home" link shown on every page.
+
+  Sphinx prunes a `self`-referencing toctree entry on nested pages, so the
+  usual `Home <self>` trick only appears on the root and flat leaf pages.
+  Rendering the link directly here makes it reliable everywhere. It reuses
+  Furo's `.sidebar-tree` markup so it inherits the navigation styling.
+-#}
+<div class="sidebar-tree">
+  <ul>
+    <li class="toctree-l1{% if pagename == 'index' %} current-page{% endif %}">
+      <a class="reference internal" href="{{ pathto('index') }}">Home</a>
+    </li>
+  </ul>
+</div>

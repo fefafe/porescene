@@ -1,0 +1,633 @@
+body {
+    /* =================================================================== */
+    /* Color swatches */
+
+    /* fefafe colors */
+    --color-fefafe-lightgreen: #81b413ff;
+    --color-fefafe-darkgreen: #039c48ff;
+    --color-fefafe-teal: #02aba8ff;
+    --color-fefafe-lightblue: #0e86c7ff;
+    --color-fefafe-darkblue: #044eb6ff;
+    --color-fefafe-purple: #8704c8ff;
+    --color-fefafe-pink: #b70c92ff;
+    --color-fefafe-red: #c30444ff;
+    --color-fefafe-orange: #d97b09ff;
+    --color-fefafe-yellow: #e5be0fff;
+
+    /* porescene theme colors */
+    --color-ps-primary: var(--color-fefafe-teal);
+    --color-ps-teal-deep: #017a78; /* AA-contrast teal for text links (light) */
+    --color-ps-teal-deeper: #015f5d; /* text-link hover (light) */
+    --color-ps-teal-glow: #37c5c2; /* text links (dark) */
+    --color-ps-teal-glow-strong: #5ad6d3; /* text-link hover (dark) */
+    --color-ps-blue-soft: #5b9ff0; /* API keyword (dark) */
+    --color-ps-purple-soft: #c07be6; /* API name (dark) */
+
+    /* tints */
+    --color-ps-tint-50: #fafdfd;
+    --color-ps-tint-100: #f5fbfb;
+    --color-ps-tint-200: #f1f9f8;
+    --color-ps-tint-300: #ecf7f6;
+    --color-ps-tint-400: #e7f5f4;
+    --color-ps-tint-500: #e2f2f2;
+    --color-ps-tint-600: #ddf0f0;
+    --color-ps-tint-700: #d9eeed;
+    --color-ps-tint-800: #d4eceb;
+    --color-ps-tint-900: #cfeae9;
+    --color-ps-tint-950: #cae8e7;
+
+    /* shades */
+    --color-ps-shade-50: #014746;
+    --color-ps-shade-100: #054140;
+    --color-ps-shade-200: #093b3a;
+    --color-ps-shade-300: #0b3534;
+    --color-ps-shade-400: #0c2f2e;
+    --color-ps-shade-500: #0d2928;
+    --color-ps-shade-600: #0d2323;
+    --color-ps-shade-700: #0d1e1d;
+    --color-ps-shade-800: #0b1818;
+    --color-ps-shade-900: #071212;
+    --color-ps-shade-950: #040a0a;
+
+    /* whites and blacks */
+    --color-ps-light-0: #e2e8f0;
+    --color-ps-light-1: #b0b5bd;
+    --color-ps-light-dark: #64748b;
+    --color-ps-dark-0: #181f29;
+    --color-ps-dark-1: #323f51;
+
+    /* =================================================================== */
+    /* General colors (light and dark mode) */
+
+    /* primary theme color */
+    --color-brand-primary: var(--color-ps-primary);
+    --color-brand-content: var(--color-ps-teal-deep);
+
+    --color-foreground-tertiary: var(var(--color-ps-light-dark));
+
+    /* =================================================================== */
+    /* Light color theme */
+
+    /* foreground colors */
+    --color-foreground-primary: var(--color-ps-dark-0);
+    --color-foreground-secondary: var(--color-ps-dark-1);
+
+    /* background colors */
+    --color-background-primary: var(--color-ps-tint-900);
+    --color-background-secondary: var(--color-ps-tint-200);
+    --color-background-tertiary: var(--color-ps-tint-400);
+
+    /* links */
+    --color-link: var(--color-ps-teal-deep);
+    --color-link-hover: var(--color-ps-teal-deeper);
+    --color-link-underline: rgba(1, 122, 120, 0);
+    --color-link-underline--hover: var(--color-ps-teal-deeper);
+    --color-link--visited: var(--color-link);
+    --color-link--visited--hover: var(--color-link-hover);
+
+    --color-background-border: var(--color-background-primary);
+    --color-background-image: var(--color-ps-tint-100);
+    --color-background-code: var(--color-background-tertiary);
+    --color-inline-code-background: var(--color-background-tertiary);
+    --color-background-hover: rgba(255, 255, 255, 0.75);
+
+    /* code highlighting */
+    --color-api-keyword: var(--color-fefafe-darkblue);
+    --color-api-name: var(--color-fefafe-purple);
+    --color-api-pre-name: var(--color-ps-teal-deep);
+    --color-api-paren: var(--color-foreground-secondary);
+
+    --color-foreground-border: var(--color-brand-primary);
+    --color-code-background: var(--color-background-code) !important;
+
+    /* tile styling */
+    --ps-border-radius: 12px;
+    --ps-padding-tile: 1.25rem 1.5rem;
+    --ps-shadow-clickable: 0 0 0.2rem rgba(0, 0, 0, 0.1), 0 0.2rem 0.4rem rgba(0, 0, 0, 0.2);
+
+    /* sidebars */
+    --sidebar-item-font-size: 0.95rem;
+    --sidebar-search-input-font-size: 0.95rem;
+    --toc-font-size: 0.85rem;
+}
+
+body[data-theme="dark"] {
+    /* foreground */
+    --color-foreground-primary: var(--color-ps-light-0);
+    --color-foreground-secondary: var(--color-ps-light-1);
+
+    /* background */
+    --color-background-primary: var(--color-ps-shade-950);
+    --color-background-secondary: var(--color-ps-shade-500);
+    --color-background-tertiary: var(--color-ps-shade-700);
+
+    /* links */
+    --color-link: var(--color-ps-teal-glow);
+    --color-link-hover: var(--color-ps-teal-glow-strong);
+    --color-link-underline: var(--color-ps-teal-glow-strong);
+    --color-brand-primary: var(--color-ps-primary);
+    --color-brand-content: var(--color-ps-teal-glow);
+
+    --color-background-border: var(--color-background-primary);
+    --color-background-image: var(--color-ps-tint-300);
+    --color-background-code: var(--color-background-tertiary);
+    --color-background-hover: rgba(255, 255, 255, 0.1);
+
+    /* code highlighting */
+    --color-api-keyword: var(--color-ps-blue-soft);
+    --color-api-name: var(--color-ps-purple-soft);
+    --color-api-pre-name: var(--color-ps-teal-glow);
+    --color-api-paren: var(--color-foreground-secondary);
+
+    --color-foreground-border: var(--color-brand-primary);
+    --color-code-background: var(--color-background-code) !important;
+    --color-inline-code-background: var(--color-background-code);
+
+    /* --ps-shadow-clickable: 0 0 0.2rem rgba(255, 255, 255, 0.1), 0 0.2rem 0.4rem rgba(255, 255, 255, 0.2); */
+}
+
+@media (prefers-color-scheme: dark) {
+    body:not([data-theme="light"]) {
+        /* foreground */
+        --color-foreground-primary: var(--color-ps-light-0);
+        --color-foreground-secondary: var(--color-ps-light-1);
+
+        /* background */
+        --color-background-primary: var(--color-ps-shade-950);
+        --color-background-secondary: var(--color-ps-shade-500);
+        --color-background-tertiary: var(--color-ps-shade-700);
+
+        /* links */
+        --color-link: var(--color-ps-teal-glow);
+        --color-link-hover: var(--color-ps-teal-glow-strong);
+        --color-link-underline: var(--color-ps-teal-glow-strong);
+        --color-brand-primary: var(--color-ps-primary);
+        --color-brand-content: var(--color-ps-teal-glow);
+
+        --color-background-border: var(--color-background-primary);
+        --color-background-image: var(--color-ps-tint-300);
+        --color-background-code: var(--color-background-tertiary);
+        --color-background-hover: rgba(255, 255, 255, 0.1);
+
+        /* code highlighting */
+        --color-api-keyword: var(--color-ps-blue-soft);
+        --color-api-name: var(--color-ps-purple-soft);
+        --color-api-pre-name: var(--color-ps-teal-glow);
+        --color-api-paren: var(--color-foreground-secondary);
+
+        --color-foreground-border: var(--color-brand-primary);
+        --color-code-background: var(--color-background-code) !important;
+        --color-inline-code-background: var(--color-background-code);
+
+        /* --ps-shadow-clickable: 0 0 0.2rem rgba(255, 255, 255, 0.1), 0 0.2rem 0.4rem rgba(255, 255, 255, 0.2); */
+    }
+}
+
+/* ============================================================ */
+/* Font import */
+/* ============================================================ */
+
+@import url("https://fonts.googleapis.com/css2?family=Fira+Code:wght@300..700&family=Fira+Sans:ital,wght@0,400;0,700;0,900;1,400;1,700;1,900&display=swap");
+
+/* ============================================================ */
+/* Adjustments */
+/* ============================================================ */
+
+:root,
+html,
+body {
+    --font-stack: "Fira Sans", system-ui, sans-serif;
+    --font-stack--monospace: "Fira Code", monospace;
+    font-weight: 400;
+}
+
+h4,
+h5,
+h6 {
+    font-weight: 700;
+}
+
+h1 {
+    font-weight: 900;
+}
+
+h2 {
+    font-weight: 700;
+    margin-top: 2.5em;
+}
+
+h3 {
+    font-weight: 500;
+    margin-top: 1.5em;
+}
+
+code,
+pre,
+kbd,
+.highlight {
+    font-family: "Fira Code", monospace;
+}
+
+.content {
+    max-width: 800px;
+    font-size: 1.1rem;
+}
+
+p {
+    text-align: justify;
+}
+
+a {
+    transition: 0.2s text-decoration-color ease-out;
+}
+
+dl {
+    /* background: var(--color-background-secondary); */
+    padding: 1em 0;
+    margin-top: 2em;
+    border-top: 4px var(--color-foreground-border) solid;
+}
+
+dl dl {
+    padding: 0;
+    margin-top: 0;
+    border-top: none;
+}
+
+.sidebar-drawer {
+    box-shadow: var(--ps-shadow-clickable);
+}
+
+.sidebar-tree .reference {
+    /* background: var(--color-sidebar-background); */
+    transition: background 0.2s ease-out;
+}
+
+.sidebar-tree .reference:hover {
+    background: var(--color-background-hover);
+}
+
+.sidebar-tree .current > .reference:hover {
+    background: var(--color-background-hover);
+}
+
+/* ============================================================ */
+/* Example images */
+/* ============================================================ */
+
+.ps-example-image {
+    display: block;
+    width: 100%;
+    aspect-ratio: 3 / 2;
+    object-fit: contain;
+    margin: 1.5rem 0;
+    background-color: var(--color-background-image);
+    border-radius: var(--ps-border-radius);
+}
+
+.ps-figure img {
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+    text-align: center;
+    max-width: 600px;
+    width: 100%;
+    background-color: var(--color-background-image);
+    border-radius: var(--ps-border-radius);
+}
+
+figcaption p {
+    color: var(--color-foreground-secondary);
+    text-align: center;
+    width: 90%;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* ============================================================ */
+/* Code blocks */
+/* ============================================================ */
+
+.highlight {
+    position: relative;
+    background: var(--color-background-code);
+    color: var(--color-foreground-primary);
+}
+
+@media not print {
+    @media (prefers-color-scheme: dark) {
+        body:not([data-theme="light"]) .highlight {
+            background: var(--color-background-code);
+            color: var(--color-foreground-secondary);
+        }
+    }
+}
+
+.highlight span.linenos {
+    color: var(--color-ps-light-dark);
+    box-shadow: none;
+}
+
+.highlight .c1 {
+    color: var(--color-ps-light-dark);
+    font-style: normal;
+}
+.highlight .kn,
+.highlight .k {
+    color: var(--color-fefafe-orange);
+}
+.highlight .s2 {
+    color: var(--color-fefafe-lightgreen);
+}
+.highlight .o {
+    color: var(--color-fefafe-yellow);
+}
+.highlight .mi,
+.highlight .mf,
+.highlight .kc {
+    color: var(--color-fefafe-red);
+}
+.highlight .nb {
+    color: var(--color-fefafe-purple);
+}
+
+.highlight,
+.literal-block-wrapper {
+    border-radius: var(--ps-border-radius);
+}
+
+.literal-block-wrapper {
+    overflow: hidden;
+}
+
+/* .literal-block-wrapper .code-block-caption,
+.literal-block-wrapper .highlight {
+    border-radius: 0;
+} */
+
+.highlight pre {
+    font-size: 0.9rem;
+}
+
+.code-block-caption {
+    align-items: center;
+    color: var(--color-foreground-secondary);
+    font-size: 0.9rem;
+    font-weight: 300;
+}
+
+/* Small icon button anchored to the top-right corner of the code field. */
+.ps-copy-button {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    z-index: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    padding: 0;
+    border: none;
+    border-radius: 6px;
+    background: var(--color-background-secondary);
+    color: var(--color-foreground-secondary);
+    line-height: 0;
+    cursor: pointer;
+    opacity: 0.6;
+    box-shadow: var(--ps-shadow-clickable);
+    transition:
+        opacity 0.15s ease-out,
+        transform 0.1s ease-out,
+        color 0.15s ease-out;
+}
+
+.ps-copy-button svg {
+    width: 0.85rem;
+    height: 0.85rem;
+    display: block;
+}
+
+/* Reveal fully when the reader hovers the block or focuses the button. */
+.highlight:hover .ps-copy-button,
+.ps-copy-button:focus-visible {
+    opacity: 1;
+}
+
+.ps-copy-button:hover,
+.ps-copy-button:focus-visible {
+    transform: scale(1.08);
+    color: var(--color-foreground-primary);
+}
+
+.ps-copy-button.ps-copied {
+    opacity: 1;
+    color: var(--color-fefafe-darkgreen);
+}
+
+/* Inline code */
+
+code.literal {
+    border-radius: 4px;
+    padding: 0.12rem 0.3rem;
+}
+
+/* ============================================================ */
+/* Sidebar */
+/* ============================================================ */
+
+.sidebar-brand-text {
+    font-weight: 700;
+}
+
+/* ============================================================ */
+/* Tables */
+/* ============================================================ */
+
+table.docutils {
+    font-size: 0.95rem;
+    box-shadow: none;
+}
+table.docutils td,
+table.docutils th {
+    border-bottom: 1px solid var(--color-table-border);
+    border-left: 0;
+    border-right: 0;
+    padding: 0 0.25rem;
+}
+
+.admonition,
+.topic {
+    background: var(--color-background-secondary);
+    border-radius: var(--ps-border-radius);
+    border-left: none;
+    box-shadow: none;
+    margin: 1rem auto;
+    overflow: hidden;
+    padding: var(--ps-padding-tile);
+    font-size: 0.95rem;
+}
+
+.admonition.note > .admonition-title,
+.admonition.tip > .admonition-title,
+.admonition p.admonition-title,
+p.topic-title {
+    margin-bottom: 0.4rem;
+    padding-right: 2rem;
+    background-color: initial;
+    color: var(--color-foreground-primary);
+    font-size: 1.05rem;
+    font-weight: 700;
+    text-align: left;
+}
+
+.admonition.tip > .admonition-title::before,
+.admonition.note > .admonition-title::before {
+    background-color: var(--color-foreground-primary);
+}
+
+.admonition p.admonition-title::before,
+p.topic-title::before {
+    height: 1.2rem;
+    width: 1.2rem;
+    transform: translateY(2px);
+}
+
+.admonition.attention > .admonition-title {
+    background-color: var(--color-fefafe-red);
+    color: var(--color-ps-light-1);
+    border-radius: var(--ps-border-radius);
+}
+.admonition.attention > .admonition-title::before {
+    background-color: var(--color-ps-light-1);
+}
+
+/* ============================================================ */
+/* Tiles */
+/* ============================================================ */
+
+.ps-tiles {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1rem;
+    margin: 1.5rem 0 2.5rem;
+}
+.ps-tiles.col-2 {
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+}
+
+.ps-tile {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.15rem;
+    padding: var(--ps-padding-tile);
+    border-radius: var(--ps-border-radius);
+    background: var(--color-background-tertiary);
+    box-shadow: none;
+    border: 1px solid transparent;
+    text-decoration: none;
+    transition:
+        border-color 0.2s ease,
+        transform 0.2s ease;
+}
+
+a.ps-tile {
+    background: var(--color-background-secondary);
+    box-shadow: var(--ps-shadow-clickable);
+}
+
+a.ps-tile:hover,
+a.ps-tile:focus-visible {
+    border-color: var(--color-brand-primary);
+    transform: translateY(-2px) scale(1.03);
+}
+
+.ps-tile-icon {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    width: 1.4rem;
+    height: 1.4rem;
+    color: var(--color-brand-primary);
+}
+
+.ps-tile-title,
+.ps-tile-desc {
+    margin: 0;
+    padding: 0;
+    text-indent: 0;
+}
+
+.ps-tile-title {
+    margin-bottom: 0.4rem;
+    padding-right: 2rem;
+    color: var(--color-foreground-primary);
+    font-size: 1.05rem;
+    font-weight: 700;
+    text-align: left;
+}
+
+.ps-tile-desc {
+    color: var(--color-foreground-secondary);
+    font-size: 0.9rem;
+    line-height: 1.4;
+    text-align: left;
+}
+
+.ps-tile-image {
+    display: block;
+    width: 100%;
+    aspect-ratio: 3 / 2;
+    object-fit: contain;
+    border-radius: var(--ps-border-radius);
+}
+
+/* ============================================================ */
+/* Author information */
+/* ============================================================ */
+
+.ps-author-orcid,
+.ps-author-email {
+    font-size: 0.9rem;
+    line-height: 1.4;
+    text-align: left;
+}
+
+/* ============================================================ */
+/* Publications */
+/* ============================================================ */
+
+.ps-publications {
+    margin: 1.5rem 0 2.5rem;
+}
+
+.ps-publications .ps-publication {
+    margin: 0 0 1rem;
+    padding-left: 2rem;
+    text-indent: -2rem;
+    color: var(--color-foreground-secondary);
+    font-size: 0.95rem;
+    line-height: 1.5;
+    text-align: left;
+}
+
+.ps-publications .ps-publication:last-child {
+    margin-bottom: 0;
+}
+
+.ps-publications .ps-publication a {
+    word-break: break-word;
+}
+
+/* ============================================================ */
+/* Inline icons */
+/* ============================================================ */
+
+svg.inline-icon {
+    width: 1.2em;
+    height: 1.2em;
+    flex: none;
+    transform: translateY(0.25em);
+}

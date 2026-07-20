@@ -24,6 +24,7 @@ dev = [
     "sphinx-autodoc-typehints (>=3.12.1,<4.0.0)",
     "sphinx-autobuild (>=2025.8.25,<2026.0.0)",
     "pygments-styles (>=0.3.0,<0.4.0)",
+    "pip-tools (>=7.6.0,<8.0.0)",
 ]
 
 [tool.black]
