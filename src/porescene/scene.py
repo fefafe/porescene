@@ -49,6 +49,11 @@ class _AxisSpec(NamedTuple):
 class Scene:
 
     def __init__(self) -> None:
+        """
+        Creates an empty :class:`Scene`, wiping Blender's default scene contents and
+        setting up a camera, lights and Cycles render settings. Use :meth:`from_json`
+        to create a scene sized and configured from a PoreScene JSON file instead.
+        """
         self.config_axes = AxesConfiguration()
         self.config_image = ImageConfiguration()
         self.config_scene = SceneConfiguration()
@@ -119,6 +124,26 @@ class Scene:
     def from_json(
         cls, dims: tuple[float, float, float] | np.ndarray, pth_config: Path
     ) -> Self:
+        """
+        Creates a :class:`Scene` instance sized to the given physical domain
+        dimensions, configured from a PoreScene JSON configuration file.
+
+        Parameters
+        ----------
+        dims : tuple[float, float, float] | np.ndarray
+            Physical extent of the domain along x, y and z, used to derive the
+            scene's :attr:`scale`, :attr:`shift` and :attr:`aspect`.
+        pth_config : Path
+            Path to the PoreScene JSON configuration file. Its optional ``"axes"``
+            and ``"image"`` sections populate :attr:`config_axes` and
+            :attr:`config_image`, respectively.
+
+        Returns
+        -------
+        Self
+            :class:`Scene` instance created from the given dimensions and
+            configuration file.
+        """
         ins = cls()
 
         extent = np.array(dims)
@@ -1113,6 +1138,9 @@ class Scene:
         return self
 
     def remove_axes(self) -> Self:
+        """
+        Removes the axes from the scene.
+        """
         col = bpy.data.collections.get("Axes")
         if col:
             obs = [o for o in col.objects if o.users == 1]
@@ -1340,6 +1368,11 @@ class Scene:
 
     @property
     def aspect(self) -> tuple[float, float, float]:
+        """
+        Relative proportions of the domain along x, y and z, each normalized by the
+        largest of the three so the longest axis is ``1``. Set by :meth:`from_json`
+        from the given physical ``dims``.
+        """
         return self._aspect
 
     @aspect.setter
@@ -1348,6 +1381,10 @@ class Scene:
 
     @property
     def config_axes(self) -> AxesConfiguration:
+        """
+        Configuration controlling how :meth:`create_axes` draws axis lines, ticks and
+        labels.
+        """
         return self._config_axes
 
     @config_axes.setter
@@ -1356,6 +1393,9 @@ class Scene:
 
     @property
     def config_image(self) -> ImageConfiguration:
+        """
+        Configuration controlling how rendered images are post-processed.
+        """
         return self._config_image
 
     @config_image.setter
@@ -1364,11 +1404,98 @@ class Scene:
 
     @property
     def config_scene(self) -> SceneConfiguration:
+        """
+        Configuration controlling general scene appearance, such as which items are
+        rendered and their styling.
+        """
         return self._config_scene
 
     @config_scene.setter
     def config_scene(self, arg: SceneConfiguration):
         self._config_scene = arg
+
+    @property
+    def has_axes(self) -> bool:
+        """
+        Whether axes with ticks and labels have been added to the scene, via
+        :meth:`create_axes`.
+        """
+        return self._has_axes
+
+    @has_axes.setter
+    def has_axes(self, arg: bool):
+        self._has_axes = arg
+
+    @property
+    def has_clusters(self) -> bool:
+        """
+        Whether pore clusters have been added to the scene, via
+        :meth:`create_clusters`.
+        """
+        return self._has_clusters
+
+    @has_clusters.setter
+    def has_clusters(self, arg: bool):
+        self._has_clusters = arg
+
+    @property
+    def has_cylinders(self) -> bool:
+        """
+        Whether throat cylinders have been added to the scene, via
+        :meth:`create_cylinders`.
+        """
+        return self._has_cylinders
+
+    @has_cylinders.setter
+    def has_cylinders(self, arg: bool):
+        self._has_cylinders = arg
+
+    @property
+    def has_lights(self) -> bool:
+        """
+        Whether lights have been added to the scene, via :meth:`create_lights`.
+        """
+        return self._has_lights
+
+    @has_lights.setter
+    def has_lights(self, arg: bool):
+        self._has_lights = arg
+
+    @property
+    def has_solid(self) -> bool:
+        """
+        Whether the solid object has been added to the scene, via
+        :meth:`create_solid`.
+        """
+        return self._has_solid
+
+    @has_solid.setter
+    def has_solid(self, arg: bool):
+        self._has_solid = arg
+
+    @property
+    def has_spheres(self) -> bool:
+        """
+        Whether pore spheres have been added to the scene, via
+        :meth:`create_spheres`.
+        """
+        return self._has_spheres
+
+    @has_spheres.setter
+    def has_spheres(self, arg: bool):
+        self._has_spheres = arg
+
+    @property
+    def has_void(self) -> bool:
+        """
+        Whether the void-space object has been added to the scene, via
+        :meth:`create_void`.
+        """
+        return self._has_void
+
+    @has_void.setter
+    def has_void(self, arg: bool):
+        self._has_void = arg
 
 
 def _get_spinner(text: str) -> progress.Progress:
