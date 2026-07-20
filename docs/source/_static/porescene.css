@@ -548,12 +548,13 @@ a.ps-tile:focus-visible {
     position: absolute;
     top: 1rem;
     right: 1rem;
-    width: 1.4rem;
-    height: 1.4rem;
+    width: 1.4em;
+    height: 1.4em;
     color: var(--color-brand-primary);
 }
 
 .ps-tile-title,
+.ps-tile-subtitle,
 .ps-tile-desc {
     margin: 0;
     padding: 0;
@@ -566,6 +567,14 @@ a.ps-tile:focus-visible {
     color: var(--color-foreground-primary);
     font-size: 1.05rem;
     font-weight: 700;
+    text-align: left;
+}
+
+.ps-tile-subtitle {
+    margin-bottom: 0.4rem;
+    color: var(--color-foreground-secondary);
+    font-size: 0.95rem;
+    font-weight: 500;
     text-align: left;
 }
 
