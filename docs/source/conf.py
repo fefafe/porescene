@@ -82,3 +82,5 @@ html_sidebars = {
         "sidebar/scroll-end.html",
     ]
 }
+
+exclude_patterns = ["api/modules.rst"]
