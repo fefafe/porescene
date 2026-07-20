@@ -640,17 +640,20 @@ class AxesConfiguration:
                 extent[2] * ins.factor[2],
             )
         )
-        tick_end = tick_end - 1
 
-        ticks_x = np.arange(tick_start[0], tick_end[0] + 1, tick_interval)
-        ticks_y = np.arange(tick_start[1], tick_end[1] + 1, tick_interval)
-        ticks_z = np.arange(tick_start[2], tick_end[2] + 1, tick_interval)
+        margin = tick_interval * 1e-6
+        ticks_x = np.arange(tick_start[0], tick_end[0] + margin, tick_interval)
+        ticks_y = np.arange(tick_start[1], tick_end[1] + margin, tick_interval)
+        ticks_z = np.arange(tick_start[2], tick_end[2] + margin, tick_interval)
 
         if "ticks_x" not in data:
             ins.ticks_x = ticks_x
         if "ticks_y" not in data:
             ins.ticks_y = ticks_y
         if "ticks_z" not in data:
+            # drop the first (z = 0) tick/label: it sits at the same corner as the
+            # x and y axes' own "0" labels and would otherwise overlap them
+            ticks_z = ticks_z[1:]
             ins.ticks_z = ticks_z
 
         ins.position_tick_x = ticks_x / extent[0] / fac_axis
