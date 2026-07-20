@@ -463,6 +463,13 @@ class Scene:
             )
         bpy.data.cameras["Camera"].shift_y = -0.55
         bpy.data.cameras["Camera"].lens = 50
+
+        # track the camera's true azimuth around the bounding box's pivot, so
+        # that rotate_azimuth's corner-snapping starts from where the camera
+        # actually is instead of assuming it starts centered on a corner
+        center = self.size_bounding_box / 2
+        x, y, _ = bpy.data.objects["Camera"].location
+        self._ang_azimuth = math.degrees(math.atan2(y - center, x - center))
         return self
 
     def create_cells(
@@ -1192,9 +1199,15 @@ class Scene:
         The axes are literal rulers built along fixed edges of the
         (stationary) bounding box, so they can't simply follow the camera's
         continuous rotation without drifting off the box they are meant to
-        measure. Instead they are snapped in 90-degree steps -- which maps
-        one cube corner exactly onto another -- to keep them attached to the
-        box while staying on the side that currently faces the camera.
+        measure. The x and y rulers each stay on whichever of their two
+        parallel edges currently faces the camera -- the x ruler flips
+        between the front/back edge, the y ruler between the left/right
+        edge -- by mirroring to that edge and turning their tick/axis
+        labels 180 degrees so the text keeps facing outward, rather than
+        rotating (which would swap their x/y labelling, see the fixed bug
+        this replaced). The z ruler sits at the corner shared by the
+        current x and y edges, so it is snapped there in 90-degree steps
+        the same way the whole assembly used to move.
         """
         self._orbit(bpy.data.objects["Camera"], math.radians(ang_rot))
 
@@ -1205,15 +1218,57 @@ class Scene:
         if self.has_axes:
 
             def _nearest_corner(deg: float) -> float:
-                return math.floor(deg / 90 + 0.5) * 90
+                return math.floor((deg - 45) / 90 + 0.5) * 90 + 45
 
-            corner_before = _nearest_corner(self._ang_azimuth)
+            def _side(deg: float, fn) -> bool:
+                return fn(math.radians(deg)) >= 0
+
+            ang_before = self._ang_azimuth
+            corner_before = _nearest_corner(ang_before)
             self._ang_azimuth += ang_rot
-            corner_after = _nearest_corner(self._ang_azimuth)
+            ang_after = self._ang_azimuth
+            corner_after = _nearest_corner(ang_after)
+
             corner_delta = math.radians(corner_after - corner_before)
-            if corner_delta:
+            flips = {
+                "y": _side(ang_before, math.cos) != _side(ang_after, math.cos),
+                "x": _side(ang_before, math.sin) != _side(ang_after, math.sin),
+            }
+
+            def _axis_of(name: str) -> str | None:
+                for axis in ("x", "y", "z"):
+                    if name == f"axis_{axis}" or name == f"axis label {axis}":
+                        return axis
+                    if name.startswith(f"{axis} "):
+                        return axis
+                return None
+
+            if corner_delta or any(flips.values()):
+                sbb = self.size_bounding_box
+
                 for obj in bpy.data.collections["Axes"].objects:
-                    self._orbit(obj, corner_delta)
+                    axis = _axis_of(obj.name)
+                    if axis is None:
+                        continue
+
+                    if axis == "z":
+                        if corner_delta:
+                            self._orbit(obj, corner_delta)
+                        continue
+
+                    if not flips[axis]:
+                        continue
+
+                    x, y, z = obj.location
+                    if axis == "y":
+                        x = sbb - x
+                    else:
+                        y = sbb - y
+                    obj.location = (x, y, z)
+
+                    if "label" in obj.name:
+                        rx, ry, rz = obj.rotation_euler
+                        obj.rotation_euler = (rx, ry, rz + math.radians(180))
         else:
             self._ang_azimuth += ang_rot
 
