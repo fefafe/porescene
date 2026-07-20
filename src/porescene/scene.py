@@ -45,6 +45,7 @@ class _AxisSpec(NamedTuple):
     align_last: str
     first_gated: bool
     minor_special: bool
+    hide_first_label: bool = False
 
 
 class Scene:
@@ -338,6 +339,7 @@ class Scene:
                     align_last="LEFT",
                     first_gated=False,
                     minor_special=False,
+                    hide_first_label=True,
                 ),
             ]
             for enabled, spec in zip(cfg.enable_ticks, specs):
@@ -422,6 +424,9 @@ class Scene:
 
             if spec.enable_minor:
                 self._draw_axis_ticks_minor(col, mesh_tick, spec, idx)
+
+            if idx == 0 and spec.hide_first_label:
+                continue
 
             label = str(round(value, spec.precision)).rstrip("0").rstrip(".")
             label_loc = list(loc)
