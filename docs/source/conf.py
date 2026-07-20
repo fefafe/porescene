@@ -1,9 +1,7 @@
 import os
 import sys
 import tomllib
-import inspect
 from pathlib import Path
-from sphinx.ext.autodoc import ClassDocumenter
 
 sys.path.insert(0, os.path.abspath("../src"))  # adjust to your package layout
 
