@@ -103,9 +103,8 @@ class Color:
 
         ToDo
         ----
-        * Implementation of real world color mixing like described by `MixBox`_.
-
-        :: _MixBox: https://scrtwpns.com/mixbox.pdf
+        Implementation of real world color mixing like described by
+        `MixBox <https://scrtwpns.com/mixbox.pdf>`_.
         """
         r = self.red * (1 - ratio) + other.red * ratio
         g = self.green * (1 - ratio) + other.green * ratio
