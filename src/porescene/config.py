@@ -651,9 +651,6 @@ class AxesConfiguration:
         if "ticks_y" not in data:
             ins.ticks_y = ticks_y
         if "ticks_z" not in data:
-            # drop the first (z = 0) tick/label: it sits at the same corner as the
-            # x and y axes' own "0" labels and would otherwise overlap them
-            ticks_z = ticks_z[1:]
             ins.ticks_z = ticks_z
 
         ins.position_tick_x = ticks_x / extent[0] / fac_axis
