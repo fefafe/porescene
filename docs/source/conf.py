@@ -10,7 +10,7 @@ with (Path(__file__).resolve().parents[2] / "pyproject.toml").open("rb") as f:
 project = "PoreScene"
 author = "Felix Faber"
 copyright = (
-    "2026, Felix Faber / Otto von Guericke University Magdeburg, "
+    "%Y, Felix Faber / Otto von Guericke University Magdeburg, "
     "Thermal Process Engineering"
 )
 release = _pyproject["project"]["version"]
