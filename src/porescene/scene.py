@@ -50,7 +50,7 @@ class _AxisSpec(NamedTuple):
 
 class Scene:
 
-    def __init__(self) -> None:
+    def __init__(self, extent: np.ndarray) -> None:
         """
         Creates an empty :class:`Scene`, wiping Blender's default scene contents and
         setting up a camera, lights and Cycles render settings. Use :meth:`from_json`
@@ -122,9 +122,13 @@ class Scene:
         bpy.context.scene.cycles.transmission_bounces = 12
         bpy.context.scene.cycles.transparent_max_bounces = 64
 
+        self.scale = self.size_bounding_box / max(extent)
+        self.shift = (self.size_bounding_box - extent * self.scale) / 2
+        self.aspect = extent / max(extent)
+
     @classmethod
     def from_json(
-        cls, dims: tuple[float, float, float] | np.ndarray, pth_config: Path
+        cls, extent: np.ndarray, pth_config: Path
     ) -> Self:
         """
         Creates a :class:`Scene` instance sized to the given physical domain
@@ -132,7 +136,7 @@ class Scene:
 
         Parameters
         ----------
-        dims : tuple[float, float, float] | np.ndarray
+        extent : np.ndarray
             Physical extent of the domain along x, y and z, used to derive the
             scene's :attr:`scale`, :attr:`shift` and :attr:`aspect`.
         pth_config : Path
@@ -146,9 +150,7 @@ class Scene:
             :class:`Scene` instance created from the given dimensions and
             configuration file.
         """
-        ins = cls()
-
-        extent = np.array(dims)
+        ins = cls(extent)
 
         with pth_config.open(mode="r", encoding="UTF-8") as json_data:
             config = json.load(json_data)
@@ -157,10 +159,6 @@ class Scene:
             ins.config_axes = AxesConfiguration.from_dict(extent, config["axes"])
         if "image" in config:
             ins.config_image = ImageConfiguration.from_dict(config["image"])
-
-        ins.scale = ins.size_bounding_box / max(extent)
-        ins.shift = (ins.size_bounding_box - extent * ins.scale) / 2
-        ins.aspect = extent / max(extent)
 
         return ins
 
