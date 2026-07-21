@@ -233,6 +233,11 @@ kbd,
     font-size: 1.1rem;
 }
 
+/* Figure numbering restarts on every page. */
+article[role="main"] {
+    counter-reset: ps-figure;
+}
+
 p {
     text-align: justify;
 }
@@ -272,28 +277,44 @@ dl dl {
 }
 
 /* ============================================================ */
-/* Example images */
+/* Figures */
 /* ============================================================ */
 
-.ps-example-image {
+figure.ps-figure {
+    counter-increment: ps-figure;
+    margin: 1.5rem 0 2rem;
+    padding: 0;
+    background: var(--color-background-tertiary);
+    border-radius: var(--ps-border-radius);
+    overflow: hidden;
+}
+
+figure.ps-figure img {
     display: block;
     width: 100%;
     aspect-ratio: 3 / 2;
     object-fit: contain;
-    margin: 1.5rem 0;
-    background-color: var(--color-background-image);
-    border-radius: var(--ps-border-radius);
+    margin: 0;
+    background: var(--color-background-image);
 }
 
-.ps-figure img {
-    display: block;
-    margin-left: auto;
-    margin-right: auto;
-    text-align: center;
-    max-width: 600px;
-    width: 100%;
-    background-color: var(--color-background-image);
-    border-radius: var(--ps-border-radius);
+figure.ps-figure > figcaption {
+    padding: var(--ps-padding-tile);
+}
+
+figure.ps-figure > figcaption p {
+    width: auto;
+    margin: 0px;
+    color: var(--color-foreground-secondary);
+    font-size: 1rem;
+    line-height: 1.4;
+    text-align: justify;
+}
+
+figure.ps-figure > figcaption > p:first-of-type::before {
+    content: "Figure " counter(ps-figure) ": ";
+    color: var(--color-foreground-primary);
+    font-weight: 700;
 }
 
 figcaption p {
@@ -590,6 +611,7 @@ a.ps-tile:focus-visible {
     width: 100%;
     aspect-ratio: 3 / 2;
     object-fit: contain;
+    background: var(--color-background-image);
     border-radius: var(--ps-border-radius);
 }
 
