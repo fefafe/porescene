@@ -70,7 +70,7 @@ html_theme_options = {
 templates_path = ["_templates"]
 html_static_path = ["_static"]
 html_css_files = ["porescene.css", "carousel.css"]
-html_js_files = ["carousel.js", "copybutton.js"]
+html_js_files = ["carousel.js", "copybutton.js", "references.js"]
 
 
 # Furo's default sidebar, with a persistent "Home" link added above the
