@@ -15,6 +15,7 @@ This module bundles the settings used throughout :mod:`porescene`:
 * :class:`AxesConfiguration` -- coordinate axes, ticks and labels.
 """
 
+import math
 from importlib import resources
 from pathlib import Path
 from typing import Callable, Self, Sequence, Type
@@ -566,7 +567,7 @@ class AxesConfiguration:
         self.factor = (1e6, 1e6, 1e6)
         self.precision = (0, 0, 0)
         self.indent_ticks = False
-        self.num_ticks_minor = 4
+        self.num_ticks_minor = None
         self.value_start = (0, 0, 0)
         self.value_end = (1, 1, 1)
 
@@ -701,6 +702,43 @@ class AxesConfiguration:
         if isinstance(arg, bool):
             arg = (arg, arg, arg)
         self._enable_ticks_minor = arg
+
+    @property
+    def num_ticks_minor(self) -> int:
+        """
+        Number of minor ticks drawn between two adjacent major ticks.
+
+        When set to ``None``, a suitable number is derived from the spacing of the
+        major ticks, following the convention of matplotlib's
+        :class:`~matplotlib.ticker.AutoMinorLocator`: a major step whose leading
+        digit is 1 or 5 -- such as 100 or 50 -- is divided into 5 intervals, giving
+        4 minor ticks, while any other step is divided into 4 intervals, giving 3
+        minor ticks. This keeps the minor ticks on round values instead of, say,
+        splitting a step of 20 into fifths of 4. Falls back to ``4`` when the major
+        tick spacing is still unknown.
+        """
+        if self._num_ticks_minor is not None:
+            return self._num_ticks_minor
+
+        def _step_ticks_major() -> float | None:
+            for ticks in (self.ticks_x, self.ticks_y, self.ticks_z):
+                if len(ticks) > 1:
+                    step = abs(float(ticks[1]) - float(ticks[0]))
+                    if step > 0 and math.isfinite(step):
+                        return step
+            return None
+
+        step = _step_ticks_major()
+        if step is None:
+            return 4
+
+        digit_lead = round(10 ** (math.log10(step) % 1))
+
+        return 4 if digit_lead in (1, 5, 10) else 3
+
+    @num_ticks_minor.setter
+    def num_ticks_minor(self, arg: int | None):
+        self._num_ticks_minor = None if arg is None else int(arg)
 
     @property
     def line_width(self) -> float:
