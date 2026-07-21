@@ -23,4 +23,5 @@
     "flake8.args": [
         "--max-line-length=90"
     ],
+    "livePreview.defaultPreviewPath": "/docs/_build/html/index.html",
 }
