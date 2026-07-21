@@ -150,7 +150,7 @@ class Mesh:
         self._name = arg
 
 
-def image2mesh(
+def volume2mesh(
     img: np.ndarray,
     voxel_size: float | Sequence[float] = (1.0, 1.0, 1.0),
     labels: int | Sequence[int] = 1,
@@ -164,8 +164,7 @@ def image2mesh(
     Extracts the axis-aligned boundary faces of the voxels whose label is included in
     ``labels`` -- every face between a selected voxel and a non-selected neighbour (or
     the volume border) -- as unit squares scaled by the voxel size. Coincident vertices
-    are merged, so each position is stored once and shared between faces. This is a
-    Python port of the MATLAB ``img2mesh``.
+    are merged, so each position is stored once and shared between faces.
 
     Parameters
     ----------
@@ -206,19 +205,19 @@ def image2mesh(
 
     if per_label:
         return {
-            int(label): Mesh(*_mask2mesh(img == label, size), f"{name}_{label}")
+            int(label): Mesh(*_label2mesh(img == label, size), f"{name}_{label}")
             for label in label_values
         }
-    return Mesh(*_mask2mesh(np.isin(img, label_values), size), name)
+    return Mesh(*_label2mesh(np.isin(img, label_values), size), name)
 
 
-def _mask2mesh(
+def _label2mesh(
     mask: np.ndarray,
     voxel_size: np.ndarray,
 ) -> tuple[np.ndarray, np.ndarray]:
     """
     Builds the axis-aligned boundary quad mesh of a boolean voxel mask
-    (see :func:`image2mesh`).
+    (see :func:`volume2mesh`).
     """
     _FACE_CORNERS = (
         np.array([[0, 0, 0], [0, 0, 1], [0, 1, 1], [0, 1, 0]]),  # face normal to x

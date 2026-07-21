@@ -243,7 +243,7 @@ class PoreNetwork:
             ends up as numpy's third axis, and vice versa, while the second dimension
             stays in place.
 
-            Since :func:`porescene.utility.image2mesh` builds its mesh directly from such
+            Since :func:`porescene.utility.volume2mesh` builds its mesh directly from such
             a numpy voxel array, meshes it produces have their first and third axes
             swapped relative to the coordinate frame the ``.mat`` file's own variables
             (e.g. ``pos_p``) were written in. By default (``swap_axes=True``), this
@@ -251,7 +251,7 @@ class PoreNetwork:
             (:attr:`PoreNetwork.pore_position` and its ``_top``/``_bottom``/``_left``/
             ``_right``/``_front``/``_back`` variants) to match, so pore/throat
             coordinates line up with meshes built by
-            :func:`~porescene.utility.image2mesh`. Pass ``swap_axes=False`` to import
+            :func:`~porescene.utility.volume2mesh`. Pass ``swap_axes=False`` to import
             the coordinates verbatim in the MATLAB axis order instead, e.g. when no
             voxel-image mesh is involved.
 
@@ -312,7 +312,7 @@ class PoreNetwork:
             If ``True`` (default), swaps the first and third columns of every imported
             position array to compensate for the MATLAB/numpy axis-order mismatch
             described above, e.g. aligning coordinates with meshes built by
-            :func:`porescene.utility.image2mesh`. Set to ``False`` to import the
+            :func:`porescene.utility.volume2mesh`. Set to ``False`` to import the
             coordinates verbatim, in the MATLAB axis order.
 
         Returns

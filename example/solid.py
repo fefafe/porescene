@@ -29,7 +29,7 @@ img_bin = np.fromfile(pth_data / "img_bin.raw", dtype=np.uint8)
 img_bin = img_bin.reshape(res_img)
 
 # mesh representation of the volume image
-mesh = utility.image2mesh(img_bin, L_vxl, name="solid")
+mesh = utility.volume2mesh(img_bin, L_vxl, name="solid")
 
 # export the mesh in binary PLY format
 io.mesh2ply(pth_data / "solid.ply", mesh)

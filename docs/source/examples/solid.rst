@@ -80,7 +80,7 @@ scene, so it always stays in meters regardless of the unit you display (see
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The binarized volume data is loaded from file and reshaped into its original
-resolution. :func:`~porescene.utility.image2mesh` turns the binarized volume into a
+resolution. :func:`~porescene.utility.volume2mesh` turns the binarized volume into a
 mesh (every matrix element in ``img_bin`` with a value of ``1`` gets included).
 :func:`~porescene.io.mesh2ply` writes the result to disk. You can skip this step in
 case you already have a geometric object file of your solid.
@@ -92,7 +92,7 @@ case you already have a geometric object file of your solid.
    img_bin = img_bin.reshape(res_img)
 
    # mesh representation of the volume image
-   mesh = utility.image2mesh(img_bin, L_vxl, name="solid")
+   mesh = utility.volume2mesh(img_bin, L_vxl, name="solid")
 
    # export the mesh in binary PLY format
    io.mesh2ply(pth_data / "solid.ply", mesh)

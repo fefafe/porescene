@@ -24,7 +24,7 @@ def mesh2obj(pth_obj: Path, mesh: Mesh) -> Path:
         Output path of the OBJ file.
     mesh : Mesh
         The mesh to write. Its faces hold **0-based** vertex indices (e.g. from
-        :func:`image2mesh() <porescene.utility.image2mesh>`); OBJ indices are 1-based, so
+        :func:`volume2mesh() <porescene.utility.volume2mesh>`); OBJ indices are 1-based, so
         the values are offset by one on write. The mesh ``name`` becomes the ``o`` record.
 
     Returns
@@ -62,7 +62,7 @@ def mesh2ply(pth_ply: Path, mesh: Mesh, binary: bool = True) -> Path:
         Output path of the PLY file.
     mesh : Mesh
         The mesh to write. Its faces hold **0-based** vertex indices (e.g. from
-        :func:`porescene.utility.image2mesh`); PLY indices are 0-based too, so they are
+        :func:`porescene.utility.volume2mesh`); PLY indices are 0-based too, so they are
         written unchanged. The mesh ``name`` is written as a PLY comment.
     binary : bool, optional
         If ``True`` (default), the vertex and face data are written as packed
