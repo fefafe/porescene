@@ -1299,9 +1299,7 @@ class Scene:
                     mat_before = Matrix.LocRotScale(
                         obj.location, obj.rotation_euler.to_quaternion(), obj.scale
                     )
-                    local_center = (
-                        sum((Vector(c) for c in obj.bound_box), Vector()) / 8
-                    )
+                    local_center = sum((Vector(c) for c in obj.bound_box), Vector()) / 8
                     center_before = mat_before @ local_center
 
                     x, y, z = obj.location
