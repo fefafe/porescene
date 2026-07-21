@@ -8,7 +8,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  test:
+  build:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -34,22 +34,25 @@ jobs:
         run: poetry install --with dev --no-interaction
       - name: Run tests
         run: poetry run pytest
+      - name: Build distributions
+        run: poetry build
+      - name: Validate distribution metadata
+        run: pipx run twine check --strict dist/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
 
-  build-and-publish:
-    needs: test
+  publish:
+    needs: build
     runs-on: ubuntu-latest
     environment: release
     permissions:
       id-token: write
-      contents: read
     steps:
-      - uses: actions/checkout@v4
-      - name: Install Poetry
-        run: pipx install poetry==2.3.2
-      - uses: actions/setup-python@v5
+      - uses: actions/download-artifact@v4
         with:
-          python-version: "3.13"
-      - name: Build
-        run: poetry build
+          name: dist
+          path: dist/
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
