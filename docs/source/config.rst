@@ -18,7 +18,7 @@ Loading the configuration
 
 A configuration file is loaded with :meth:`Scene.from_json
 <porescene.scene.Scene.from_json>`. Besides the path to the JSON file, it takes the physical
-domain dimensions ``dims`` as ``(x, y, z)`` **in metres** -- these calibrate the axes to the
+domain dimensions ``dims`` as ``(x, y, z)`` **in meters** -- these calibrate the axes to the
 real size of the sample, while the JSON only controls how that calibration is displayed:
 
 .. code-block:: python
@@ -27,7 +27,7 @@ real size of the sample, while the JSON only controls how that calibration is di
 
    from porescene.scene import Scene
 
-   # physical domain size in metres (x, y, z)
+   # physical domain size in meters (x, y, z)
    dims = (100e-06, 100e-06, 100e-06)
 
    # build a scene from the JSON configuration
@@ -41,7 +41,7 @@ Example configuration
 ---------------------
 
 The following ``porescene.json`` sets a 4096 × 4096 px image, calibrates the axes to
-micrometres, and declares a single ``diameter`` property. It is a good starting point to copy
+micrometers, and declares a single ``diameter`` property. It is a good starting point to copy
 and adapt:
 
 .. code-block:: json
@@ -111,7 +111,7 @@ only govern how that calibration is *displayed* -- the shown unit, tick spacing,
 and geometry.
 
 Lengths such as ``line_width``, ``tick_length``, and ``distance`` are expressed in **scene
-units**, where the longest edge of the model is normalised to a length of ``10``. Per-axis
+units**, where the longest edge of the model is normalized to a length of ``10``. Per-axis
 keys accept either a single value (applied to all three axes) or a three-element list ordered
 ``[x, y, z]``.
 
@@ -185,9 +185,9 @@ keys accept either a single value (applied to all three axes) or a three-element
 .. note::
 
    The tick values and axis labels are derived from the ``dims`` you pass to
-   :meth:`Scene.from_json <porescene.scene.Scene.from_json>` (in metres) together with
+   :meth:`Scene.from_json <porescene.scene.Scene.from_json>` (in meters) together with
    ``unit_display`` and ``tick_interval``. To change the *shown* unit, adjust
-   ``unit_display`` -- do not rescale ``dims``, which must always stay in metres.
+   ``unit_display`` -- do not rescale ``dims``, which must always stay in meters.
 
 
 ``properties``
@@ -215,7 +215,7 @@ and mirrors the fields of :class:`~porescene.config.PropertyConfiguration`.
    * - ``factor``
      - float
      - Multiplier applied to the raw property values before they are displayed on the
-       colorbar, e.g. ``2e6`` to turn a radius in metres into a diameter in micrometres.
+       colorbar, e.g. ``2e6`` to turn a radius in meters into a diameter in micrometers.
        This affects the overlay only, not the rendered geometry.
 
 .. note::

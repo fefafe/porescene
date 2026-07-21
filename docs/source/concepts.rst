@@ -60,7 +60,7 @@ configurable. The :doc:`PoreScene configuration <config>` ``porescene.json`` acc
 key that converts axis ticks into the desired length scale. It defaults to ``"MICRO"``
 (micrometers, ``µm``), which suits most tomographic samples. PoreScene understands the
 full metric range, from ``QUETTA`` (10\ :sup:`30`)
-down to ``QUECTO`` (10\ :sup:`-30`), so the same data can be labelled in ``nm``, ``µm``, ``mm``, etc., without touching the geometry. Internally the tick values are converted
+down to ``QUECTO`` (10\ :sup:`-30`), so the same data can be labeled in ``nm``, ``µm``, ``mm``, etc., without touching the geometry. Internally the tick values are converted
 from meters to the chosen display unit by a scale factor.
 
 As example, in case the axis needs to be shown in millimeters, the ``porescene.json`` can be adjusted accordingly:

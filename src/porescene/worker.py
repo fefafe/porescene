@@ -534,9 +534,9 @@ def make_structure(
     sc: Scene,
 ) -> Path:
     """
-    Renders the pore network with all pores, throats, and clusters in a uniform grey.
+    Renders the pore network with all pores, throats, and clusters in a uniform gray.
 
-    This is the plain structure view: every layer is drawn in a single neutral grey,
+    This is the plain structure view: every layer is drawn in a single neutral gray,
     without any property-based coloring or colorbar, giving a clean overview of the
     network geometry. A layer is only shown when it is enabled in the scene
     configuration *and* has actually been built in the scene.

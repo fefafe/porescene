@@ -66,7 +66,7 @@ Restart your terminal afterwards and verify the installation (all: Windows, macO
 2. Set up a project
 ^^^^^^^^^^^^^^^^^^^
 
-Initialise a new project pinned to Python 3.13. ``uv`` downloads the interpreter if
+Initialize a new project pinned to Python 3.13. ``uv`` downloads the interpreter if
 it is not present yet and manages a virtual environment and dependencies for you:
 
 .. code-block:: text

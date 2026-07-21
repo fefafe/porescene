@@ -1239,7 +1239,7 @@ class Scene:
         edge -- by mirroring to that edge and turning their ticks and
         labels 180 degrees, so ticks keep pointing outward and label text
         stays legible, rather than rotating the whole ruler (which would
-        swap their x/y labelling, see the fixed bug this replaced). The
+        swap their x/y labeling, see the fixed bug this replaced). The
         main ruler bar itself is left unrotated since it's symmetric along
         its own length. The z ruler sits at the corner shared by the
         current x and y edges, so it is snapped there in 90-degree steps
