@@ -38,7 +38,7 @@ io.mesh2ply(pth_data / "solid.ply", mesh)
 # =============================================================================
 # Scene configuration and rendering
 
-# create a new scene from PoreScene JSON configuration
+# initialize a new scene
 sc = Scene(extent)
 
 # add axes to the scene

@@ -10,14 +10,14 @@ To create a visualization of the material, this example shows how to generate a 
 the voxel data, load it into the scene, and render it to a PNG with a transparent
 background.
 
-This tutorial uses exemplarily a binarized volume of a freeze-dried sugar solution that
-was captured with X-ray micro-computer tomographic imaging
+As an example, this tutorial uses a binarized volume of a freeze-dried sugar solution that
+was captured with X-ray micro-computed tomographic imaging
 :footcite:p:`2025_faber_Porescale`, which is available in PoreScene's repository on
 GitHub: `data/img_bin.raw <https://github.com/fefafe/porescene/tree/main/data>`_
 
 
 .. figure:: ../_static/image/solid.png
-   :alt: Solid structure of a freeze-dried sugar solution captured with X-ray micro-computer tomographic imaging
+   :alt: Solid structure of a freeze-dried sugar solution captured with X-ray micro-computed tomographic imaging
    :figclass: ps-figure
 
    The rendered result: the solid phase of a freeze-dried sugar solution,
@@ -29,7 +29,7 @@ Step-by-step guide
 1. Import required modules
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Make sure to have ``porescene`` installed (see :doc:`../installation`). At first, required modules are imported:
+Make sure to have ``porescene`` installed (see :doc:`../installation`). At first, required modules need to be imported:
 
 .. code-block:: python
 
@@ -44,29 +44,29 @@ Module :mod:`~porescene.utility` provides a function that converts the binarized
 volume image into a mesh, which can be subsequently saved with functions from
 :mod:`~porescene.io` in OBJ or PLY formats. :class:`Scene <porescene.scene.Scene>`
 loads and renders the created mesh. File paths and directories are handled throughout
-PoreScene with the build-in :mod:`pathlib` module.
+PoreScene with the built-in :mod:`pathlib` module.
 
 
 2. Set utility variables
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-At first, a directory for saving the OBJ file and the rendered images is specified:
+After that, a directory for saving the mesh file and the rendered images is specified:
 
 .. code-block:: python
 
    # data subdirectory
    pth_data = Path.cwd() / "data"
 
-Next, some required information about the volume image are saved:
+Next, some required information about the volume image is saved:
 
 .. code-block:: python
-   
+
    # [m] edge length of a single voxel
    L_vxl = 1e-6
-   
+
    # [vxl] image resolution
    res_img = np.array((100, 100, 100))
-   
+
    # [m] domain dimensions
    extent = res_img * L_vxl
 
@@ -83,7 +83,7 @@ The binarized volume data is loaded from file and reshaped into its original
 resolution. :func:`~porescene.utility.image2mesh` turns the binarized volume into a
 mesh (every matrix element in ``img_bin`` with a value of ``1`` gets included).
 :func:`~porescene.io.mesh2ply` writes the result to disk. You can skip this step in
-case you have already an geometric object file of your solid.
+case you already have a geometric object file of your solid.
 
 .. code-block:: python
 
@@ -107,28 +107,29 @@ case you have already an geometric object file of your solid.
 4. Scene setup
 ^^^^^^^^^^^^^^
 
-:meth:`~porescene.scene.Scene.from_json` initializes the rendering stage with camera
+:class:`~porescene.scene.Scene` initializes the rendering stage with camera
 and lighting. The scene is empty by default -- every visible element is added
 explicitly in the next steps.
 
 .. code-block:: python
 
-   # create a new scene from PoreScene JSON configuration
-   sc = Scene.from_json(dims, pth_data / "porescene.json")
+   # initialize a new scene
+   sc = Scene(extent)
 
 For the rendering, two components need to be added to the :class:`Scene`:
 the previously generated mesh of the solid and axes around it:
 
 .. code-block:: python
 
+   # add axes to the scene
+   sc.create_axes()
+
    # add a solid object to the scene
    sc.create_solid(pth_data / "solid.ply")
 
-   # add axes around the scene
-   sc.create_axes()
-   
    # render the scene
-   pth_img = sc.render(pth_tmp / "solid+axes.png")
+   pth_img = sc.render(pth_data / "solid+axes.png")
+
 
 With the final line, Blender renders the scene and saves the image as
 ``solid+axes.png`` in the given data directory.
