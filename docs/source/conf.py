@@ -2,7 +2,10 @@ import sys
 import tomllib
 from pathlib import Path
 
+from pybtex.plugin import register_plugin
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
+sys.path.insert(0, str(Path(__file__).resolve().parent / "_ext"))
 
 with (Path(__file__).resolve().parents[2] / "pyproject.toml").open("rb") as f:
     _pyproject = tomllib.load(f)
@@ -23,6 +26,7 @@ extensions = [
     "sphinx.ext.viewcode",
     "sphinx.ext.intersphinx",
     "sphinx_autodoc_typehints",
+    "sphinxcontrib.bibtex",
 ]
 
 pygments_style = "ayu-light"
@@ -84,3 +88,10 @@ html_sidebars = {
 }
 
 exclude_patterns = ["api/modules.rst"]
+
+from apa7_style import APAStyle  # type: ignore # noqa: E402
+register_plugin("pybtex.style.formatting", "apa7", APAStyle)
+
+bibtex_bibfiles = ["references.bib"]
+bibtex_default_style = "apa7"
+bibtex_reference_style = "label"

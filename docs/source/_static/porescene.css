@@ -640,3 +640,12 @@ svg.inline-icon {
     flex: none;
     transform: translateY(0.25em);
 }
+
+/* ============================================================ */
+/* Citations */
+/* ============================================================ */
+
+.footnote-reference {
+    vertical-align: baseline;
+    font-size: inherit;
+}

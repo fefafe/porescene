@@ -28,7 +28,10 @@ colorama==0.4.6
     #   sphinx
     #   sphinx-autobuild
 docutils==0.22.4
-    # via sphinx
+    # via
+    #   pybtex-docutils
+    #   sphinx
+    #   sphinxcontrib-bibtex
 furo==2025.12.19
     # via -r docs/requirements.in
 h11==0.16.0
@@ -45,6 +48,8 @@ imagesize==2.0.0
     # via sphinx
 jinja2==3.1.6
     # via sphinx
+latexcodec==3.0.1
+    # via pybtex
 markdown-it-py==4.2.0
     # via rich
 markupsafe==3.0.3
@@ -59,6 +64,12 @@ packaging==26.2
     # via sphinx
 pillow==12.3.0
     # via -r docs/requirements.in
+pybtex==0.26.1
+    # via
+    #   pybtex-docutils
+    #   sphinxcontrib-bibtex
+pybtex-docutils==1.0.3
+    # via sphinxcontrib-bibtex
 pygments==2.20.0
     # via
     #   accessible-pygments
@@ -69,7 +80,9 @@ pygments==2.20.0
 pygments-styles==0.3.0
     # via -r docs/requirements.in
 pyyaml==6.0.3
-    # via -r docs/requirements.in
+    # via
+    #   -r docs/requirements.in
+    #   pybtex
 requests==2.34.2
     # via sphinx
 rich==15.0.0
@@ -87,6 +100,7 @@ sphinx==9.1.0
     #   sphinx-autobuild
     #   sphinx-autodoc-typehints
     #   sphinx-basic-ng
+    #   sphinxcontrib-bibtex
 sphinx-autobuild==2025.8.25
     # via -r docs/requirements.in
 sphinx-autodoc-typehints==3.12.1
@@ -95,6 +109,8 @@ sphinx-basic-ng==1.0.0b2
     # via furo
 sphinxcontrib-applehelp==2.0.0
     # via sphinx
+sphinxcontrib-bibtex==2.7.0
+    # via -r docs/requirements.in
 sphinxcontrib-devhelp==2.0.0
     # via sphinx
 sphinxcontrib-htmlhelp==2.1.0
