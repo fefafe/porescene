@@ -1,0 +1,55 @@
+name: release
+on:
+  push:
+    tags: ["v*"]
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Poetry
+        run: pipx install poetry==2.3.2
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: poetry
+      - name: Check tag matches project version
+        run: |
+          version="$(poetry version --short)"
+          tag="${GITHUB_REF_NAME#v}"
+          if [ "$version" != "$tag" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match pyproject version $version"
+            exit 1
+          fi
+      - name: Check lock file is in sync
+        run: poetry check --lock
+      - name: Install dependencies
+        run: poetry install --with dev --no-interaction
+      - name: Run tests
+        run: poetry run pytest
+
+  build-and-publish:
+    needs: test
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Poetry
+        run: pipx install poetry==2.3.2
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Build
+        run: poetry build
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
