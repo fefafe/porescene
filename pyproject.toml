@@ -1,6 +1,6 @@
 [project]
 name = "porescene"
-version = "0.1.0"
+version = "0.2.0a0"
 description = "Blender-based Python toolkit for reproducible, publication-quality 3D visualization of porous media – tomographic images, pore networks, and tessellations."
 authors = [{ name = "Felix Faber", email = "felix.faber@ovgu.de" }]
 readme = "README.md"
