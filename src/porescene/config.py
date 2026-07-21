@@ -264,8 +264,8 @@ class ImageConfiguration:
     """
 
     def __init__(self) -> None:
-        self.width = 4096
-        self.height = 4096
+        self.width = 1024
+        self.height = 1024
 
     @classmethod
     def from_dict(cls, data: dict) -> Self:
@@ -550,30 +550,128 @@ class AxesConfiguration:
     Settings for the coordinate axes, ticks and labels of a scene.
     """
 
-    def __init__(self) -> None:
-        self.font_size_labels = 1.5
-        self.font_size_ticks = 1
-        self.line_width = 0.1
-        self.distance = 0.2
-        self.tick_length = 0.3
-        self.label_x = ""
-        self.label_y = ""
-        self.label_z = ""
-        self.ticks_x = []
-        self.ticks_y = []
-        self.ticks_z = []
+    def __init__(
+        self,
+        extent: np.ndarray,
+        tick_interval: float | None = None,
+        unit_display: str = "MICRO",
+        num_ticks: int = 6,
+    ) -> None:
+        """
+        Creates an :class:`AxesConfiguration` calibrated to a physical domain.
+
+        Parameters
+        ----------
+        extent : np.ndarray
+            Physical extent of the domain along x, y and z, in meters.
+        tick_interval : float | None
+            Spacing between major ticks, expressed in the displayed unit. Derived
+            from ``extent`` when ``None``, see :attr:`tick_interval`.
+        unit_display : str
+            Metric prefix of the displayed tick values and axis labels, one of the
+            names of :class:`~porescene.utility.UnitPrefixMetric`.
+        num_ticks : int
+            Number of major ticks aimed for along the longest axis, see
+            :attr:`num_ticks`. Sizes the derived ``tick_interval``, so it takes
+            effect here rather than when assigned later.
+        """
+        self._extent = np.asarray(extent, dtype=float)
+        self._tick_interval = tick_interval
+        self._unit_display = unit_display
+
+        self.font_size_labels = 1
+        self.font_size_ticks = 0.6
+        self.line_width = 0.05
+        self.distance = 0.1
+        self.tick_length = 0.2
         self.enable_ticks = (True, True, True)
         self.enable_ticks_minor = (True, True, True)
-        self.factor = (1e6, 1e6, 1e6)
+        self.enable_labels_ticks = None
         self.precision = (0, 0, 0)
         self.indent_ticks = False
+        self.num_ticks = num_ticks
         self.num_ticks_minor = None
-        self.value_start = (0, 0, 0)
-        self.value_end = (1, 1, 1)
+        self.position_tick_x = None
+        self.position_tick_y = None
+        self.position_tick_z = None
 
         ref = resources.files("porescene").joinpath("data/font/Inter-Regular.ttf")
         with resources.as_file(ref) as font_path:
             self.font_family = font_path
+
+        self._calibrate()
+
+    @staticmethod
+    def _interval_round(span: float, num_ticks: int) -> float:
+        """
+        Returns the tick interval from the 1-2-5-10 series that splits ``span`` into
+        roughly ``num_ticks`` ticks, so they land on round values.
+
+        The exact spacing ``span / (num_ticks - 1)`` is rounded to the closest member
+        of the series, following Heckbert's *Nice Numbers for Graph Labels*. Sticking
+        to that series keeps the ticks whole numbers in the displayed unit, which a
+        finer series such as 1-2-2.5-5-10 would not, and the tick labels are rendered
+        at a fixed :attr:`precision` that cannot show the extra digit.
+        """
+        if not math.isfinite(span) or span <= 0:
+            return 1.0
+
+        step = span / (num_ticks - 1)
+        magnitude = 10 ** math.floor(math.log10(step))
+        residual = step / magnitude
+
+        if residual < 1.5:
+            return magnitude
+        if residual < 3:
+            return 2 * magnitude
+        if residual < 7:
+            return 5 * magnitude
+
+        return 10 * magnitude
+
+    def _calibrate(self) -> None:
+        """
+        Derives axis labels, scaling factor, tick interval, ticks and tick values
+        from :attr:`extent` and the displayed unit.
+
+        Major ticks run from ``0`` to the extent of each axis in steps of
+        :attr:`tick_interval`, so they land on round values in the displayed unit
+        rather than on an even subdivision of the domain. The last tick is dropped
+        when the extent is not a whole multiple of the interval.
+        """
+        fac_unit = 10 ** UnitExponentMetric[self._unit_display].value
+        fac_axis = 1 / fac_unit
+        label_axis = UnitPrefixMetric[self._unit_display].value + "m"
+
+        self.label_x = f"y [{label_axis}]"
+        self.label_y = f"x [{label_axis}]"
+        self.label_z = f"z [{label_axis}]"
+
+        self.factor = (fac_axis, fac_axis, fac_axis)
+
+        tick_start = (0.0, 0.0, 0.0)
+        tick_end = self._extent * fac_axis
+
+        # a single interval across all axes keeps the ticks of the scene to scale,
+        # so it is sized by the longest axis and the shorter ones carry fewer ticks
+        if self._tick_interval is None:
+            self._interval = self._interval_round(float(max(tick_end)), self.num_ticks)
+        else:
+            self._interval = float(self._tick_interval)
+
+        # nudge the stop value so an extent landing exactly on a tick keeps that tick
+        margin = self._interval * 1e-6
+
+        def _ticks(dim: int) -> tuple[float, ...]:
+            steps = np.arange(tick_start[dim], tick_end[dim] + margin, self._interval)
+            return tuple(float(step) for step in steps)
+
+        self.ticks_x = _ticks(0)
+        self.ticks_y = _ticks(1)
+        self.ticks_z = _ticks(2)
+
+        self.value_start = tick_start
+        self.value_end = tuple(float(end) for end in tick_end)
 
     @classmethod
     def from_dict(cls, extent: np.ndarray, data: dict) -> Self:
@@ -582,9 +680,14 @@ class AxesConfiguration:
 
         Ticks and axis labels are derived from ``extent`` (the size of the
         volume) together with the optional ``tick_interval`` and
-        ``unit_display`` keys.
+        ``unit_display`` keys; the remaining keys override the derived values.
         """
-        ins = cls()
+        ins = cls(
+            extent,
+            tick_interval=data.get("tick_interval"),
+            unit_display=data.get("unit_display", "MICRO"),
+            num_ticks=data.get("num_ticks", 6),
+        )
 
         keys_valid = [
             "font_size_labels",
@@ -592,7 +695,6 @@ class AxesConfiguration:
             "line_width",
             "distance",
             "tick_length",
-            "tick_interval",
             "label_x",
             "label_y",
             "label_z",
@@ -601,6 +703,7 @@ class AxesConfiguration:
             "ticks_z",
             "enable_ticks",
             "enable_ticks_minor",
+            "enable_labels_ticks",
             "precision",
             "num_ticks_minor",
             "indent_ticks",
@@ -610,58 +713,24 @@ class AxesConfiguration:
             if key in keys_valid:
                 setattr(ins, key, value)
 
-        if "tick_interval" in data:
-            tick_interval = data["tick_interval"]
-        else:
-            tick_interval = 100
-
-        if "unit_display" in data:
-            unit_display = data["unit_display"]
-        else:
-            unit_display = "MICRO"
-
-        fac_unit = 10 ** UnitExponentMetric[unit_display].value
-        fac_axis = 1 / fac_unit
-        label_axis = UnitPrefixMetric[unit_display].value + "m"
-
-        if "label_x" not in data:
-            ins.label_x = f"y [{label_axis}]"
-        if "label_y" not in data:
-            ins.label_y = f"x [{label_axis}]"
-        if "label_z" not in data:
-            ins.label_z = f"z [{label_axis}]"
-
-        ins.factor = (fac_axis, fac_axis, fac_axis)
-
-        tick_start = (0, 0, 0)
-        tick_end = np.array(
-            (
-                extent[0] * ins.factor[0],
-                extent[1] * ins.factor[1],
-                extent[2] * ins.factor[2],
-            )
-        )
-
-        margin = tick_interval * 1e-6
-        ticks_x = np.arange(tick_start[0], tick_end[0] + margin, tick_interval)
-        ticks_y = np.arange(tick_start[1], tick_end[1] + margin, tick_interval)
-        ticks_z = np.arange(tick_start[2], tick_end[2] + margin, tick_interval)
-
-        if "ticks_x" not in data:
-            ins.ticks_x = ticks_x
-        if "ticks_y" not in data:
-            ins.ticks_y = ticks_y
-        if "ticks_z" not in data:
-            ins.ticks_z = ticks_z
-
-        ins.position_tick_x = ticks_x / extent[0] / fac_axis
-        ins.position_tick_y = ticks_y / extent[1] / fac_axis
-        ins.position_tick_z = ticks_z / extent[2] / fac_axis
-
-        ins.value_start = tick_start
-        ins.value_end = tuple(tick_end)
-
         return ins
+
+    @property
+    def extent(self) -> np.ndarray:
+        """Physical extent of the domain along x, y and z, in meters."""
+        return self._extent
+
+    @property
+    def tick_interval(self) -> float:
+        """
+        Spacing between major ticks, in the displayed unit.
+
+        Unless given at construction, the interval is derived from :attr:`extent`:
+        it is the value from the 1-2-5-10 series that puts roughly
+        :attr:`num_ticks` ticks on the longest axis. All three axes share it, so
+        the ticks stay to scale and a shorter axis simply carries fewer of them.
+        """
+        return self._interval
 
     @property
     def factor(self) -> tuple[float, float, float]:
@@ -702,6 +771,51 @@ class AxesConfiguration:
         if isinstance(arg, bool):
             arg = (arg, arg, arg)
         self._enable_ticks_minor = arg
+
+    @property
+    def enable_labels_ticks(self) -> tuple[bool, bool, bool]:
+        """
+        Toggle to show/hide the labels of the major axis ticks.
+
+        When set to ``None``, an axis is labelled only if it carries ticks -- either
+        the ones calibrated from :attr:`extent` or ones assigned explicitly. An axis
+        whose ticks were cleared falls back to the evenly spaced ticks of
+        :attr:`num_ticks`, which carry no calibrated values, so it is drawn with bare
+        ticks rather than misleading numbers.
+        """
+        if self._enable_labels_ticks is not None:
+            return self._enable_labels_ticks
+
+        return (
+            len(self._ticks_x) > 0,
+            len(self._ticks_y) > 0,
+            len(self._ticks_z) > 0,
+        )
+
+    @enable_labels_ticks.setter
+    def enable_labels_ticks(self, arg: bool | tuple[bool, bool, bool] | None):
+        if isinstance(arg, bool):
+            arg = (arg, arg, arg)
+        self._enable_labels_ticks = arg
+
+    @property
+    def num_ticks(self) -> int:
+        """
+        Number of major ticks aimed for along the longest axis.
+
+        Sizes the derived :attr:`tick_interval`, and is met only approximately
+        there, since the interval is rounded to a value the ticks read well at.
+        For an axis whose ticks were cleared, the count is instead exact: the ticks
+        are spread evenly between :attr:`value_start` and :attr:`value_end`, and
+        are drawn without labels unless :attr:`enable_labels_ticks` says otherwise.
+        Values below ``2`` are raised to ``2``, since a single tick has no spacing
+        to place minor ticks by.
+        """
+        return self._num_ticks
+
+    @num_ticks.setter
+    def num_ticks(self, arg: int):
+        self._num_ticks = max(2, int(arg))
 
     @property
     def num_ticks_minor(self) -> int:
@@ -814,9 +928,26 @@ class AxesConfiguration:
     def tick_length(self, arg: float):
         self._tick_length = arg
 
+    def _ticks_fallback(self, dim: int) -> tuple[float, ...]:
+        """
+        Returns :attr:`num_ticks` values spread evenly between :attr:`value_start`
+        and :attr:`value_end` of the axis ``dim`` (0 = x, 1 = y, 2 = z).
+        """
+        start = float(self.value_start[dim])
+        end = float(self.value_end[dim])
+        step = (end - start) / (self.num_ticks - 1)
+
+        return tuple(start + step * i for i in range(self.num_ticks))
+
     @property
     def ticks_x(self) -> Sequence[float]:
-        """Tick values shown along the x-axis."""
+        """
+        Tick values shown along the x-axis.
+
+        Falls back to evenly spaced ticks, see :attr:`num_ticks`.
+        """
+        if len(self._ticks_x) == 0:
+            return self._ticks_fallback(0)
         return self._ticks_x
 
     @ticks_x.setter
@@ -824,21 +955,33 @@ class AxesConfiguration:
         self._ticks_x = arg
 
     @property
-    def ticks_y(self) -> list[float]:
-        """Tick values shown along the y-axis."""
+    def ticks_y(self) -> Sequence[float]:
+        """
+        Tick values shown along the y-axis.
+
+        Falls back to evenly spaced ticks, see :attr:`num_ticks`.
+        """
+        if len(self._ticks_y) == 0:
+            return self._ticks_fallback(1)
         return self._ticks_y
 
     @ticks_y.setter
-    def ticks_y(self, arg: list[float]):
+    def ticks_y(self, arg: Sequence[float]):
         self._ticks_y = arg
 
     @property
-    def ticks_z(self) -> list[float]:
-        """Tick values shown along the z-axis."""
+    def ticks_z(self) -> Sequence[float]:
+        """
+        Tick values shown along the z-axis.
+
+        Falls back to evenly spaced ticks, see :attr:`num_ticks`.
+        """
+        if len(self._ticks_z) == 0:
+            return self._ticks_fallback(2)
         return self._ticks_z
 
     @ticks_z.setter
-    def ticks_z(self, arg: list[float]):
+    def ticks_z(self, arg: Sequence[float]):
         self._ticks_z = arg
 
     @property
@@ -850,44 +993,68 @@ class AxesConfiguration:
     def indent_ticks(self, arg: bool):
         self._indent_ticks = arg
 
+    def _positions_from_ticks(self, dim: int) -> tuple[float, ...]:
+        """
+        Returns the normalized positions (0-1) of the ticks of the axis ``dim``
+        (0 = x, 1 = y, 2 = z), by placing each tick value on the axis in
+        proportion to the extent of the domain.
+
+        Falls back to evenly spaced positions where the axis spans no length, as
+        the ticks then carry no position to scale.
+        """
+        ticks = (self.ticks_x, self.ticks_y, self.ticks_z)[dim]
+        span = float(self.extent[dim]) * self.factor[dim]
+
+        if span == 0:
+            N = len(ticks)
+            return tuple(i / (N - 1) for i in range(N)) if N > 1 else (0.0,) * N
+
+        return tuple(float(tick) / span for tick in ticks)
+
     @property
-    def position_tick_x(self) -> tuple[float, ...]:
-        """Normalized positions (0-1) of the x-axis ticks."""
-        if hasattr(self, "_position_tick_x"):
+    def position_tick_x(self) -> Sequence[float]:
+        """
+        Normalized positions (0-1) of the x-axis ticks.
+
+        Derived from :attr:`ticks_x` and :attr:`extent` unless set explicitly.
+        """
+        if self._position_tick_x is not None:
             return self._position_tick_x
-        else:
-            N = len(self.ticks_x)
-            return tuple(x / (N - 1) for x in range(N))
+        return self._positions_from_ticks(0)
 
     @position_tick_x.setter
-    def position_tick_x(self, arg: tuple[float, ...]):
+    def position_tick_x(self, arg: Sequence[float] | None):
         self._position_tick_x = arg
 
     @property
-    def position_tick_y(self) -> tuple[float, ...]:
-        """Normalized positions (0-1) of the y-axis ticks."""
-        if hasattr(self, "_tick_positions_y"):
-            return self._tick_positions_y
-        else:
-            N = len(self.ticks_y)
-            return tuple(y / (N - 1) for y in range(N))
+    def position_tick_y(self) -> Sequence[float]:
+        """
+        Normalized positions (0-1) of the y-axis ticks.
+
+        Derived from :attr:`ticks_y` and :attr:`extent` unless set explicitly.
+        """
+        if self._position_tick_y is not None:
+            return self._position_tick_y
+        return self._positions_from_ticks(1)
 
     @position_tick_y.setter
-    def position_tick_y(self, arg: tuple[float, ...]):
-        self._tick_positions_y = arg
+    def position_tick_y(self, arg: Sequence[float] | None):
+        self._position_tick_y = arg
 
     @property
     def position_tick_z(self) -> Sequence[float]:
-        """Normalized positions (0-1) of the z-axis ticks."""
-        if hasattr(self, "_tick_positions_z"):
-            return self._tick_positions_z
-        else:
-            N = len(self.ticks_z)
-            return tuple(z / (N - 1) for z in range(N))
+        """
+        Normalized positions (0-1) of the z-axis ticks.
+
+        Derived from :attr:`ticks_z` and :attr:`extent` unless set explicitly.
+        """
+        if self._position_tick_z is not None:
+            return self._position_tick_z
+        return self._positions_from_ticks(2)
 
     @position_tick_z.setter
-    def position_tick_z(self, arg: Sequence[float]):
-        self._tick_positions_z = arg
+    def position_tick_z(self, arg: Sequence[float] | None):
+        self._position_tick_z = arg
 
     @property
     def value_start(self) -> Sequence[float]:

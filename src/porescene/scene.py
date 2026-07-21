@@ -9,8 +9,8 @@ from pathlib import Path
 from typing import NamedTuple, Self, cast
 
 import bpy
-from mathutils import Matrix, Vector
 import numpy as np
+from mathutils import Matrix, Vector
 from rich import progress
 from rich.console import Console
 
@@ -36,6 +36,7 @@ class _AxisSpec(NamedTuple):
     precision: int
     aspect: float
     enable_minor: bool
+    enable_labels: bool
     base: list[float]
     dim: int
     tick_rotation: tuple[float, float, float]
@@ -56,7 +57,7 @@ class Scene:
         setting up a camera, lights and Cycles render settings. Use :meth:`from_json`
         to create a scene sized and configured from a PoreScene JSON file instead.
         """
-        self.config_axes = AxesConfiguration()
+        self.config_axes = AxesConfiguration(extent)
         self.config_image = ImageConfiguration()
         self.config_scene = SceneConfiguration()
         self.size_bounding_box = 10
@@ -127,9 +128,7 @@ class Scene:
         self.aspect = extent / max(extent)
 
     @classmethod
-    def from_json(
-        cls, extent: np.ndarray, pth_config: Path
-    ) -> Self:
+    def from_json(cls, extent: np.ndarray, pth_config: Path) -> Self:
         """
         Creates a :class:`Scene` instance sized to the given physical domain
         dimensions, configured from a PoreScene JSON configuration file.
@@ -219,19 +218,21 @@ class Scene:
         font = bpy.data.fonts.load(str(cfg.font_family), check_existing=True)
         col = bpy.data.collections.new("Axes")
 
-        # axis lines
+        # axis lines. The outermost ticks are centered on the ends of an axis and so
+        # stick out by half a line width; the axes are stretched by that same amount
+        # at either end to meet them flush.
         mesh_axis = self._add_line("axis", lw, sbb)
         axis_lines = [
-            ("axis_x", (sx, sbb - sy + d + lw, sz), _radians(0, 0, -90), ax),
-            ("axis_y", (sbb - sx + d, sy, sz), _radians(0, 0, 0), ay),
-            ("axis_z", (sbb - sx + d, sy, sz), _radians(90, 0, 0), az),
+            ("axis_x", (sx - 0.5 * lw, sbb - sy + d + lw, sz), _radians(0, 0, -90), ax),
+            ("axis_y", (sbb - sx + d, sy - 0.5 * lw, sz), _radians(0, 0, 0), ay),
+            ("axis_z", (sbb - sx + d, sy, sz - 0.5 * lw), _radians(90, 0, 0), az),
         ]
         for name, location, rotation, aspect in axis_lines:
             axis = bpy.data.objects.new(name, mesh_axis)
             col.objects.link(axis)
             axis.location = location
             axis.rotation_euler = rotation
-            axis.scale = (1, aspect, 1)
+            axis.scale = (1, (sbb * aspect + lw) / sbb, 1)
 
         # axis labels
         axis_labels = [
@@ -239,8 +240,7 @@ class Scene:
                 cfg.label_x,
                 [sbb / 2, sbb - sy + 2 * d + lw, sz],
                 1,
-                cfg.ticks_x,
-                cfg.enable_ticks[0],
+                self._clearance_ticks(0),
                 _radians(0, 0, 180),
                 "scale x",
                 "axis label x",
@@ -249,8 +249,7 @@ class Scene:
                 cfg.label_y,
                 [sbb - sx + 2 * d + lw, sbb / 2, sz],
                 0,
-                cfg.ticks_y,
-                cfg.enable_ticks[1],
+                self._clearance_ticks(1),
                 _radians(0, 0, 90),
                 "scale y",
                 "axis label y",
@@ -259,18 +258,16 @@ class Scene:
                 cfg.label_z,
                 [sbb - sx + 2 * d + lw, sy, sbb / 2],
                 0,
-                cfg.ticks_z,
-                cfg.enable_ticks[2],
+                self._clearance_ticks(2),
                 _radians(0, 90, 90),
                 "scale z",
                 "axis label z",
             ),
         ]
-        for body, loc, bump, ticks, ticks_on, rotation, curve, name in axis_labels:
+        for body, loc, bump, clearance, rotation, curve, name in axis_labels:
             if not body:
                 continue
-            if ticks_on and len(ticks) > 0:
-                loc[bump] += cfg.tick_length + cfg.font_size_ticks
+            loc[bump] += clearance
             self._add_text(
                 col,
                 font,
@@ -294,6 +291,7 @@ class Scene:
                     precision=cfg.precision[0],
                     aspect=ax,
                     enable_minor=cfg.enable_ticks_minor[0],
+                    enable_labels=cfg.enable_labels_ticks[0],
                     base=[sx - 0.5 * lw, sbb - sy + d + lw, sz],
                     dim=0,
                     tick_rotation=_radians(0, 0, 0),
@@ -311,6 +309,7 @@ class Scene:
                     precision=cfg.precision[1],
                     aspect=ay,
                     enable_minor=cfg.enable_ticks_minor[1],
+                    enable_labels=cfg.enable_labels_ticks[1],
                     base=[sbb - sx + d + lw, sy + 0.5 * lw, sz],
                     dim=1,
                     tick_rotation=_radians(0, 0, -90),
@@ -328,6 +327,7 @@ class Scene:
                     precision=cfg.precision[2],
                     aspect=az,
                     enable_minor=cfg.enable_ticks_minor[2],
+                    enable_labels=cfg.enable_labels_ticks[2],
                     base=[sbb - sx + d + lw, sy, sz + 0.5 * lw],
                     dim=2,
                     tick_rotation=_radians(90, 90, 0),
@@ -354,6 +354,23 @@ class Scene:
         bpy.context.scene.collection.children.link(col)
         self.has_axes = True
         return self
+
+    def _clearance_ticks(self, dim: int) -> float:
+        """
+        Returns the distance the label of the axis ``dim`` (0 = x, 1 = y, 2 = z) is
+        pushed outwards, so that it clears the ticks drawn on that axis. Ticks without
+        labels only need room for the tick marks themselves.
+        """
+        cfg = self.config_axes
+        ticks = (cfg.ticks_x, cfg.ticks_y, cfg.ticks_z)[dim]
+
+        if not cfg.enable_ticks[dim] or len(ticks) == 0:
+            return 0
+
+        if not cfg.enable_labels_ticks[dim]:
+            return cfg.tick_length
+
+        return cfg.tick_length + cfg.font_size_ticks
 
     def _add_line(self, name: str, width: float, height: float) -> bpy.types.Mesh:
         """Creates a single rectangular face in the xy-plane."""
@@ -422,6 +439,9 @@ class Scene:
 
             if spec.enable_minor:
                 self._draw_axis_ticks_minor(col, mesh_tick, spec, idx)
+
+            if not spec.enable_labels:
+                continue
 
             if idx == 0 and spec.hide_first_label:
                 continue
