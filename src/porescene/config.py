@@ -264,8 +264,8 @@ class ImageConfiguration:
     """
 
     def __init__(self) -> None:
-        self.width = 1024
-        self.height = 1024
+        self.width = 4096
+        self.height = 4096
 
     @classmethod
     def from_dict(cls, data: dict) -> Self:
