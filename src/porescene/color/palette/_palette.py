@@ -21,9 +21,16 @@ class Colormap(Enum):
     Each member's value is the file name (without extension) of the
     corresponding colormap in ``porescene/data/colormap`` and can be passed
     to :meth:`Palette.load`. The collection comprises
-    `Fabio Crameri's scientific colormaps
-    <https://www.fabiocrameri.ch/colourmaps/>`_ and a selection of
-    :mod:`matplotlib` colormaps.
+
+    - `Fabio Crameri's scientific colour maps
+      <https://www.fabiocrameri.ch/colourmaps/>`_,
+    - `cmocean <https://matplotlib.org/cmocean/>`_,
+    - `colorcet <https://colorcet.holoviz.org/>`_,
+    - `ColorBrewer <https://colorbrewer2.org/>`_, and
+    - a selection of :mod:`matplotlib` colormaps.
+
+    See ``porescene/data/colormap/README.txt`` for the per-collection
+    provenance and licenses.
     """
 
     ACTON = "acton"
@@ -99,6 +106,90 @@ class Colormap(Enum):
     VIK = "vik"
     VIKO = "vikO"
     VIRIDIS = "viridis"
+
+    # cmocean maps (Kristen M. Thyng) -- https://matplotlib.org/cmocean/
+    ALGAE = "algae"
+    AMP = "amp"
+    BALANCE = "balance"
+    CURL = "curl"
+    DEEP = "deep"
+    DELTA = "delta"
+    DENSE = "dense"
+    DIFF = "diff"
+    GRAY = "gray"
+    HALINE = "haline"
+    ICE = "ice"
+    MATTER = "matter"
+    OXY = "oxy"
+    PHASE = "phase"
+    RAIN = "rain"
+    SOLAR = "solar"
+    SPEED = "speed"
+    TARN = "tarn"
+    TEMPO = "tempo"
+    THERMAL = "thermal"
+    TOPO = "topo"
+    TURBID = "turbid"
+
+    # Additional ColorBrewer maps (Cynthia A. Brewer) -- see Set1/2/3 above
+    ACCENT = "Accent"
+    BLUES = "Blues"
+    BRBG = "BrBG"
+    BUGN = "BuGn"
+    BUPU = "BuPu"
+    DARK2 = "Dark2"
+    GNBU = "GnBu"
+    GREENS = "Greens"
+    GREYS = "Greys"
+    ORANGES = "Oranges"
+    ORRD = "OrRd"
+    PAIRED = "Paired"
+    PASTEL1 = "Pastel1"
+    PASTEL2 = "Pastel2"
+    PIYG = "PiYG"
+    PRGN = "PRGn"
+    PUBU = "PuBu"
+    PUBUGN = "PuBuGn"
+    PUOR = "PuOr"
+    PURD = "PuRd"
+    PURPLES = "Purples"
+    RDBU = "RdBu"
+    RDGY = "RdGy"
+    RDPU = "RdPu"
+    RDYLBU = "RdYlBu"
+    RDYLGN = "RdYlGn"
+    REDS = "Reds"
+    SPECTRAL = "Spectral"
+    YLGN = "YlGn"
+    YLGNBU = "YlGnBu"
+    YLORBR = "YlOrBr"
+    YLORRD = "YlOrRd"
+
+    # colorcet perceptually uniform maps (Peter Kovesi) -- https://colorcet.holoviz.org/
+    BGY = "bgy"
+    BGYW = "bgyw"
+    BJY = "bjy"
+    BKR = "bkr"
+    BKY = "bky"
+    BMW = "bmw"
+    BMY = "bmy"
+    BWY = "bwy"
+    COLORWHEEL = "colorwheel"
+    COOLWARM = "coolwarm"
+    CWR = "cwr"
+    DIMGRAY = "dimgray"
+    FIRE = "fire"
+    GOULDIAN = "gouldian"
+    GWV = "gwv"
+    ISOLUM = "isolum"
+    KB = "kb"
+    KBC = "kbc"
+    KBGYW = "kbgyw"
+    KG = "kg"
+    KGY = "kgy"
+    KR = "kr"
+    RAINBOW = "rainbow"
+    RAINBOW4 = "rainbow4"
 
 
 class Palette:
