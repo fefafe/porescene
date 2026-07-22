@@ -27,6 +27,7 @@ extensions = [
     "sphinx.ext.intersphinx",
     "sphinx_autodoc_typehints",
     "sphinxcontrib.bibtex",
+    "colormap_strips",
 ]
 
 pygments_style = "ayu-light"
