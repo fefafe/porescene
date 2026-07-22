@@ -8,46 +8,66 @@ Reading and writing of mesh and geometry files.
 """
 
 from pathlib import Path
+from typing import Mapping, Sequence
 
 import numpy as np
 
 from porescene.utility import Mesh
 
 
-def mesh2obj(pth_obj: Path, mesh: Mesh) -> Path:
+def mesh2obj(pth_obj: Path, mesh: Mesh | Mapping[int, Mesh] | Sequence[Mesh]) -> Path:
     """
-    Writes a mesh to a Wavefront ``.obj`` file in text format.
+    Writes one or more meshes to a Wavefront ``.obj`` file in text format.
 
     Parameters
     ----------
     pth_obj : Path
         Output path of the OBJ file.
-    mesh : Mesh
-        The mesh to write. Its faces hold **0-based** vertex indices (e.g. from
-        :func:`volume2mesh() <porescene.utility.volume2mesh>`); OBJ indices are 1-based, so
-        the values are offset by one on write. The mesh ``name`` becomes the ``o`` record.
+    mesh : Mesh | Mapping[int, Mesh] | Sequence[Mesh]
+        The mesh(es) to write. Pass a single :class:`~porescene.utility.Mesh`, or
+        a collection of them to store as separate OBJ objects in one file -- e.g.
+        the ``{label: Mesh}`` mapping returned by
+        :func:`volume2mesh(..., per_label=True) <porescene.utility.volume2mesh>`. A
+        mapping is written in ascending key order; a sequence keeps its order. Each
+        mesh's ``name`` becomes an ``o`` record, and vertices are concatenated with the
+        running index offset that OBJ's shared, file-global vertex numbering requires.
+        Faces hold **0-based** vertex indices (as produced by
+        :func:`~porescene.utility.volume2mesh`); OBJ indices are 1-based, so the values
+        are offset accordingly on write.
 
     Returns
     -------
     Path
         File path of the written OBJ file.
     """
-    vertices = mesh.vertices
-    faces = mesh.faces
+    if isinstance(mesh, Mesh):
+        meshes: Sequence[Mesh] = [mesh]
+    elif isinstance(mesh, Mapping):
+        meshes = [mesh[key] for key in sorted(mesh)]
+    else:
+        meshes = list(mesh)
 
-    if vertices.ndim != 2 or vertices.shape[1] != 3:
-        raise ValueError("vertices must have shape (N, 3)")
-    if faces.ndim != 2:
-        raise ValueError("faces must have shape (M, K)")
-
-    fmt_faces = "f " + " ".join(["%d"] * faces.shape[1])
     fmt_vertices = "v %.10g %.10g %.10g"
 
     with pth_obj.open("w", encoding="utf-8", newline="\n") as file:
         file.write("# Written by PoreScene\n")
-        file.write(f"o {mesh.name}\n")
-        np.savetxt(file, vertices, fmt=fmt_vertices)
-        np.savetxt(file, faces + 1, fmt=fmt_faces)
+        offset = 0
+        for m in meshes:
+            vertices = m.vertices
+            faces = m.faces
+
+            if vertices.ndim != 2 or vertices.shape[1] != 3:
+                raise ValueError("vertices must have shape (N, 3)")
+            if faces.ndim != 2:
+                raise ValueError("faces must have shape (M, K)")
+
+            fmt_faces = "f " + " ".join(["%d"] * faces.shape[1])
+
+            file.write(f"o {m.name}\n")
+            np.savetxt(file, vertices, fmt=fmt_vertices)
+            np.savetxt(file, faces + offset + 1, fmt=fmt_faces)
+
+            offset += len(vertices)
 
     return pth_obj
 
