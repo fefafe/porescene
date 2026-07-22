@@ -17,7 +17,7 @@ Static visualizations
        </div>
      </a>
      <a class="ps-tile" href="examples/segmentation.html">
-       <img class="ps-tile-image" src="_static/image/cluster-random+axes.png" alt="Segmented pore space with each void cluster colored individually" loading="lazy">
+       <img class="ps-tile-image" src="_static/image/examples/cluster-random+axes.png" alt="Segmented pore space with each void cluster colored individually" loading="lazy">
        <div class="ps-example-caption">
          <h3 class="ps-tile-title">Segmentation</h3>
          <p class="ps-tile-desc">Render a segmented pore space, coloring each void cluster with a random color from a colormap.</p>
