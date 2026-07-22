@@ -7,7 +7,15 @@ readme = "README.md"
 license = "GPL-3.0-only"
 license-files = ["LICENSE"]
 requires-python = "==3.13.*"
-dependencies = ["bpy", "numpy", "rich", "h5py", "pillow", "resvg-py (>=0.3.3,<0.4.0)", "imageio-ffmpeg (>=0.6.0,<0.7.0)"]
+dependencies = [
+    "bpy",
+    "numpy",
+    "rich",
+    "h5py",
+    "pillow",
+    "resvg-py (>=0.3.3,<0.4.0)",
+    "imageio-ffmpeg (>=0.6.0,<0.7.0)",
+]
 
 [project.urls]
 repository = "https://github.com/fefafe/porescene"
@@ -32,22 +40,17 @@ dev = [
     "sphinxcontrib-bibtex (>=2.7.0,<3.0.0)",
 ]
 
-[tool.black]
-line-length = 90
-
-[tool.isort]
-profile = "hug"
-src_paths = ["src", "tests"]
-multi_line_output = 3
-line_length = 90
-include_trailing_comma = true
-
 [tool.ruff]
 line-length = 90
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
 ignore = []
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
 
 [tool.poetry.requires-plugins]
 poetry-plugin-export = ">=1.8"
