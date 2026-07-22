@@ -1,6 +1,6 @@
 # PoreScene
 
-[![DOI](https://zenodo.org/badge/1292462693.svg)](https://doi.org/10.5281/zenodo.21494378)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21494379.svg)](https://doi.org/10.5281/zenodo.21494378)
 [![PyPI](https://img.shields.io/pypi/v/porescene)](https://pypi.org/project/porescene/)
 [![Python](https://img.shields.io/pypi/pyversions/porescene)](https://pypi.org/project/porescene/)
 [![License](https://img.shields.io/pypi/l/porescene)](https://github.com/fefafe/porescene/blob/main/LICENSE)
