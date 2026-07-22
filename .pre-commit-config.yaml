@@ -1,4 +1,10 @@
 repos:
+
+- repo: https://github.com/astral-sh/ruff-pre-commit
+  rev: v0.15.22
+  hooks:
+    - id: ruff-check
+
 -   repo: https://github.com/PyCQA/isort
     rev: 8.0.1
     hooks:
@@ -8,12 +14,6 @@ repos:
     rev: 26.5.1
     hooks:
     -   id: black
-
--   repo: https://github.com/PyCQA/flake8
-    rev: 7.3.0
-    hooks:
-    -   id: flake8
-        additional_dependencies: ["Flake8-pyproject"]
 
 -   repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0

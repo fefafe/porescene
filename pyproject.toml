@@ -42,11 +42,12 @@ multi_line_output = 3
 line_length = 90
 include_trailing_comma = true
 
-[tool.flake8]
-max_line_length = 90
-max_complexity = 18
-select = ["B", "C", "E", "F", "W", "T4", "B9"]
-extend-ignore = ["C901", "E203", "W503", "E302", "E704"]
+[tool.ruff]
+line-length = 90
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = []
 
 [tool.poetry.requires-plugins]
 poetry-plugin-export = ">=1.8"
