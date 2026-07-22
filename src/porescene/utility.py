@@ -7,7 +7,7 @@ import os
 from enum import Enum
 from math import ceil, floor, isclose
 from pathlib import Path
-from typing import Callable, Iterator, Sequence
+from typing import Callable, Iterator, Literal, Sequence, overload
 
 import cairosvg
 import numpy as np
@@ -150,10 +150,28 @@ class Mesh:
         self._name = arg
 
 
+@overload
+def volume2mesh(
+    img: np.ndarray,
+    voxel_size: float | Sequence[float] = ...,
+    labels: int | Sequence[int] | np.ndarray = ...,
+    *,
+    per_label: Literal[False] = ...,
+    name: str = ...,
+) -> Mesh: ...
+@overload
+def volume2mesh(
+    img: np.ndarray,
+    voxel_size: float | Sequence[float] = ...,
+    labels: int | Sequence[int] | np.ndarray = ...,
+    *,
+    per_label: Literal[True],
+    name: str = ...,
+) -> dict[int, Mesh]: ...
 def volume2mesh(
     img: np.ndarray,
     voxel_size: float | Sequence[float] = (1.0, 1.0, 1.0),
-    labels: int | Sequence[int] = 1,
+    labels: int | Sequence[int] | np.ndarray = 1,
     *,
     per_label: bool = False,
     name: str = "object",
@@ -174,7 +192,7 @@ def volume2mesh(
     voxel_size : float | Sequence[float], optional
         Edge length of a voxel. A scalar applies to all three axes; a 3-element
         sequence gives the length along x, y and z, by default ``(1.0, 1.0, 1.0)``.
-    labels : int | Sequence[int], optional
+    labels : int | Sequence[int] | np.ndarray, optional
         Label value(s) to include in the mesh, by default 1.
     per_label : bool, optional
         If ``False`` (default), all selected labels are meshed into a single surface.
