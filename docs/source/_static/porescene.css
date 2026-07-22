@@ -296,6 +296,7 @@ figure.ps-figure img {
     object-fit: contain;
     margin: 0;
     background: var(--color-background-image);
+    padding: var(--ps-padding-tile);
 }
 
 figure.ps-figure > figcaption {
