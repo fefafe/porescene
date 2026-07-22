@@ -9,8 +9,8 @@ from math import ceil, floor, isclose
 from pathlib import Path
 from typing import Callable, Iterator, Literal, Sequence, overload
 
-import cairosvg
 import numpy as np
+import resvg_py
 from PIL import Image
 
 
@@ -322,11 +322,12 @@ def svg2png(pth: Path, crop: bool = True) -> Path:
     """
     Convert a SVG file to PNG.
 
-    Uses :mod:`cairosvg` for the conversion, so no external software is required.
+    Uses :mod:`resvg_py` for the conversion, which ships as a self-contained wheel,
+    so ``pip install`` pulls in everything and no external software is required.
     With ``crop=True`` the result is trimmed to its visible content by removing the
     surrounding transparent margin.
 
-    Note that :mod:`cairosvg` only renders content inside the SVG viewport; anything
+    Note that :mod:`resvg_py` only renders content inside the SVG viewport; anything
     drawn beyond the root ``<svg>`` ``width``/``height`` is clipped before the
     crop and cannot be recovered.
 
@@ -342,7 +343,7 @@ def svg2png(pth: Path, crop: bool = True) -> Path:
     Path to the written PNG file.
     """
     pth_png = pth.with_suffix(".png")
-    cairosvg.svg2png(url=pth.as_posix(), write_to=pth_png.as_posix())
+    pth_png.write_bytes(bytes(resvg_py.svg_to_bytes(svg_path=pth.as_posix())))
 
     if crop:
         with Image.open(pth_png) as img:

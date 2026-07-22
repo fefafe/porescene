@@ -48,7 +48,7 @@ autodoc_mock_imports = [
     "bpy",
     "bmesh",
     "mathutils",
-    "cairosvg",
+    "resvg_py",
 ]
 
 
