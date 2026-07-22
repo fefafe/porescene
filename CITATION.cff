@@ -1,0 +1,31 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "PoreScene"
+abstract: "Blender-based Python toolkit for reproducible, publication-quality 3D visualization of porous media – tomographic images, pore networks, and tessellations."
+type: software
+version: 0.2.0
+date-released: 2026-07-22
+license: GPL-3.0-only
+doi: 10.5281/zenodo.21494378
+authors:
+  - given-names: Felix
+    family-names: Faber
+    email: felix.faber@ovgu.de
+    affiliation: "Otto von Guericke University Magdeburg"
+    orcid: "https://orcid.org/0009-0004-4860-9269"
+  - given-names: Nicole
+    family-names: Vorhauer-Huget
+    email: nicole.vorhauer-huget@ovgu.de
+    affiliation: "Otto von Guericke University Magdeburg"
+    orcid: "https://orcid.org/0000-0001-5825-4984"
+repository-code: "https://github.com/fefafe/porescene"
+repository-artifact: "https://pypi.org/project/porescene/"
+url: "https://porescene.readthedocs.io"
+keywords:
+  - porous media
+  - pore network model
+  - scientific visualization
+  - Blender
+  - 3D rendering
+  - tomography
+  - Python

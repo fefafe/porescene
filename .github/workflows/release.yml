@@ -28,6 +28,14 @@ jobs:
             echo "::error::Tag $GITHUB_REF_NAME does not match pyproject version $version"
             exit 1
           fi
+      - name: Check CITATION.cff version matches tag
+        run: |
+          cff_version="$(awk '/^version:/{v=$2; gsub(/["'"'"']/,"",v); print v; exit}' CITATION.cff)"
+          tag="${GITHUB_REF_NAME#v}"
+          if [ "$cff_version" != "$tag" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match CITATION.cff version $cff_version"
+            exit 1
+          fi
       - name: Check lock file is in sync
         run: poetry check --lock
       - name: Install dependencies
