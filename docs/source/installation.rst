@@ -39,15 +39,15 @@ Install ``uv`` with the official standalone installer.
 
 On **Windows** (PowerShell):
 
-.. code-block:: powershell
+.. code-block:: text
 
-   PS> powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+   powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
 
 On **macOS** and **Linux**:
 
-.. code-block:: bash
+.. code-block:: text
 
-   $ curl -LsSf https://astral.sh/uv/install.sh | sh
+   curl -LsSf https://astral.sh/uv/install.sh | sh
 
 Restart your terminal afterwards and verify the installation (all: Windows, macOS, Linux):
 
