@@ -12,12 +12,11 @@ import bpy
 import numpy as np
 from mathutils import Matrix, Vector
 from rich import progress
-from rich.console import Console
 
 from porescene import image
 from porescene.color import Color
 from porescene.config import AxesConfiguration, ImageConfiguration, SceneConfiguration
-from porescene.utility import suppress_stdout
+from porescene.utility import _get_spinner, suppress_stdout
 
 import bmesh  # isort:skip
 
@@ -1545,15 +1544,6 @@ class Scene:
     @has_void.setter
     def has_void(self, arg: bool):
         self._has_void = arg
-
-
-def _get_spinner(text: str) -> progress.Progress:
-    return progress.Progress(
-        progress.SpinnerColumn(style="white"),
-        progress.TextColumn(text),
-        progress.TimeElapsedColumn(),
-        console=Console(stderr=True),
-    )
 
 
 # maps file suffixes to their Blender import operator

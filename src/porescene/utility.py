@@ -12,6 +12,8 @@ from typing import Callable, Iterator, Literal, Sequence, overload
 import numpy as np
 import resvg_py
 from PIL import Image
+from rich import progress
+from rich.console import Console
 
 
 @contextlib.contextmanager
@@ -28,6 +30,15 @@ def suppress_stdout() -> Iterator[None]:
     finally:
         os.dup2(fd, 1)
         os.close(fd)
+
+
+def _get_spinner(text: str) -> progress.Progress:
+    return progress.Progress(
+        progress.SpinnerColumn(style="white"),
+        progress.TextColumn(text),
+        progress.TimeElapsedColumn(),
+        console=Console(stderr=True),
+    )
 
 
 class CompassDirection(Enum):
@@ -224,9 +235,16 @@ def volume2mesh(
     if per_label:
         return {
             int(label): Mesh(*_label2mesh(img == label, size), f"{name}_{label}")
-            for label in label_values
+            for label in progress.track(
+                label_values,
+                description="Building meshes",
+                console=Console(stderr=True),
+            )
         }
-    return Mesh(*_label2mesh(np.isin(img, label_values), size), name)
+
+    with _get_spinner(f"[green]Building mesh: {name}") as p:
+        p.add_task("mesh", total=None)
+        return Mesh(*_label2mesh(np.isin(img, label_values), size), name)
 
 
 def _label2mesh(
