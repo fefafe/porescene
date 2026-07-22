@@ -16,7 +16,7 @@ was captured with X-ray micro-computed tomographic imaging
 GitHub: `data/img_bin.raw <https://github.com/fefafe/porescene/tree/main/data>`_
 
 
-.. figure:: ../_static/image/solid.png
+.. figure:: ../_static/image/examples/solid+axes.png
    :alt: Solid structure of a freeze-dried sugar solution captured with X-ray micro-computed tomographic imaging
    :figclass: ps-figure
 

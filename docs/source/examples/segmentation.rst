@@ -17,7 +17,7 @@ example, available in PoreScene's repository on GitHub:
 `data/img_seg.raw <https://github.com/fefafe/porescene/tree/main/data>`_
 
 
-.. figure:: ../_static/image/cluster-random_padded.png
+.. figure:: ../_static/image/examples/cluster-random+axes.png
    :alt: Segmented pore space with each void cluster colored individually
    :figclass: ps-figure
 
