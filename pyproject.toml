@@ -46,7 +46,7 @@ include_trailing_comma = true
 max_line_length = 90
 max_complexity = 18
 select = ["B", "C", "E", "F", "W", "T4", "B9"]
-ignore = ["C901", "E203", "W503"]
+extend-ignore = ["C901", "E203", "W503", "E302"]
 
 [tool.poetry.requires-plugins]
 poetry-plugin-export = ">=1.8"
