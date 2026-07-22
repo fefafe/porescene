@@ -17,14 +17,18 @@ can also download and manage Python interpreters for you.
 Quick setup
 -----------
 
-If ``uv`` is already available on your system, create a project and add
-``porescene`` to it:
+If ``uv`` is already available on your system, create a new directory, open your terminal
+and create a new virtual environment with Python 3.13,
 
 .. code-block:: text
 
-   uv init my-project --python 3.13
-   cd my-project
-   uv add porescene
+   uv venv --python 3.13
+
+and add  ``porescene`` to it:
+
+.. code-block:: text
+
+   uv pip install porescene
 
 If you do not have uv yet, follow the step-by-step setup below.
 
@@ -39,15 +43,15 @@ Install ``uv`` with the official standalone installer.
 
 On **Windows** (PowerShell):
 
-.. code-block:: powershell
+.. code-block:: text
 
-   PS> powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+   powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
 
 On **macOS** and **Linux**:
 
-.. code-block:: bash
+.. code-block:: text
 
-   $ curl -LsSf https://astral.sh/uv/install.sh | sh
+   curl -LsSf https://astral.sh/uv/install.sh | sh
 
 Restart your terminal afterwards and verify the installation (all: Windows, macOS, Linux):
 
@@ -66,22 +70,22 @@ Restart your terminal afterwards and verify the installation (all: Windows, macO
 2. Set up a project
 ^^^^^^^^^^^^^^^^^^^
 
-Initialize a new project pinned to Python 3.13. ``uv`` downloads the interpreter if
-it is not present yet and manages a virtual environment and dependencies for you:
+Create a new directory an initialize a new virtual environment pinned to Python 3.13.
+``uv`` downloads the interpreter if it is not present yet and manages a virtual
+environment and dependencies for you:
 
 .. code-block:: text
 
-   uv init my-project --python 3.13
-   cd my-project
+   uv venv --python 3.13
 
 
 3. Install PoreScene
 ^^^^^^^^^^^^^^^^^^^^
 
-Add ``porescene`` to the project:
+Add ``porescene`` to the virtual environment:
 
 .. code-block:: text
 
-   uv add porescene
+   uv pip install porescene
 
 Now, you are ready to create impressive visualizations with PoreScene. See the next chapter for the `basic concepts <concepts.html>`_ of PoreScene, or create your first rendering directly based on of the `example scripts <examples.html>`_.
