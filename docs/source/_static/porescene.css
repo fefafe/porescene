@@ -398,8 +398,10 @@ img.ps-colormap-strip {
     border-radius: 0;
 } */
 
-.highlight pre {
+.highlight pre,
+pre.literal-block {
     font-size: 0.9rem;
+    padding: var(--ps-padding-tile);
 }
 
 .code-block-caption {
@@ -494,7 +496,7 @@ table.docutils th {
     background: var(--color-background-secondary);
     border-radius: var(--ps-border-radius);
     border-left: none;
-    box-shadow: none;
+    box-shadow: 0 0 0.2rem rgba(0, 0, 0, 0.4) inset;
     margin: 1rem auto;
     overflow: hidden;
     padding: var(--ps-padding-tile);
