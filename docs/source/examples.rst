@@ -31,7 +31,7 @@ Static visualizations
        </div>
      </a>
      <a class="ps-tile" href="examples/network_morphology.html">
-       <img class="ps-tile-image" src="_static/image/sticks-radius_spheres-radius_axes_colorbar_padded.png" alt="Pore network structure colored by pore radius" loading="lazy">
+       <img class="ps-tile-image" src="_static/image/example/cylinder-radius+sphere-radius+axes.png" alt="Pore network structure colored by pore radius" loading="lazy">
        <div class="ps-example-caption">
          <h3 class="ps-tile-title">Network Morphology</h3>
          <p class="ps-tile-desc">Build a pore network scene colored by pore radius, with a solid overlay and axes.</p>

@@ -152,11 +152,11 @@ label:
    sc.apply_colors("Clusters", Palette.load(Colormap.TURBO).random(len(labels)))
 
    # render the scene
-   pth_img = sc.render(pth_data / "segmentation-void.png")
+   pth_img = sc.render(pth_data / "cluster-random+axes.png")
 
 
 With the final line, Blender renders the scene and saves the image as
-``segmentation-void.png`` in the given data directory.
+``cluster-random+axes.png`` in the given data directory.
 
 
 Full script

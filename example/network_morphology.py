@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from porescene import image, worker
+from porescene import worker
 from porescene.color.palette import Colormap, Palette
 from porescene.config import PropertyConfiguration
 from porescene.model import PoreNetwork
@@ -14,12 +14,9 @@ from porescene.utility import CompassDirection, Orientation
 # data directory
 pth_data = Path.cwd() / "data"
 
-# temporary directory for rendered images
-pth_tmp = Path.cwd() / "tmp"
-
 
 # =============================================================================
-# Scene configuration and rendering
+# Scene configuration
 
 # load variable mapping for variable import from .mat file
 with open(pth_data / "map_vars.json") as f:
@@ -28,14 +25,14 @@ with open(pth_data / "map_vars.json") as f:
 # load pore network data from MAT file
 pn = PoreNetwork.from_mat(pth_data / "pnm.mat", map_vars["data_network"])
 
-# load PoreScene config from JSON file
-sc = Scene.from_json(pn.extent, pth_data / "porescene.json")
+# initialize a new scene
+sc = Scene(pn.extent)
 
-# initialized PNM property "radius"
+# initialize PNM property "radius"
 sc.config_scene.add_property(
     PropertyConfiguration(
         "radius",
-        Palette.load(Colormap.LIPARI).all(),
+        Palette.load(Colormap.EMBER).reversed(),
         heading="Diameter [µm]",
         orientation=Orientation.VERTICAL,
         align=CompassDirection.WEST,
@@ -45,16 +42,30 @@ sc.config_scene.add_property(
 )
 
 # add cylinders and spheres to the scene
-worker.build_structure(sc, pn, top=True, bottom=True)
+worker.build_structure(sc, pn)
 
 # add axes around the scene
 sc.create_axes()
 
+
+# =============================================================================
+# Render pores and throats colored by radius
+
+# render the scene and color pores and throats according to their radius
+pth_img = worker.make_radius(pth_data, pn, sc)
+
+
+# =============================================================================
+# Render the solid with throats only
+
 # add a solid object to the scene
 sc.create_solid(pth_data / "solid.ply")
 
-# render the scene and color pores and throat according to their radius
-pth_img = worker.make_radius(pth_tmp, pn, sc)
+# disable the pore spheres so only the solid and throats remain
+sc.config_scene.enable_spheres = False
 
-# add padding of 10 %
-image.img_pad(pth_img, 0.1, trim=False)
+# change the colormap for radius property
+sc.config_scene["radius"].colors = Palette.load(Colormap.SPEED).all()
+
+# render the scene and color the throats according to their radius
+pth_img = worker.make_radius(pth_data, pn, sc)

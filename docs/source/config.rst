@@ -131,9 +131,12 @@ keys accept either a single value (applied to all three axes) or a three-element
        :class:`~porescene.utility.UnitPrefixMetric` (uppercase).
    * - ``tick_interval``
      - number
-     - ``100``
+     - auto
      - Spacing between major ticks, in the displayed unit. With ``unit_display: "MICRO"`` a
-       value of ``20`` places a major tick every 20 µm.
+       value of ``20`` places a major tick every 20 µm. If omitted, the spacing is derived
+       from ``dims``: the value from the 1-2-5-10 series that puts roughly ``num_ticks``
+       ticks on the longest axis. All three axes share one spacing, so the ticks stay to
+       scale and a shorter axis carries fewer of them.
    * - ``precision``
      - int or list[int]
      - ``[0, 0, 0]``
@@ -147,10 +150,29 @@ keys accept either a single value (applied to all three axes) or a three-element
      - bool or list[bool]
      - ``[true, true, true]``
      - Show or hide the minor ticks between major ticks, per axis.
+   * - ``enable_labels_ticks``
+     - bool or list[bool]
+     - auto
+     - Show or hide the labels of the major ticks, per axis. If omitted, an axis is
+       labelled only when its ticks are calibrated, i.e. when they come from ``dims`` and
+       ``tick_interval`` or from an explicit ``ticks_x``/``ticks_y``/``ticks_z``. An axis
+       falling back to ``num_ticks`` is drawn with bare ticks.
+   * - ``num_ticks``
+     - int
+     - ``6``
+     - Number of major ticks aimed for along the longest axis. Sizes the derived
+       ``tick_interval``, and is met only approximately there, since the interval is
+       rounded to a value the ticks read well at. Ignored when ``tick_interval`` is given,
+       except for an axis that has no ticks at all, where exactly this many are spread
+       evenly over the full axis length. Minimum ``2``.
    * - ``num_ticks_minor``
      - int
-     - ``4``
-     - Number of minor ticks drawn between two adjacent major ticks.
+     - auto
+     - Number of minor ticks drawn between two adjacent major ticks. If omitted, the
+       number is derived from the major tick spacing so that the minor ticks fall on
+       round values: a step whose leading digit is 1 or 5 (e.g. ``100`` or ``50``) is
+       split into 5 intervals, giving 4 minor ticks, any other step into 4 intervals,
+       giving 3 minor ticks.
    * - ``font_size_labels``
      - float
      - ``1.5``

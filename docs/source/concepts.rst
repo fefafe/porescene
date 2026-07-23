@@ -17,9 +17,7 @@ increasing from the domain origin along each direction.
 
 .. figure:: _static/image/axes_outline.png
    :loading: lazy
-   :class: ps-figure
-   :align: center
-   :width: 400px
+   :figclass: ps-figure
    :alt: Right-handed, Z-up coordinate axes around a pore-network bounding box
 
    PoreScene's right-handed, Z-up coordinate system. The calibrated ``x``, ``y``,
@@ -122,7 +120,7 @@ from a few explicit calls (note that coloring etc. needs additional steps):
 
    from porescene.model import PoreNetwork
    from porescene.scene import Scene
-   
+
    pth_data = Path.cwd()
 
    pn = PoreNetwork.from_mat(pth_data / "pnm.mat")
