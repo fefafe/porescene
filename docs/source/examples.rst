@@ -37,6 +37,13 @@ Static visualizations
          <p class="ps-tile-desc">Build a pore network scene colored by pore radius, with a solid overlay and axes.</p>
        </div>
      </a>
+     <a class="ps-tile" href="examples/network_coordination_number.html">
+       <img class="ps-tile-image" src="_static/image/example/sphere-coordination-number+axes.png" alt="Pore network with pores colored by coordination number" loading="lazy">
+       <div class="ps-example-caption">
+         <h3 class="ps-tile-title">Network coordination number</h3>
+         <p class="ps-tile-desc">Build a pore network scene with the pores colored by coordination number using a discrete palette and axes.</p>
+       </div>
+     </a>
    </div>
 
 .. toctree::
@@ -46,6 +53,7 @@ Static visualizations
    examples/segmentation
    examples/network_topology
    examples/network_morphology
+   examples/network_coordination_number
 
 
 Animations

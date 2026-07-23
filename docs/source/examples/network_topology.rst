@@ -174,7 +174,8 @@ yielding ``cylinder-green+sphere-orange+axes.png``:
    property-based coloring instead of a uniform one. The dedicated workers
    :func:`~porescene.worker.make_radius` and
    :func:`~porescene.worker.make_coordination_number` build such lists for you -- see the
-   :doc:`network morphology <network_morphology>` example.
+   :doc:`network morphology <network_morphology>` and
+   :doc:`network coordination number <network_coordination_number>` examples.
 
 
 Full script
