@@ -401,7 +401,12 @@ def make_radius(
     )
 
     # compose rendered scene and colorbar
-    img_add_colorbar(pth_vis, pth_cb.with_suffix(".png"))
+    img_add_colorbar(
+        pth_vis,
+        pth_cb.with_suffix(".png"),
+        sc.config_scene["radius"].align,
+        sc.config_scene["radius"].orientation,
+    )
 
     return pth_vis
 
@@ -463,13 +468,18 @@ def make_coordination_number(dir_img: Path, pn: PoreNetwork, sc: Scene) -> Path:
     pth_cb = pth_vis.with_name("colorbar_coordination_number.svg")
     make_gradient_overlay(
         pth_cb,
-        sc.config_scene["coordination_number"],
+        conf,
         mn,
         mx,
     )
 
     # compose rendered scene and colorbar
-    img_add_colorbar(pth_vis, pth_cb.with_suffix(".png"))
+    img_add_colorbar(
+        pth_vis,
+        pth_cb.with_suffix(".png"),
+        conf.align,
+        conf.orientation,
+    )
 
     return pth_vis
 
@@ -645,7 +655,9 @@ def make_state(pth: Path, pn: PoreNetwork, sc: Scene):
                 mn,
                 mx,
             )
-            img_add_colorbar(pth_vis, pth_cb.with_suffix(".png"))
+            img_add_colorbar(
+                pth_vis, pth_cb.with_suffix(".png"), conf.align, conf.orientation
+            )
     return sc, pth_vis
 
 
