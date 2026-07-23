@@ -16,9 +16,10 @@ This module bundles the settings used throughout :mod:`porescene`:
 """
 
 import math
+from collections.abc import Callable, Sequence
 from importlib import resources
 from pathlib import Path
-from typing import Callable, Self, Sequence, Type
+from typing import Self
 
 import numpy as np
 
@@ -41,12 +42,12 @@ class PropertyConfiguration:
     def __init__(
         self,
         name: str,
-        colors: list[Color] = [],
+        colors: Sequence[Color] = (),
         /,
-        gradient_class: Type[Gradient] = SmoothGradient,
+        gradient_class: type[Gradient] = SmoothGradient,
         heading: str | None = None,
         subheading: str | None = None,
-        text: list[str] = [],
+        text: Sequence[str] = (),
         align: CompassDirection = CompassDirection.NORTH,
         orientation: Orientation = Orientation.HORIZONTAL,
         precision: int = 0,
@@ -363,15 +364,21 @@ class SceneConfiguration:
         enable_axes: bool = True,
         enable_solid: bool = True,
         enable_void: bool = False,
-        versions_solid={"COMPLETE", "BOTTOM", "LEFT", "RIGHT"},
-        versions_void={"COMPLETE", "BOTTOM", "LEFT", "RIGHT"},
+        versions_solid=None,
+        versions_void=None,
         material_spheres: str = "PLASTIC_ROUGH",
         material_cylinders: str = "PLASTIC_ROUGH",
         material_clusters: str = "PLASTIC_ROUGH",
         material_solid: str = "SOLID_DEFAULT",
         material_void: str = "ICE",
-        palette: Palette = Palette.load(Colormap.BATLOW),
+        palette: Palette = None,
     ):
+        if versions_void is None:
+            versions_void = {"COMPLETE", "BOTTOM", "LEFT", "RIGHT"}
+        if versions_solid is None:
+            versions_solid = {"COMPLETE", "BOTTOM", "LEFT", "RIGHT"}
+        if palette is None:
+            palette = Palette.load(Colormap.BATLOW)
         self._properties = []
         self.enable_spheres = enable_spheres
         self.enable_cylinders = enable_cylinders
