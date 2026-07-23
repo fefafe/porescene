@@ -15,10 +15,10 @@ from porescene.color.gradient import DiscreteGradient, SegmentedGradient, Smooth
 from porescene.config import PropertyConfiguration
 from porescene.image import img_add_colorbar
 from porescene.layout import (
-    DiscreteGradientOverlay,
-    Overlay,
-    SegmentedGradientOverlay,
-    SmoothGradientOverlay,
+    Annotation,
+    DiscreteGradientAnnotation,
+    SegmentedGradientAnnotation,
+    SmoothGradientAnnotation,
 )
 from porescene.model import PoreNetwork, PoreNetworkProperty
 from porescene.scene import Scene
@@ -657,13 +657,13 @@ def make_gradient_overlay(
     /,
     ticks: tuple[str, ...] = (),
     **kwargs,
-) -> Overlay:
+) -> Annotation:
     if config.gradient_class is SmoothGradient:
-        ovl = SmoothGradientOverlay(pth)
+        ovl = SmoothGradientAnnotation(pth)
     elif config.gradient_class is SegmentedGradient:
-        ovl = SegmentedGradientOverlay(pth)
+        ovl = SegmentedGradientAnnotation(pth)
     elif config.gradient_class is DiscreteGradient:
-        ovl = DiscreteGradientOverlay(pth)
+        ovl = DiscreteGradientAnnotation(pth)
     else:
         raise ValueError("Unknown gradient class")
     if len(ticks) == 0:

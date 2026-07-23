@@ -14,13 +14,13 @@ from porescene.color.gradient import SmoothGradient
 from porescene.utility import CompassDirection, MultiplicationSymbol, Orientation
 
 
-class Overlay(abc.ABC):
+class Annotation(abc.ABC):  # noqa: B024
     pass
 
 
-class BackgroundOverlay(Overlay):
+class BackgroundAnnotation(Annotation):
     """
-    Base class for different types of layouts.
+    Base class for the different annotation types.
 
     You can use this class to create a plain unicolored image without anything
     else. It is also possible to add an bitmap image like PNG to the center.
@@ -46,7 +46,7 @@ class BackgroundOverlay(Overlay):
 
         res = (1600, 900)
         fpath = Path("unicolor_image.svg")
-        ovl = BackgroundOverlay(res)
+        ovl = BackgroundAnnotation(res)
         ovl.background = Color("#382655")
         ovl.save(fpath)
 
@@ -59,7 +59,7 @@ class BackgroundOverlay(Overlay):
         pth: Path,
         res: tuple[int, int] = (4096, 4096),
         pad: tuple[int, int, int, int] = (100, 100, 100, 100),
-        bg: Color = Color("#FFF"),
+        bg: Color | None = None,
     ):
         self.path = pth
         self.resolution = res
@@ -70,11 +70,14 @@ class BackgroundOverlay(Overlay):
         """
         Returns the SVG element without XML declaration.
 
-        Get the <svg> element with all its childen elements.
+        Builds the ``<svg>`` element with all its child elements. The drawn
+        content is centered on the canvas (see :meth:`_center`).
         """
-
+        self._bbox_reset()
+        content = self._build()
         svg = self._get_tag_svg_open()
-        svg += self._build()
+        svg += self._get_tag_background()
+        svg += self._center(content)
         svg += "</svg>"
         return svg
 
@@ -88,28 +91,86 @@ class BackgroundOverlay(Overlay):
         return self
 
     def _build(self) -> str:
-        svg = ""
-        if self.color_background:
-            svg += self._get_tag_background()
-        return svg
-
-    def _get_tag_background(self):
+        # The plain background annotation draws no content of its own; the
+        # background is emitted canvas-space in get_svg. Subclasses override
+        # this to add their content (title, colorbar, labels ...).
         return ""
-        return (
-            f'<rect id="background" x="0" y="0" width="100%" '
-            f'height="100%" fill="{self.color_background.str_rgba}"/>'
-        )
 
-    def _get_tag_svg_open(self):
+    def _center(self, content: str) -> str:
+        """
+        Wraps the drawn content in a group translated so that its bounding box
+        is centered on the canvas.
+
+        The bounding box is accumulated by every draw call (see
+        :meth:`_bbox_add`). Centering keeps the content clear of the viewport
+        edges, so -- unlike an edge-anchored layout -- no clipping margin around
+        the drawing area is required.
+        """
+        if self._bbox is None:
+            return content
+        min_x, min_y, max_x, max_y = self._bbox
+        dx = self.resolution[0] / 2 - (min_x + max_x) / 2
+        dy = self.resolution[1] / 2 - (min_y + max_y) / 2
+        return f'<g transform="translate({dx} {dy})">{content}</g>'
+
+    def _bbox_reset(self) -> None:
+        """Clears the accumulated content bounding box before a new build."""
+        self._bbox: tuple[float, float, float, float] | None = None
+
+    def _bbox_add(self, x: float, y: float, w: float = 0.0, h: float = 0.0) -> None:
+        """Grows the content bounding box to include rectangle ``(x, y, w, h)``."""
+        x0, y0, x1, y1 = x, y, x + w, y + h
+        if self._bbox is None:
+            self._bbox = (x0, y0, x1, y1)
+            return
+        bx0, by0, bx1, by1 = self._bbox
+        self._bbox = (min(bx0, x0), min(by0, y0), max(bx1, x1), max(by1, y1))
+
+    def _bbox_add_text(
+        self,
+        x: float,
+        y: float,
+        text: str,
+        font_size: float,
+        anchor: str,
+        baseline: str,
+    ) -> None:
+        """
+        Grows the bounding box to include a horizontal text run.
+
+        SVG exposes no measured glyph metrics here, so the run's extent is
+        estimated from the font size and character count. That is precise enough
+        to center the group, since the image is cropped to its content afterwards.
+        """
+        w = 0.6 * font_size * len(str(text))
+        left = {"start": x, "middle": x - w / 2, "end": x - w}.get(anchor, x)
+        if baseline in ("hanging", "text-before-edge"):
+            top = y
+        elif baseline in ("middle", "central"):
+            top = y - font_size / 2
+        else:  # alphabetic / auto
+            top = y - 0.75 * font_size
+        self._bbox_add(left, top, w, font_size)
+
+    def _get_tag_background(self) -> str:
+        if self.color_background is None:
+            return ""
+        else:
+            return (
+                f'<rect id="background" x="0" y="0" width="100%" '
+                f'height="100%" fill="{self.color_background.str_rgba}"/>'
+            )
+
+    def _get_tag_svg_open(self) -> str:
+        width, height = self.resolution
         return (
             f'<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="'
-            f'http://www.w3.org/1999/xlink" width="4096px" height="4096px" '
-            f'viewBox="0 0 {self.resolution[0]} {self.resolution[1]} " '
-            f'font-weight="400">'
+            f'http://www.w3.org/1999/xlink" width="{width}px" height="{height}px" '
+            f'viewBox="0 0 {width} {height}" font-weight="400">'
         )
 
     @property
-    def color_background(self) -> Color:
+    def color_background(self) -> Color | None:
         """
         Image background color as :class:`Color` object or `None` for
         transparent background.
@@ -117,7 +178,7 @@ class BackgroundOverlay(Overlay):
         return self._background
 
     @color_background.setter
-    def color_background(self, arg: Color):
+    def color_background(self, arg: Color | None):
         self._background = arg
 
     @property
@@ -157,9 +218,9 @@ class BackgroundOverlay(Overlay):
         self._resolution = arg
 
 
-class TitleOverlay(BackgroundOverlay):
+class TitleAnnotation(BackgroundAnnotation):
     """
-    Create a overlay image with heading, subheading an some lines of text.
+    Create an annotation image with heading, subheading an some lines of text.
 
     Parameters
     ----------
@@ -170,7 +231,7 @@ class TitleOverlay(BackgroundOverlay):
     Examples
     --------
     >>> from fefacolors import gray, red, light3
-    >>> ovl = TitleOverlay()
+    >>> ovl = TitleAnnotation()
     >>> ovl.heading = "My super topic!"
     >>> ovl.subheading = "Maybe its only interesting for me, not for you?"
     >>> ovl.text = [
@@ -203,7 +264,7 @@ class TitleOverlay(BackgroundOverlay):
         self.font_size_text = 55
         self.heading = None
         self.line_height = 1.15
-        self.spacing = 25
+        self.spacing = 50
         self.subheading = None
         self.text = []
 
@@ -217,6 +278,11 @@ class TitleOverlay(BackgroundOverlay):
             baseline,
         ) = self._get_alignment_config()
         svg = super()._build()
+        if self._use_vertical_title():
+            # Vertical-orientation gradients render the title rotated alongside
+            # the colorbar (see Gradient._build). Leave the cursor at the top so
+            # the bar is not pushed down by a would-be horizontal title here.
+            return svg
         if self.heading:
             svg += self._get_tag_heading(anchor, baseline)
             self._y += self.font_size_heading * self._line_height * sign_y
@@ -227,7 +293,16 @@ class TitleOverlay(BackgroundOverlay):
             svg += self._get_tag_text(sign_y, anchor, baseline)
         return svg
 
+    def _use_vertical_title(self) -> bool:
+        """
+        Whether the heading is rendered rotated (running vertically).
+
+        Horizontal by default; orientation-aware subclasses override this.
+        """
+        return False
+
     def _get_tag_heading(self, a, b):
+        self._bbox_add_text(self._x, self._y, self.heading, self.font_size_heading, a, b)
         return (
             f'<text id="title" x="{self._x}" y="{self._y}" dominant-baseline="{b}" '
             f'text-anchor="{a}" fill="{self.color_heading.str_hex}" font-weight="400" '
@@ -236,6 +311,9 @@ class TitleOverlay(BackgroundOverlay):
         )
 
     def _get_tag_subheading(self, a, b):
+        self._bbox_add_text(
+            self._x, self._y, self.subheading, self.font_size_subheading, a, b
+        )
         return (
             f'<text id="title" x="{self._x}" y="{self._y}" dominant-baseline="{b}" '
             f'text-anchor="{a}" fill="{self.color_subheading.str_hex}" '
@@ -248,6 +326,7 @@ class TitleOverlay(BackgroundOverlay):
         tag = ""
         y = self._y
         for i, line in enumerate(text):
+            self._bbox_add_text(self._x, y, line, self.font_size_text, a, b)
             tag += (
                 f'<text id="text-line-{i}" x="{self._x}" y="{y}" '
                 f'dominant-baseline="{b}" text-anchor="{a}" '
@@ -310,14 +389,14 @@ class TitleOverlay(BackgroundOverlay):
                 anchor = "end"
                 baseline = "hanging"
             case CompassDirection.WEST:
-                x = self.padding[3]
+                x = self.padding[3] + self.font_size_heading
                 y = self.padding[0]
                 sign_x = 1
                 sign_y = 1
                 anchor = "start"
                 baseline = "auto"
             case CompassDirection.EAST:
-                x = self.resolution[0] - self.padding[1]
+                x = self.resolution[0] - self.padding[1] - self.font_size_heading
                 y = self.padding[0]
                 sign_x = -1
                 sign_y = 1
@@ -485,9 +564,9 @@ class TitleOverlay(BackgroundOverlay):
         self._spacing = arg
 
 
-class Gradient(TitleOverlay, abc.ABC):
+class Gradient(TitleAnnotation, abc.ABC):
     """
-    Create an overlay image with heading, subheading, text and a gradient
+    Create an annotation image with heading, subheading, text and a gradient
     with scaclebars.
 
     Parameters
@@ -532,6 +611,23 @@ class Gradient(TitleOverlay, abc.ABC):
         self.ticks = []
 
     def _build(self):
+        # A vertical colorbar has no sensible centered (north/south) layout -- the
+        # bar collides with its own ticks and heading. Since img_add_colorbar places
+        # north/south vertical bars on the outer (east) side of the scene anyway,
+        # render them exactly like an east-aligned bar.
+        if self.orientation is Orientation.VERTICAL and self.align in (
+            CompassDirection.NORTH,
+            CompassDirection.SOUTH,
+        ):
+            original_align = self.align
+            self.align = CompassDirection.EAST
+            try:
+                return self._build_impl()
+            finally:
+                self.align = original_align
+        return self._build_impl()
+
+    def _build_impl(self):
         x, y, sign_x, sign_y, anchor, baseline = self._get_alignment_config()
         self._x = x
         self._y = y
@@ -586,8 +682,50 @@ class Gradient(TitleOverlay, abc.ABC):
                         self._y += self.tick_length * 0.5 + self.spacing
         if self.color_nan:
             svg += self._get_tag_nan(sign_x, sign_y)
+        if self._use_vertical_title() and self.heading and self.gradient_colors:
+            svg += self._get_tag_heading_vertical()
         svg += "</g>"
         return svg
+
+    def _use_vertical_title(self) -> bool:
+        return self.orientation is Orientation.VERTICAL
+
+    def _get_tag_heading_vertical(self) -> str:
+        """
+        Renders the heading rotated 90 degrees, vertically centered on the
+        gradient bar and placed on the outer side of the colorbar (the side
+        facing away from the scene, opposite the ticks), so it runs alongside a
+        vertical colorbar instead of sitting horizontally on top. West-aligned
+        bars get the label on the left, east-aligned bars on the right.
+        """
+        gx, gy, gw, gh = self._grad_bbox
+        center_y = gy + gh / 2
+
+        offset = self.spacing + self.font_size_heading * 0.5
+        if "W" in self.align.value:
+            # west: bar near the left edge -> label on the outer (left) side
+            x = gx - offset
+            angle = -90
+        else:
+            # east: bar near the right edge -> label on the outer (right) side
+            x = gx + gw + offset
+            angle = 90
+
+        # rotated run: extends along y by its length, along x by the font size
+        run = 0.6 * self.font_size_heading * len(str(self.heading))
+        self._bbox_add(
+            x - self.font_size_heading / 2,
+            center_y - run / 2,
+            self.font_size_heading,
+            run,
+        )
+        return (
+            f'<text id="title" x="{x}" y="{center_y}" text-anchor="middle" '
+            f'dominant-baseline="central" transform="rotate({angle} {x} {center_y})" '
+            f'fill="{self.color_heading.str_hex}" font-weight="400" '
+            f'font-family="{self.font_family}" font-size="{self.font_size_heading}">'
+            f"{self.heading}</text>"
+        )
 
     @abc.abstractmethod
     def _get_tag_defs(self) -> tuple[str, int]:
@@ -677,6 +815,8 @@ class Gradient(TitleOverlay, abc.ABC):
                 if self.orientation is Orientation.VERTICAL:
                     # b = "auto"
                     y1 = y2 = y_tick = y - self.line_width / 2
+            self._bbox_add(x2, y2)
+            self._bbox_add_text(x_tick, y_tick, tick, self.font_size_ticks, a, b)
             svg += (
                 f'<line id="tick-{i}" x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" '
                 f'stroke-linecap="round" stroke="{self.color_ticks.str_hex}" '
@@ -710,6 +850,14 @@ class Gradient(TitleOverlay, abc.ABC):
             if self.orientation is Orientation.HORIZONTAL
             else "translate(0 4)"
         )
+        self._bbox_add_text(
+            self._x,
+            self._y,
+            f"10{exponent} {sep}",
+            self.font_size_ticks,
+            anchor,
+            baseline,
+        )
         if "E" in self.align.value:
             return (
                 f'<text transform="{transform}" id="exponent" x="{self._x}" '
@@ -734,6 +882,7 @@ class Gradient(TitleOverlay, abc.ABC):
     def _get_tag_nan(self, sign_x, sign_y):
         anchor = "start" if "W" in self.align.value else "end"
         color_nan = self.color_nan.str_rgb if self.color_nan else ""
+        self._bbox_add(self._x, self._y, self.gradient_height, self.gradient_height)
         tag = (
             f'<rect x="{self._x}" y="{self._y}" rx="{self.roundness}" '
             f'ry="{self.roundness}" width="{self.gradient_height}" '
@@ -745,6 +894,9 @@ class Gradient(TitleOverlay, abc.ABC):
         if self.align is CompassDirection.NORTH or self.align is CompassDirection.SOUTH:
             self._x -= self.gradient_height * 0.5 + self.spacing
         self._y += self.gradient_height / 2
+        self._bbox_add_text(
+            self._x, self._y, self.text_nan, self.font_size_ticks, anchor, "middle"
+        )
         tag += (
             f'<text x="{self._x}" y="{self._y}" dy="6" '
             f'fill="{self.color_ticks.str_hex}" dominant-baseline="middle" '
@@ -770,6 +922,10 @@ class Gradient(TitleOverlay, abc.ABC):
             y -= h
         if self.align is CompassDirection.NORTH or self.align is CompassDirection.SOUTH:
             x -= w / 2
+        # remember the bar's bounding box so a vertical title can be centered
+        # on it and offset past the ticks (see _get_tag_heading_vertical)
+        self._grad_bbox = (x, y, w, h)
+        self._bbox_add(x, y, w, h)
         return (
             f'<rect id="gradient" x="{x}" y="{y}" rx="{self.roundness}" '
             f'ry="{self.roundness}" width="{w}" height="{h}" '
@@ -980,7 +1136,7 @@ class Gradient(TitleOverlay, abc.ABC):
         self._ticks = arg
 
 
-class SmoothGradientOverlay(Gradient):
+class SmoothGradientAnnotation(Gradient):
     """ """
 
     def __init__(
@@ -993,11 +1149,15 @@ class SmoothGradientOverlay(Gradient):
 
     def _get_tag_defs(self):
         id_grad = random.getrandbits(32)
-        p2 = (0, 1) if self.orientation is Orientation.VERTICAL else (1, 0)
+        # Vertical gradients run bottom -> top; horizontal run left -> right.
+        if self.orientation is Orientation.VERTICAL:
+            p1, p2 = (0, 1), (0, 0)
+        else:
+            p1, p2 = (0, 0), (1, 0)
         grad = SmoothGradient(self.gradient_colors)
         tag = "<defs>"
         tag += (
-            f'<linearGradient id="gradient-{id_grad}" x1="0" y1="0" '
+            f'<linearGradient id="gradient-{id_grad}" x1="{p1[0]}" y1="{p1[1]}" '
             f'x2="{p2[0]}" y2="{p2[1]}">'
         )
         for value in np.linspace(0.0, 1.0, 100):
@@ -1010,7 +1170,7 @@ class SmoothGradientOverlay(Gradient):
         return tag, id_grad
 
 
-class SegmentedGradientOverlay(Gradient):
+class SegmentedGradientAnnotation(Gradient):
     """ """
 
     def __init__(
@@ -1023,10 +1183,14 @@ class SegmentedGradientOverlay(Gradient):
 
     def _get_tag_defs(self):
         id_grad = random.getrandbits(32)
-        p2 = (0, 1) if self.orientation is Orientation.VERTICAL else (1, 0)
+        # Vertical gradients run bottom -> top; horizontal run left -> right.
+        if self.orientation is Orientation.VERTICAL:
+            p1, p2 = (0, 1), (0, 0)
+        else:
+            p1, p2 = (0, 0), (1, 0)
         tag = "<defs>"
         tag += (
-            f'<linearGradient id="gradient-{id_grad}" x1="0" y1="0" '
+            f'<linearGradient id="gradient-{id_grad}" x1="{p1[0]}" y1="{p1[1]}" '
             f'x2="{p2[0]}" y2="{p2[1]}">'
         )
         length = len(self.gradient_colors)
@@ -1046,7 +1210,7 @@ class SegmentedGradientOverlay(Gradient):
         return tag, id_grad
 
 
-class DiscreteGradientOverlay(SegmentedGradientOverlay):
+class DiscreteGradientAnnotation(SegmentedGradientAnnotation):
     """ """
 
     def __init__(
@@ -1127,6 +1291,8 @@ class DiscreteGradientOverlay(SegmentedGradientOverlay):
                 x1 = x2 = x
                 x2 += self.tick_length * sign_x
                 x_tick = x2 + self.spacing * sign_x
+            self._bbox_add(x2, y2)
+            self._bbox_add_text(x_tick, y_tick, tick, self.font_size_ticks, a, b)
             svg += (
                 f'<line id="tick-{i}" x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" '
                 f'stroke-linecap="round" stroke="{self.color_ticks.str_hex}" '
@@ -1146,8 +1312,7 @@ class DiscreteGradientOverlay(SegmentedGradientOverlay):
         return svg
 
 
-class LabelsOverlay(TitleOverlay):
-
+class LabelsAnnotation(TitleAnnotation):
     def __init__(
         self,
         pth: Path,
@@ -1177,6 +1342,7 @@ class LabelsOverlay(TitleOverlay):
                 self._x -= self.box_size[0]
             if "SOUTH" in self.align.name:
                 self._y -= self.box_size[1]
+            self._bbox_add(self._x, self._y, self.box_size[0], self.box_size[1])
             svg += (
                 f'<rect x="{self._x}" y="{self._y}" rx="{self.roundness}" '
                 f'ry="{self.roundness}" width="{self.box_size[0]}" '
@@ -1188,6 +1354,9 @@ class LabelsOverlay(TitleOverlay):
                 self._y += self.box_size[1]
             self._x += (self.box_size[0] + self.spacing / 2) * sign_x
             self._y += self.box_size[1] / 2 * sign_y
+            self._bbox_add_text(
+                self._x, self._y, label[1], self.font_size_labeltext, anchor, "middle"
+            )
             svg += (
                 f'<text x="{self._x}" y="{self._y}" dy="6" '
                 f'fill="{self.color_labeltext}" dominant-baseline="middle" '
