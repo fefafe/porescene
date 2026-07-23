@@ -7,7 +7,8 @@ from pathlib import Path
 
 import bpy
 import numpy as np
-from mathutils import Matrix, Vector
+
+from mathutils import Matrix, Vector  # type: ignore  # isort:skip
 
 from porescene.color import Color
 from porescene.color.gradient import DiscreteGradient, SegmentedGradient, SmoothGradient
@@ -113,11 +114,9 @@ def build_structure(
                     r_t = np.concatenate([r_t, getattr(pn, f"throat_radius_{b_name}")])
                 else:
                     raise Exception(
-                        (
-                            "Missing data: make sure that PoreNetwork.throat_radius_"
-                            f"{b_name} and PoreNetwork.pore_position_{b_name} are not "
-                            "empty."
-                        )
+                        "Missing data: make sure that PoreNetwork.throat_radius_"
+                        f"{b_name} and PoreNetwork.pore_position_{b_name} are not "
+                        "empty."
                     )
 
         sc.create_cylinders(pos_t, r_t)
@@ -135,7 +134,9 @@ def build_structure(
     return sc
 
 
-def make_clusters(pth: Path, sc: Scene, no: list[int] = [0]):
+def make_clusters(pth: Path, sc: Scene, no: list[int] = None):
+    if no is None:
+        no = [0]
     col = bpy.data.collections.get("Clusters")
     bb_min = [0, 0, 0]
     bb_max = [0, 0, 0]
@@ -190,7 +191,6 @@ def make_clusters(pth: Path, sc: Scene, no: list[int] = [0]):
     else:
         fname = "labels"
     fname = sc.render(pth, fname)
-    img_trim(fname)
     return sc, fname
 
 
@@ -200,9 +200,9 @@ def make_img(
     show_spheres: bool = True,
     show_cylinders: bool = True,
     show_clusters: bool = True,
-    color_spheres: list[Color] = [],
-    color_cylinders: list[Color] = [],
-    color_clusters: list[Color] = [],
+    color_spheres: tuple[Color, ...] = (),
+    color_cylinders: tuple[Color, ...] = (),
+    color_clusters: tuple[Color, ...] = (),
     name_spheres: str = "",
     name_cylinders: str = "",
     name_clusters: str = "",
@@ -366,11 +366,9 @@ def make_radius(
                 r_t = np.concatenate([r_t, getattr(pn, f"throat_radius_{b_name}")])
             else:
                 raise Exception(
-                    (
-                        "Missing data: make sure that PoreNetwork.throat_radius_"
-                        f"{b_name} and PoreNetwork.pore_position_{b_name} are not "
-                        "empty."
-                    )
+                    "Missing data: make sure that PoreNetwork.throat_radius_"
+                    f"{b_name} and PoreNetwork.pore_position_{b_name} are not "
+                    "empty."
                 )
 
     prop.set_data(pn.pore_radius, r_t)
@@ -657,7 +655,7 @@ def make_gradient_overlay(
     mn: float,
     mx: float,
     /,
-    ticks: list[str] = [],
+    ticks: tuple[str, ...] = (),
     **kwargs,
 ) -> Overlay:
     if config.gradient_class is SmoothGradient:

@@ -9,16 +9,16 @@ from pathlib import Path
 from typing import NamedTuple, Self, cast
 
 import bpy
+
+import bmesh  # type: ignore # isort:skip
+from mathutils import Matrix, Vector  # type: ignore # isort:skip
 import numpy as np
-from mathutils import Matrix, Vector
 from rich import progress
 
 from porescene import image
 from porescene.color import Color
 from porescene.config import AxesConfiguration, ImageConfiguration, SceneConfiguration
 from porescene.utility import _get_spinner, suppress_stdout
-
-import bmesh  # isort:skip
 
 
 def _radians(x: float, y: float, z: float) -> tuple[float, float, float]:
@@ -49,7 +49,6 @@ class _AxisSpec(NamedTuple):
 
 
 class Scene:
-
     def __init__(self, extent: np.ndarray) -> None:
         """
         Creates an empty :class:`Scene`, wiping Blender's default scene contents and
@@ -339,7 +338,7 @@ class Scene:
                     hide_first_label=True,
                 ),
             ]
-            for enabled, spec in zip(cfg.enable_ticks, specs):
+            for enabled, spec in zip(cfg.enable_ticks, specs, strict=False):
                 if enabled:
                     self._draw_axis_ticks_major(col, font, mesh_tick, spec)
 
@@ -1181,7 +1180,7 @@ class Scene:
                 bpy.data.objects.remove(obj)
         return self
 
-    def remove_void(self, names: list[str] = ["void"]) -> Self:
+    def remove_void(self, names: tuple[str, ...] = ("void")) -> Self:
         """
         Removes any void from the scene.
         """

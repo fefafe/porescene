@@ -4,10 +4,11 @@
 
 import contextlib
 import os
+from collections.abc import Callable, Iterator, Sequence
 from enum import Enum
 from math import ceil, floor, isclose
 from pathlib import Path
-from typing import Callable, Iterator, Literal, Sequence, overload
+from typing import Literal, overload
 
 import numpy as np
 import resvg_py
