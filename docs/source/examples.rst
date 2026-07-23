@@ -23,11 +23,11 @@ Static visualizations
          <p class="ps-tile-desc">Render a segmented pore space, coloring each void cluster with a random color from a colormap.</p>
        </div>
      </a>
-     <a class="ps-tile" href="examples/network_structure.html">
-       <img class="ps-tile-image" src="_static/image/cylinder-structure+sphere-structure+axes_padded.png" alt="Pore network structure colored by pore radius" loading="lazy">
+     <a class="ps-tile" href="examples/network_topology.html">
+       <img class="ps-tile-image" src="_static/image/example/cylinder-green+sphere-orange+axes.png" alt="Pore network in stick-and-ball representation with orange pores and dark-green throats" loading="lazy">
        <div class="ps-example-caption">
-         <h3 class="ps-tile-title">Network Structure</h3>
-         <p class="ps-tile-desc">Build a pore network scene colored by pore radius, with a solid overlay and axes.</p>
+         <h3 class="ps-tile-title">Network topology</h3>
+         <p class="ps-tile-desc">Build a stick-and-ball pore network scene with all pores colored orange, all throats dark green, and on-scale axes.</p>
        </div>
      </a>
      <a class="ps-tile" href="examples/network_morphology.html">
@@ -44,7 +44,7 @@ Static visualizations
 
    examples/solid
    examples/segmentation
-   examples/network_structure
+   examples/network_topology
    examples/network_morphology
 
 
