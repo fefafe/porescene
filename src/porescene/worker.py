@@ -269,15 +269,15 @@ def make_img(
     """
     fname_fragments = []
     sep = "-"
-    if show_cylinders:
+    if show_cylinders and sc.has_cylinders:
         sc.show_cylinders()
         sc.apply_colors("Cylinders", color_cylinders)
         fname_fragments.append("cylinder" + sep + name_cylinders)
-    if show_spheres:
+    if show_spheres and sc.has_spheres:
         sc.show_spheres()
         sc.apply_colors("Spheres", color_spheres)
         fname_fragments.append("sphere" + sep + name_spheres)
-    if show_clusters:
+    if show_clusters and sc.has_clusters:
         sc.show_clusters()
         sc.apply_colors("Clusters", color_clusters)
         fname_fragments.append("cluster" + sep + name_clusters)
