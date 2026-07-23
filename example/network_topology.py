@@ -26,8 +26,8 @@ with open(pth_data / "map_vars.json") as f:
 pn = PoreNetwork.from_mat(pth_data / "pnm.mat", map_vars["data_network"])
 
 # unify pore and throat radii
-pn.pore_radius = np.ones(pn.pore_count) * 0.4e-6
-pn.throat_radius = np.ones(pn.throat_count()) * 0.2e-6
+pn.pore_radius = np.ones(pn.pore_count) * 0.6e-6
+pn.throat_radius = np.ones(pn.throat_count()) * 0.1e-6
 
 # load PoreScene config from JSON file
 sc = Scene(pn.extent)
