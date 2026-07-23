@@ -10,14 +10,14 @@ Static visualizations
 
    <div class="ps-tiles col-2">
      <a class="ps-tile" href="examples/solid.html">
-       <img class="ps-tile-image" src="_static/image/examples/solid+axes.png" alt="Solid structure of a freeze-dried maltodextrin solution captured with X-ray micro-computer tomographic imaging" loading="lazy">
+       <img class="ps-tile-image" src="_static/image/example/solid+axes.png" alt="Solid structure of a freeze-dried maltodextrin solution captured with X-ray micro-computer tomographic imaging" loading="lazy">
        <div class="ps-example-caption">
          <h3 class="ps-tile-title">Solid Structure</h3>
          <p class="ps-tile-desc">Render a solid pore structure loaded from an OBJ mesh, with a camera, lighting, and axes.</p>
        </div>
      </a>
      <a class="ps-tile" href="examples/segmentation.html">
-       <img class="ps-tile-image" src="_static/image/examples/cluster-random+axes.png" alt="Segmented pore space with each void cluster colored individually" loading="lazy">
+       <img class="ps-tile-image" src="_static/image/example/cluster-random+axes.png" alt="Segmented pore space with each void cluster colored individually" loading="lazy">
        <div class="ps-example-caption">
          <h3 class="ps-tile-title">Segmentation</h3>
          <p class="ps-tile-desc">Render a segmented pore space, coloring each void cluster with a random color from a colormap.</p>
