@@ -44,6 +44,13 @@ Static visualizations
          <p class="ps-tile-desc">Build a pore network scene with the pores colored by coordination number using a discrete palette and axes.</p>
        </div>
      </a>
+     <a class="ps-tile" href="examples/network_random.html">
+       <img class="ps-tile-image" src="_static/image/example/random-qualitative.png" alt="Pore network with every pore and throat colored at random" loading="lazy">
+       <div class="ps-example-caption">
+         <h3 class="ps-tile-title">Network random coloring</h3>
+         <p class="ps-tile-desc">Tell individual pores and throats apart with a random identity coloring, comparing a continuous and a qualitative palette.</p>
+       </div>
+     </a>
    </div>
 
 .. toctree::
@@ -54,6 +61,7 @@ Static visualizations
    examples/network_topology
    examples/network_morphology
    examples/network_coordination_number
+   examples/network_random
 
 
 Animations
