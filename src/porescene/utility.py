@@ -4,7 +4,7 @@
 
 import contextlib
 import os
-from collections.abc import Callable, Iterator, Sequence
+from collections.abc import Callable, Generator, Sequence
 from enum import Enum
 from math import ceil, floor, isclose
 from pathlib import Path
@@ -18,7 +18,7 @@ from rich.console import Console
 
 
 @contextlib.contextmanager
-def suppress_stdout() -> Iterator[None]:
+def suppress_stdout() -> Generator[None]:
     """
     Silences stdout at the OS file-descriptor level.
     """
