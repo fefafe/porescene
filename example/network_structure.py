@@ -3,7 +3,7 @@ from pathlib import Path
 
 import numpy as np
 
-from porescene import worker, image
+from porescene import worker
 from porescene.model import PoreNetwork
 from porescene.scene import Scene
 
@@ -12,9 +12,6 @@ from porescene.scene import Scene
 
 # data directory
 pth_data = Path.cwd() / "data"
-
-# temporary directory for rendered images
-pth_tmp = Path.cwd() / "tmp"
 
 
 # =============================================================================
@@ -28,8 +25,8 @@ with open(pth_data / "map_vars.json") as f:
 pn = PoreNetwork.from_mat(pth_data / "pnm.mat", map_vars["data_network"])
 
 # unify pore and throat radii
-pn.pore_radius = np.ones(pn.pore_count) * 0.5e-6
-pn.throat_radius = np.ones(pn.throat_count()) * 0.25e-6
+pn.pore_radius = np.ones(pn.pore_count) * 0.4e-6
+pn.throat_radius = np.ones(pn.throat_count()) * 0.2e-6
 
 # load PoreScene config from JSON file
 sc = Scene.from_json(pn.extent, pth_data / "porescene.json")
@@ -41,7 +38,4 @@ worker.build_structure(sc, pn)
 sc.create_axes()
 
 # render the scene
-pth_img = worker.make_structure(pth_tmp, pn, sc)
-
-# add padding of 10 %
-image.img_pad(pth_img, 0.1)
+pth_img = worker.make_structure(pth_data, pn, sc)
