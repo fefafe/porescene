@@ -650,8 +650,8 @@ class AxesConfiguration:
         fac_axis = 1 / fac_unit
         label_axis = UnitPrefixMetric[self._unit_display].value + "m"
 
-        self.label_x = f"y [{label_axis}]"
-        self.label_y = f"x [{label_axis}]"
+        self.label_x = f"x [{label_axis}]"
+        self.label_y = f"y [{label_axis}]"
         self.label_z = f"z [{label_axis}]"
 
         self.factor = (fac_axis, fac_axis, fac_axis)
