@@ -48,6 +48,6 @@ worker.make_img(
     sc,
     color_spheres=color_pores,
     color_cylinders=color_throats,
-    name_spheres="structure",
-    name_cylinders="structure",
+    name_spheres="orange",
+    name_cylinders="green",
 )
