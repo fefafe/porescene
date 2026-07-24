@@ -169,6 +169,7 @@ def volume2mesh(
     labels: int | Sequence[int] | np.ndarray = ...,
     *,
     per_label: Literal[False] = ...,
+    swap_axes: bool = ...,
     name: str = ...,
 ) -> Mesh: ...
 @overload
@@ -178,6 +179,7 @@ def volume2mesh(
     labels: int | Sequence[int] | np.ndarray = ...,
     *,
     per_label: Literal[True],
+    swap_axes: bool = ...,
     name: str = ...,
 ) -> dict[int, Mesh]: ...
 def volume2mesh(
@@ -186,6 +188,7 @@ def volume2mesh(
     labels: int | Sequence[int] | np.ndarray = 1,
     *,
     per_label: bool = False,
+    swap_axes: bool = False,
     name: str = "object",
 ) -> Mesh | dict[int, Mesh]:
     """
@@ -210,6 +213,16 @@ def volume2mesh(
         If ``False`` (default), all selected labels are meshed into a single surface.
         If ``True``, a separate mesh is built per label and a ``{label: Mesh}`` mapping
         is returned.
+    swap_axes : bool, optional
+        If ``True``, swaps the first and third axes of ``img`` before meshing, leaving
+        the second axis untouched, by default ``False``. This compensates for the
+        axis-order mismatch between MATLAB's column-major and numpy's row-major array
+        storage (see the corresponding ``swap_axes`` option of
+        :meth:`porescene.model.PoreNetwork.from_mat`): a voxel image loaded straight
+        from a ``.mat`` file has its first and third (spatial) axes swapped relative to
+        the coordinate frame the file's own position variables (e.g. ``pos_p``) were
+        written in. Enable this to build the mesh in that same, un-swapped coordinate
+        frame, matching position data imported with ``swap_axes=False``.
     name : str, optional
         Name assigned to the resulting mesh. In ``per_label`` mode the label is appended
         as ``"{name}_{label}"``. By default ``"object"``.
@@ -226,6 +239,8 @@ def volume2mesh(
         img = img[:, :, np.newaxis]
     if img.ndim != 3:
         raise ValueError("img must be a 2D or 3D array")
+    if swap_axes:
+        img = img.transpose(2, 1, 0)
 
     size = np.asarray(voxel_size, dtype=float)
     if size.ndim == 0:
