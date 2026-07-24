@@ -6,6 +6,7 @@
 Pore Networks
 """
 
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Self
 
@@ -179,7 +180,72 @@ class PoreNetworkState:
         return self
 
 
+class StateVariableMap:
+    """
+    Maps a pore network property to the ``.mat`` variables holding its data.
+
+    Relates a single property (identified by :attr:`name`) to the names of the MATLAB
+    variables that store the property's per-pore (sphere) and per-throat (cylinder)
+    values, telling :meth:`PoreNetwork.from_mat` and
+    :meth:`PoreNetwork.load_state_from_mat` which variables to import.
+    """
+
+    def __init__(self, prop_name: str):
+        self.name = prop_name
+
+    @property
+    def name(self) -> str:
+        """
+        Name of the mapped property.
+        """
+        return self._name
+
+    @name.setter
+    def name(self, v: str) -> str:
+
+        self._name = v
+
+    @property
+    def variable_sphere(self) -> str | None:
+        """
+        Name of the ``.mat`` variable holding the per-pore (sphere) values, or ``None``.
+        """
+        if hasattr(self, "_variable_sphere"):
+            return self._variable_sphere
+        else:
+            return None
+
+    @variable_sphere.setter
+    def variable_sphere(self, v: str | None):
+
+        self._variable_sphere = v
+
+    @property
+    def variable_cylinder(self) -> str | None:
+        """
+        Name of the ``.mat`` variable holding the per-throat (cylinder) values, or
+        ``None``.
+        """
+        if hasattr(self, "_variable_cylinder"):
+            return self._variable_cylinder
+        else:
+            return None
+
+    @variable_cylinder.setter
+    def variable_cylinder(self, v: str | None):
+
+        self._variable_cylinder = v
+
+
 class PoreNetwork:
+    """
+    A pore network model made up of pores (spheres) and throats (cylinders).
+
+    Holds the network geometry (pore/throat radii and positions, boundary pores,
+    connectivity and coordination numbers) together with an ordered list of
+    :class:`PoreNetworkState` instances describing the network's state variables. Use
+    :meth:`from_mat` to build an instance from a MATLAB ``.mat`` file.
+    """
 
     def __init__(self) -> None:
         self.states = []
@@ -193,8 +259,8 @@ class PoreNetwork:
         cls,
         pth: Path,
         vars_nwk: dict[str, str],
-        vars_state: dict[str, tuple[str, str]] = {},
-        no_states: list[int] = [],
+        vars_state: Sequence[StateVariableMap] = (),
+        no_states: Sequence[int] = (),
         *,
         swap_axes: bool = True,
     ) -> Self:
@@ -262,31 +328,38 @@ class PoreNetwork:
         vars_nwk : dict[str, str]
             A map that specifies the corresponding variables in the ``.mat`` file for the
             properties of the :class:`PoreNetwork` instance.
-        vars_state : dict[str, tuple[str, str]], optional
-            A map that relates the variables from the ``.mat`` file to
-            :class:`PoreNetworkProperty` instances.
+        vars_state : Sequence[StateVariableMap], optional
+            The :class:`StateVariableMap` instances that relate the state variables in
+            the ``.mat`` file to :class:`PoreNetworkProperty` instances.
 
-            The key in the :class:`dict` has to be identical to
-            :attr:`PoreNetworkProperty.name`, and the value is a :class:`tuple`
-            containing two :class:`string`, mapping the variables names that hold the
-            pore and throat data, respectively.
+            Each :class:`StateVariableMap` carries a property name
+            (:attr:`StateVariableMap.name`, identical to
+            :attr:`PoreNetworkProperty.name`) together with the names of the ``.mat``
+            variables holding the per-pore and per-throat data
+            (:attr:`StateVariableMap.variable_sphere` and
+            :attr:`StateVariableMap.variable_cylinder`, respectively). A variable left as
+            ``None`` is skipped, so a property may provide pore data, throat data, or
+            both.
 
-            As example: in case for ``"temperature"`` field data, the ``.mat`` file
+            As example: in case of ``"temperature"`` field data, the ``.mat`` file
             contains a variable ``T_pores`` that holds the temperature of each pore,
             while the variable ``T_throats`` holds the temperature values of each throat.
-
-            Imagine, also some acetone concentration has been computed, an additional key
-            ``"concentration_acetone"`` has to be added in a similar way to the
-            :class:`dict`.
+            An additional ``"concentration_acetone"`` field is added by appending a
+            further :class:`StateVariableMap` to the sequence.
 
             .. code-block:: python
                 :caption: Python
                 :linenos:
 
-                state_vars = {
-                    "temperature": ("T_pores", "T_throats")
-                    "concentration_acetone": ("C_acetone_pores", "C_acetone_throats")
-                }
+                temperature = StateVariableMap("temperature")
+                temperature.variable_sphere = "T_pores"
+                temperature.variable_cylinder = "T_throats"
+
+                acetone = StateVariableMap("concentration_acetone")
+                acetone.variable_sphere = "C_acetone_pores"
+                acetone.variable_cylinder = "C_acetone_throats"
+
+                vars_state = [temperature, acetone]
 
             By convention, the first array dimension is equal to the number of pores/
             throats, while the second dimension contains the evolution of the field, e.g
@@ -295,9 +368,9 @@ class PoreNetwork:
             steps have been calculated, variable ``T_pores`` has a size of ``6274 ×
             1000`` and ``T_throats`` has a size of ``149366 × 1000``).
 
-        no_states : list[int], optional
+        no_states : Sequence[int], optional
             In case there is state data contained in the ``.mat`` file, the state indices
-            given in ``states``, are wrapped into :class:`PoreNetworkState` instances.
+            given in ``no_states`` are wrapped into :class:`PoreNetworkState` instances.
 
             For example, if 1000 states have been calculated, but only every 100th state
             should be visualized, then ``no_states`` could be:
@@ -417,20 +490,8 @@ class PoreNetwork:
                     np.array(f[vars_nwk["pore_neighboring_pores"]]).transpose() - 1
                 )
 
-            for state in no_states:
-                st = PoreNetworkState()
-                st.no = state
-                for name, var in vars_state.items():
-                    pn_prop = PoreNetworkProperty(name)
-                    if var[0] in f:
-                        pn_prop.pore_values = np.array(f[var[0]][state, :]).transpose()
-                    else:
-                        raise ValueError(
-                            f"Could not find variable '{var[0]}' in given .mat file"
-                        )
-                    st.add_property(pn_prop)
-                pn.add_state(st)
-            return pn
+        pn.load_states_from_mat(pth, vars_state, no_states)
+        return pn
 
     def __iter__(self) -> Self:
         self.__i = 0
@@ -438,7 +499,7 @@ class PoreNetwork:
 
     def __len__(self) -> int:
         """
-        Return the number of colors of the gradient.
+        Return the number of states in the pore network.
         """
         return len(self.states)
 
@@ -477,6 +538,88 @@ class PoreNetwork:
         Returns a :class:`PoreNetworkState` from the instance.
         """
         return self.states[no_state]
+
+    def load_states_from_mat(
+        self,
+        pth_mat: Path,
+        vars_state: Sequence[StateVariableMap],
+        no_states: Sequence[int],
+    ) -> Self:
+        """
+        Loads state data from a MATLAB ``.mat`` file into this instance.
+
+        In contrast to :meth:`from_mat`, which builds a new :class:`PoreNetwork`, this
+        method appends the requested states to an already existing instance, loading both
+        pore and throat data for each :class:`PoreNetworkProperty`.
+
+        .. attention::
+
+            Variable import from ``.mat`` files is only supported for MATLAB files in
+            version 7.3 that are based on `HDF5 <https://github.com/HDFGroup/hdf5>`_.
+            When saving the MATLAB file, make sure to set the ``-v7.3`` in MATLAB's
+            ``save`` function.
+
+        Parameters
+        ----------
+        pth_mat : Path
+            Path to the MATLAB ``.mat`` file.
+        vars_state : Sequence[StateVariableMap]
+            The :class:`StateVariableMap` instances that relate the state variables in
+            the ``.mat`` file to :class:`PoreNetworkProperty` instances. Each map carries
+            a property name (:attr:`StateVariableMap.name`) together with the names of
+            the ``.mat`` variables holding the per-pore and per-throat data
+            (:attr:`StateVariableMap.variable_sphere` and
+            :attr:`StateVariableMap.variable_cylinder`, respectively). A variable left as
+            ``None`` is skipped, so a property may provide pore data, throat data, or
+            both.
+        no_states : Sequence[int]
+            State indices that are wrapped into :class:`PoreNetworkState` instances and
+            appended to this :class:`PoreNetwork`.
+
+        Returns
+        -------
+        Self
+            This :class:`PoreNetwork` instance with the loaded states added.
+
+        Raises
+        ------
+        ValueError
+            If a non-``None`` pore or throat variable named in ``vars_state`` is not
+            present in the ``.mat`` file.
+        """
+
+        with File(pth_mat) as f:
+            for state in no_states:
+                st = PoreNetworkState()
+                st.no = state
+                for svm in vars_state:
+                    pn_prop = PoreNetworkProperty(svm.name)
+
+                    # load pore (sphere) data (skipped when no variable is given)
+                    if svm.variable_sphere is not None:
+                        if svm.variable_sphere not in f:
+                            raise ValueError(
+                                "Could not find variable "
+                                f"'{svm.variable_sphere}' in given .mat file"
+                            )
+                        pn_prop.pore_values = np.array(
+                            f[svm.variable_sphere][state, :]
+                        ).transpose()
+
+                    # load throat (cylinder) data (skipped when no variable is given)
+                    if svm.variable_cylinder is not None:
+                        if svm.variable_cylinder not in f:
+                            raise ValueError(
+                                "Could not find variable "
+                                f"'{svm.variable_cylinder}' in given .mat file"
+                            )
+                        pn_prop.throat_values = np.array(
+                            f[svm.variable_cylinder][state, :]
+                        ).transpose()
+
+                    st.add_property(pn_prop)
+                self.add_state(st)
+            return self
 
     @property
     def length_x(self) -> float:
@@ -720,7 +863,9 @@ class PoreNetwork:
 
     @property
     def states(self) -> list[PoreNetworkState]:
-        """ """
+        """
+        The states of the pore network.
+        """
         return self._states
 
     @states.setter
