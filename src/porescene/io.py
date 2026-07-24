@@ -7,12 +7,12 @@ Reading and writing of mesh and geometry files.
 ===============================================
 """
 
+from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import Mapping, Sequence
 
 import numpy as np
 
-from porescene.utility import Mesh
+from porescene.utility import Mesh, _get_spinner
 
 
 def mesh2obj(pth_obj: Path, mesh: Mesh | Mapping[int, Mesh] | Sequence[Mesh]) -> Path:
@@ -49,25 +49,27 @@ def mesh2obj(pth_obj: Path, mesh: Mesh | Mapping[int, Mesh] | Sequence[Mesh]) ->
 
     fmt_vertices = "v %.10g %.10g %.10g"
 
-    with pth_obj.open("w", encoding="utf-8", newline="\n") as file:
-        file.write("# Written by PoreScene\n")
-        offset = 0
-        for m in meshes:
-            vertices = m.vertices
-            faces = m.faces
+    with _get_spinner(f"[green]Writing OBJ: {pth_obj.name}") as p:
+        p.add_task("obj", total=None)
+        with pth_obj.open("w", encoding="utf-8", newline="\n") as file:
+            file.write("# Written by PoreScene\n")
+            offset = 0
+            for m in meshes:
+                vertices = m.vertices
+                faces = m.faces
 
-            if vertices.ndim != 2 or vertices.shape[1] != 3:
-                raise ValueError("vertices must have shape (N, 3)")
-            if faces.ndim != 2:
-                raise ValueError("faces must have shape (M, K)")
+                if vertices.ndim != 2 or vertices.shape[1] != 3:
+                    raise ValueError("vertices must have shape (N, 3)")
+                if faces.ndim != 2:
+                    raise ValueError("faces must have shape (M, K)")
 
-            fmt_faces = "f " + " ".join(["%d"] * faces.shape[1])
+                fmt_faces = "f " + " ".join(["%d"] * faces.shape[1])
 
-            file.write(f"o {m.name}\n")
-            np.savetxt(file, vertices, fmt=fmt_vertices)
-            np.savetxt(file, faces + offset + 1, fmt=fmt_faces)
+                file.write(f"o {m.name}\n")
+                np.savetxt(file, vertices, fmt=fmt_vertices)
+                np.savetxt(file, faces + offset + 1, fmt=fmt_faces)
 
-            offset += len(vertices)
+                offset += len(vertices)
 
     return pth_obj
 
@@ -120,20 +122,23 @@ def mesh2ply(pth_ply: Path, mesh: Mesh, binary: bool = True) -> Path:
         ]
     )
 
-    if binary:
-        face_dtype = np.dtype([("count", "u1"), ("indices", "<i4", (n_corners,))])
-        faces_bin = np.empty(len(faces), dtype=face_dtype)
-        faces_bin["count"] = n_corners
-        faces_bin["indices"] = faces
-        with pth_ply.open("wb") as file:
-            file.write(header.encode("ascii"))
-            file.write(np.ascontiguousarray(vertices, dtype="<f4").tobytes())
-            file.write(faces_bin.tobytes())
-    else:
-        faces_ascii = np.hstack([np.full((len(faces), 1), n_corners, dtype=int), faces])
-        with pth_ply.open("w", encoding="utf-8", newline="\n") as file:
-            file.write(header)
-            np.savetxt(file, vertices, fmt="%.10g %.10g %.10g")
-            np.savetxt(file, faces_ascii, fmt="%d")
+    with _get_spinner(f"[green]Writing PLY: {pth_ply.name}") as p:
+        p.add_task("ply", total=None)
+        if binary:
+            face_dtype = np.dtype([("count", "u1"), ("indices", "<i4", (n_corners,))])
+            faces_bin = np.empty(len(faces), dtype=face_dtype)
+            faces_bin["count"] = n_corners
+            faces_bin["indices"] = faces
+            with pth_ply.open("wb") as file:
+                file.write(header.encode("ascii"))
+                file.write(np.ascontiguousarray(vertices, dtype="<f4").tobytes())
+                file.write(faces_bin.tobytes())
+        else:
+            counts = np.full((len(faces), 1), n_corners, dtype=int)
+            faces_ascii = np.hstack([counts, faces])
+            with pth_ply.open("w", encoding="utf-8", newline="\n") as file:
+                file.write(header)
+                np.savetxt(file, vertices, fmt="%.10g %.10g %.10g")
+                np.savetxt(file, faces_ascii, fmt="%d")
 
     return pth_ply
