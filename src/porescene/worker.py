@@ -590,9 +590,9 @@ def make_structure(
 
 
 def make_state(pth: Path, pn: PoreNetwork, sc: Scene):
-    do_spheres = sc.config_scene.enable_spheres and pn.pore_radius is not None
-    do_cylinders = sc.config_scene.enable_cylinders and pn.throat_radius is not None
-    do_clusters = sc.config_scene.enable_clusters
+    do_spheres = sc.config_scene.enable_spheres and sc.has_spheres
+    do_cylinders = sc.config_scene.enable_cylinders and sc.has_cylinders
+    do_clusters = sc.config_scene.enable_clusters and sc.has_clusters
     grad_dict = {}
     for conf in sc.config_scene:
         if conf.use_global_boundaries:
