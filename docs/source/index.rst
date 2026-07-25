@@ -154,6 +154,25 @@ Navigation
 
    publications
 
+Citation
+--------
+
+If you use PoreScene to generate figures for a publication, please cite it. Citation
+metadata is provided in the repository's ``CITATION.cff``, and the software is archived on
+Zenodo under a version-independent concept
+`DOI <https://doi.org/10.5281/zenodo.21494378>`_ that always resolves to the latest
+release. You can use the BibTeX entry below:
+
+.. code-block:: bibtex
+
+   @software{porescene,
+     author = {Faber, Felix and Vorhauer-Huget, Nicole},
+     title  = {{PoreScene}},
+     year   = {2026},
+     doi    = {10.5281/zenodo.21494378},
+     url    = {https://github.com/fefafe/porescene},
+   }
+
 Creators
 --------
 
