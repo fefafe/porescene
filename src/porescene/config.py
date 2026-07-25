@@ -516,6 +516,15 @@ class SceneConfiguration:
         self._material_cylinders = arg
 
     @property
+    def material_clusters(self) -> str:
+        """Returns the material type to render the clusters with."""
+        return self._material_clusters.upper()
+
+    @material_clusters.setter
+    def material_clusters(self, arg):
+        self._material_clusters = arg
+
+    @property
     def material_void(self) -> str:
         """Returns the material type to render the void with."""
         return self._material_void.upper()
