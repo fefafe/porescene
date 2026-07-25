@@ -25,7 +25,7 @@ papers, presentations, and animations.
 pip install porescene
 ```
 
-More detailed instructions are provided in the [documentation](porescene.readthedocs.io).
+More detailed instructions are provided in the [documentation](https://porescene.readthedocs.io).
 
 ## Citation
 
