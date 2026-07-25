@@ -588,7 +588,7 @@ class AxesConfiguration:
         self.font_size_labels = 0.5
         self.font_size_ticks = 0.4
         self.line_width = 0.03
-        self.distance = 0.06
+        self.spacing = 0.05
         self.tick_length = 0.15
         self.enable_ticks = (True, True, True)
         self.enable_ticks_minor = (True, True, True)
