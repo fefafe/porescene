@@ -22,14 +22,10 @@ papers, presentations, and animations.
 ## Installation
 
 ```console
-uv add porescene
-```
-
-or
-
-```console
 pip install porescene
 ```
+
+More detailed instructions are provided in the [documentation](porescene.readthedocs.io).
 
 ## Citation
 
