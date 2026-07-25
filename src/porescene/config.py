@@ -920,20 +920,20 @@ class AxesConfiguration:
     @property
     def font_size_labels(self) -> float:
         """Axis label font-size."""
-        return self._font_size
+        return self._font_size_labels
 
     @font_size_labels.setter
     def font_size_labels(self, arg: float):
-        self._font_size = arg
+        self._font_size_labels = arg
 
     @property
     def font_size_ticks(self) -> float:
         """Tick label font-size."""
-        return self._font_size
+        return self._font_size_ticks
 
     @font_size_ticks.setter
     def font_size_ticks(self, arg: float):
-        self._font_size = arg
+        self._font_size_ticks = arg
 
     @property
     def tick_length(self) -> float:
