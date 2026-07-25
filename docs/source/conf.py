@@ -30,8 +30,8 @@ extensions = [
     "colormap_strips",
 ]
 
-pygments_style = "ayu-light"
-pygments_dark_style = "ayu-dark"
+pygments_style = "porescene_pygments.PoreSceneLight"
+pygments_dark_style = "porescene_pygments.PoreSceneDark"
 
 napoleon_numpy_docstring = True
 napoleon_google_docstring = True
@@ -91,6 +91,7 @@ html_sidebars = {
 exclude_patterns = ["api/modules.rst"]
 
 from apa7_style import APAStyle  # type: ignore # noqa: E402
+
 register_plugin("pybtex.style.formatting", "apa7", APAStyle)
 
 bibtex_bibfiles = ["references.bib"]

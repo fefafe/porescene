@@ -361,29 +361,6 @@ img.ps-colormap-strip {
     box-shadow: none;
 }
 
-.highlight .c1 {
-    color: var(--color-ps-light-dark);
-    font-style: normal;
-}
-.highlight .kn,
-.highlight .k {
-    color: var(--color-fefafe-orange);
-}
-.highlight .s2 {
-    color: var(--color-fefafe-lightgreen);
-}
-.highlight .o {
-    color: var(--color-fefafe-yellow);
-}
-.highlight .mi,
-.highlight .mf,
-.highlight .kc {
-    color: var(--color-fefafe-red);
-}
-.highlight .nb {
-    color: var(--color-fefafe-purple);
-}
-
 .highlight,
 .literal-block-wrapper {
     border-radius: var(--ps-border-radius);
