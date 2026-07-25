@@ -13,35 +13,62 @@ few lines of Python and render it reproducibly on Blender's GPU-accelerated *Cyc
 engine -- so the same script always yields the same publication-quality figure, ready for
 papers, presentations, and animations.
 
-.. raw:: html
+.. carousel::
+   :interval: 2500
 
-   <div class="ps-carousel" data-interval="2500">
-     <div class="ps-carousel-track">
-       <figure class="ps-carousel-slide is-active">
-         <img src="_static/image/slide-0.png" alt="Solid structure of afreeze-dried maltodextrin solution captured with X-ray micro-computer tomographic imaging" loading="lazy">
-         <figcaption>Solid microstructure from X-ray micro-computer tomographic imaging.</figcaption>
-       </figure>
-       <figure class="ps-carousel-slide">
-         <img src="_static/image/slide-1.png" alt="Network structure" loading="lazy">
-         <figcaption>Basic network outline.</figcaption>
-       </figure>
-       <figure class="ps-carousel-slide">
-         <img src="_static/image/slide-2.png" alt="Describe render 1" loading="lazy">
-         <figcaption>Pore space segmentation.</figcaption>
-       </figure>
-       <figure class="ps-carousel-slide">
-         <img src="_static/image/slide-3.png" alt="PNM stick and ball representation" loading="lazy">
-         <figcaption>Pore network in stick and ball representation.</figcaption>
-       </figure>
-       <figure class="ps-carousel-slide">
-         <img src="_static/image/slide-4.png" alt="Pore coordination numbers" loading="lazy">
-         <figcaption>Visualization of pore coordination numbers with stepwise coloring.</figcaption>
-       </figure>
-     </div>
-     <button class="ps-carousel-btn ps-carousel-prev" type="button" aria-label="Previous slide">&#10094;</button>
-     <button class="ps-carousel-btn ps-carousel-next" type="button" aria-label="Next slide">&#10095;</button>
-     <div class="ps-carousel-dots"></div>
-   </div>
+   .. figure:: /_static/image/carousel/startpage/slide-0.png
+
+      Microstructure of a freeze-dried sugar solution.
+
+   .. figure:: /_static/image/carousel/startpage/slide-1.png
+
+      Pore and throat morphology of a artificial cuboid pore network.
+
+   .. figure:: /_static/image/carousel/startpage/slide-2.png
+
+      Simulated lactate concentration during biofilm growth.
+
+   .. figure:: /_static/image/carousel/startpage/slide-3.png
+      :alt: PNM stick and ball representation
+
+      Pore space tessellation of a reconstructed X-ray µ-CT image of a rock.
+
+   .. figure:: /_static/image/carousel/startpage/slide-4.png
+      :alt: Pore coordination numbers
+
+      Microstructure of a graded titanium felt used in PEM water electrolyzers.
+
+   .. figure:: /_static/image/carousel/startpage/slide-5.png
+
+      Oxygen concentration during Fickian diffusion.
+
+   .. figure:: /_static/image/carousel/startpage/slide-6.png
+
+      Pore coordination numbers of a reconstructed pore network from wood.
+
+   .. figure:: /_static/image/carousel/startpage/slide-7.png
+
+      Pore clusters of a regular pore network.
+
+   .. figure:: /_static/image/carousel/startpage/slide-8.png
+
+      Ice saturation in the pore space during freeze-drying.
+
+   .. figure:: /_static/image/carousel/startpage/slide-9.png
+
+      Structure of an *in-silico* computed biofilm.
+
+   .. figure:: /_static/image/carousel/startpage/slide-10.png
+
+      Pore and throat diameters of a regular pore network.
+
+   .. figure:: /_static/image/carousel/startpage/slide-11.png
+
+      Packed bed of monodisperse alumina spheres.
+
+   .. figure:: /_static/image/carousel/startpage/slide-12.png
+
+      Microstructure of a European beech wood sphere.
 
 Navigation
 ----------
