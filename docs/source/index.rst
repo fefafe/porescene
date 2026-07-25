@@ -22,7 +22,7 @@ papers, presentations, and animations.
 
    .. figure:: /_static/image/carousel/startpage/slide-1.png
 
-      Pore and throat morphology of a artificial cuboid pore network.
+      Pore and throat morphology of a reconstructed pore network.
 
    .. figure:: /_static/image/carousel/startpage/slide-2.png
 
