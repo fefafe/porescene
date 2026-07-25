@@ -473,7 +473,7 @@ table.docutils th {
     background: var(--color-background-secondary);
     border-radius: var(--ps-border-radius);
     border-left: none;
-    box-shadow: 0 0 0.2rem rgba(0, 0, 0, 0.4) inset;
+    box-shadow: 0 0 0.5rem rgba(0, 0, 0, 0.4) inset;
     margin: 1rem auto;
     overflow: hidden;
     padding: var(--ps-padding-tile);
