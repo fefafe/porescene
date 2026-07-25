@@ -16,7 +16,7 @@ This module bundles the settings used throughout :mod:`porescene`:
 """
 
 import math
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Iterator, Sequence
 from importlib import resources
 from pathlib import Path
 from typing import Self
@@ -395,23 +395,13 @@ class SceneConfiguration:
         self.versions_solid = versions_solid
         self.versions_void = versions_void
 
-    def __iter__(self) -> Self:
-        """Resets and returns the iterator over the configured properties."""
-        self.__i = 0
-        return self
+    def __iter__(self) -> Iterator[PropertyConfiguration]:
+        """Returns a fresh iterator over the configured properties."""
+        return iter(self._properties)
 
     def __len__(self) -> int:
         """Returns the number of configured properties."""
         return len(self._properties)
-
-    def __next__(self) -> PropertyConfiguration:
-        """Returns the next :class:`PropertyConfiguration` while iterating."""
-        if self.__i < len(self._properties) and self.__i >= 0:
-            prop = self._properties[self.__i]
-            self.__i += 1
-            return prop
-        else:
-            raise StopIteration
 
     def __setitem__(self, _, prop: PropertyConfiguration):
         """Adds a :class:`PropertyConfiguration`, see :meth:`add_property`."""
