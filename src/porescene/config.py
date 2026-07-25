@@ -585,11 +585,11 @@ class AxesConfiguration:
         self._tick_interval = tick_interval
         self._unit_display = unit_display
 
-        self.font_size_labels = 1
-        self.font_size_ticks = 0.6
-        self.line_width = 0.05
-        self.distance = 0.1
-        self.tick_length = 0.2
+        self.font_size_labels = 0.5
+        self.font_size_ticks = 0.4
+        self.line_width = 0.03
+        self.distance = 0.06
+        self.tick_length = 0.15
         self.enable_ticks = (True, True, True)
         self.enable_ticks_minor = (True, True, True)
         self.enable_labels_ticks = None
@@ -699,7 +699,7 @@ class AxesConfiguration:
             "font_size_labels",
             "font_size_ticks",
             "line_width",
-            "distance",
+            "spacing",
             "tick_length",
             "label_x",
             "label_y",
@@ -924,6 +924,20 @@ class AxesConfiguration:
     @font_size_ticks.setter
     def font_size_ticks(self, arg: float):
         self._font_size_ticks = arg
+
+    @property
+    def spacing(self) -> float:
+        """
+        Gap kept around the axes, in scene units.
+
+        Offsets the axis lines from the volume and the tick labels from the outer
+        end of their ticks, so neither sits flush against what it belongs to.
+        """
+        return self._spacing
+
+    @spacing.setter
+    def spacing(self, arg: float):
+        self._spacing = arg
 
     @property
     def tick_length(self) -> float:

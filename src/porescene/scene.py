@@ -207,7 +207,7 @@ class Scene:
         """
         cfg = self.config_axes
         lw = cfg.line_width
-        d = cfg.distance
+        d = cfg.spacing
         sbb = self.size_bounding_box
         sx, sy, sz = self.shift
         ax, ay, az = self.aspect
@@ -446,7 +446,7 @@ class Scene:
 
             label = str(round(value, spec.precision)).rstrip("0").rstrip(".")
             label_loc = list(loc)
-            label_loc[spec.label_dim] += cfg.distance + cfg.tick_length
+            label_loc[spec.label_dim] += cfg.spacing + cfg.tick_length
             self._add_text(
                 col,
                 font,

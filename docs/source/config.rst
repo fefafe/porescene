@@ -58,7 +58,7 @@ and adapt:
            "tick_length": 0.15,
            "tick_interval": 20,
            "precision": [2, 2, 2],
-           "distance": 0.06,
+           "spacing": 0.06,
            "unit_display": "MICRO"
        },
        "image": {
@@ -110,7 +110,7 @@ Controls the to-scale axes drawn around the scene, mapping onto
 only govern how that calibration is *displayed* -- the shown unit, tick spacing, precision,
 and geometry.
 
-Lengths such as ``line_width``, ``tick_length``, and ``distance`` are expressed in **scene
+Lengths such as ``line_width``, ``tick_length``, and ``spacing`` are expressed in **scene
 units**, where the longest edge of the model is normalized to a length of ``10``. Per-axis
 keys accept either a single value (applied to all three axes) or a three-element list ordered
 ``[x, y, z]``.
@@ -175,24 +175,25 @@ keys accept either a single value (applied to all three axes) or a three-element
        giving 3 minor ticks.
    * - ``font_size_labels``
      - float
-     - ``1.5``
+     - ``0.6``
      - Font size of the axis labels, in scene units.
    * - ``font_size_ticks``
      - float
-     - ``1``
+     - ``0.5``
      - Font size of the tick labels, in scene units.
    * - ``line_width``
      - float
-     - ``0.1``
+     - ``0.04``
      - Thickness of the axis lines, in scene units.
+   * - ``spacing``
+     - float
+     - ``0.06``
+     - Gap kept around the axes, in scene units. Offsets the axis lines from the model's
+       bounding box and the tick labels from the outer end of their ticks.
    * - ``tick_length``
      - float
-     - ``0.3``
-     - Length of the tick marks, in scene units.
-   * - ``distance``
-     - float
      - ``0.2``
-     - Gap between the model's bounding box and the axes, in scene units.
+     - Length of the tick marks, in scene units.
    * - ``label_x``, ``label_y``, ``label_z``
      - str
      - auto
