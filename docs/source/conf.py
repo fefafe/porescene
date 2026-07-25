@@ -2,6 +2,7 @@ import sys
 import tomllib
 from pathlib import Path
 
+import yaml
 from pybtex.plugin import register_plugin
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
@@ -18,6 +19,33 @@ copyright = (
 )
 release = _pyproject["project"]["version"]
 version = release
+
+# --- Citation metadata for the Zotero Connector -----------------------------
+# Sourced from CITATION.cff (single source of truth) and injected into the HTML
+# <head> by _templates/page.html, so readthedocs.io is recognised as software.
+with (Path(__file__).resolve().parents[2] / "CITATION.cff").open(encoding="utf-8") as f:
+    _citation = yaml.safe_load(f)
+
+
+def _cff_author(entry: dict) -> str:
+    """Render one CITATION.cff author as ``Family, Given`` for citation_author."""
+    family = str(entry.get("family-names", "")).strip()
+    given = str(entry.get("given-names", "")).strip()
+    if family and given:
+        return f"{family}, {given}"
+    return family or given or str(entry.get("name", "")).strip()
+
+
+html_context = {
+    "zotero_meta": {
+        "title": _citation.get("title", project),
+        "version": str(_citation.get("version", release)),
+        "date": str(_citation.get("date-released", "")),
+        "doi": str(_citation.get("doi", "")),
+        "url": _citation.get("url", ""),
+        "authors": [_cff_author(a) for a in _citation.get("authors", [])],
+    }
+}
 
 extensions = [
     "sphinx.ext.autodoc",

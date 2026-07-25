@@ -1,0 +1,33 @@
+{% extends "!page.html" %}
+{#-
+  Bibliographic metadata for the Zotero Connector (and other reference tools).
+
+  Values come from CITATION.cff via html_context["zotero_meta"] (see conf.py),
+  so there is nothing to hand-update here on a release.
+-#}
+{% block extrahead %}
+  {{ super() }}
+{%- if zotero_meta is defined %}
+  {#- Zotero's own item-type override (top priority in its RDF type detection). -#}
+  <meta name="z:itemType" content="computerProgram">
+  {#- Dublin Core fallback: dc:type "software" also maps to computerProgram. -#}
+  <meta name="dc:type" content="software">
+  <meta name="citation_title" content="{{ zotero_meta.title|e }}">
+{%- for author in zotero_meta.authors %}
+  <meta name="citation_author" content="{{ author|e }}">
+{%- endfor %}
+{%- if zotero_meta.version %}
+  {#- z:versionNumber maps straight to the computerProgram "Version" field. -#}
+  <meta name="z:versionNumber" content="{{ zotero_meta.version|e }}">
+{%- endif %}
+{%- if zotero_meta.date %}
+  <meta name="citation_publication_date" content="{{ zotero_meta.date|e }}">
+{%- endif %}
+{%- if zotero_meta.doi %}
+  <meta name="citation_doi" content="{{ zotero_meta.doi|e }}">
+{%- endif %}
+{%- if zotero_meta.url %}
+  <meta name="citation_public_url" content="{{ zotero_meta.url|e }}">
+{%- endif %}
+{%- endif %}
+{% endblock %}
