@@ -2,11 +2,14 @@
 name = "porescene"
 version = "0.2.0"
 description = "Blender-based Python toolkit for reproducible, publication-quality 3D visualization of porous media – tomographic images, pore networks, and tessellations."
-authors = [{ name = "Felix Faber", email = "felix.faber@ovgu.de" }]
+authors = [
+    { name = "Felix Faber", email = "felix.faber@ovgu.de" },
+    { name = "Nicole Vorhauer-Huget", email = "nicole.vorhauer-huget@ovgu.de" },
+]
 readme = "README.md"
 license = "GPL-3.0-only"
 license-files = ["LICENSE"]
-requires-python = "==3.13.*"
+requires-python = ">=3.13,<3.14"
 dependencies = [
     "bpy",
     "numpy",
