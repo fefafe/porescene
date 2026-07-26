@@ -49,6 +49,23 @@ class _AxisSpec(NamedTuple):
 
 
 class Scene:
+    # Three-point lighting rig as ``(name, energy, softness angle, azimuth
+    # offset from the camera, elevation)``, angles in degrees. The offsets are
+    # relative to the camera, which keeps the rig valid at any azimuth.
+    #
+    # The key sits far enough to one side (+70 degrees) that it only ever
+    # reaches the bounding box face on the camera's right, while the weaker
+    # fill only reaches the face on its left. That split is what makes the
+    # near vertical edge readable: the two faces meeting at it stay a factor
+    # 0.53-0.82 apart in irradiance at every camera azimuth, instead of coming
+    # out equally lit and merging into one flat silhouette. The rim
+    # works from behind and above and only grazes the silhouette edges.
+    _LIGHT_RIG = (
+        ("Key_Light", 6.0, 12, 70, 40),
+        ("Fill_Light", 3.0, 35, -40, 30),
+        ("Rim_Light", 3.0, 10, -150, 50),
+    )
+
     def __init__(self, extent: np.ndarray) -> None:
         """
         Creates an empty :class:`Scene`, wiping Blender's default scene contents and
@@ -517,6 +534,11 @@ class Scene:
         center = self.size_bounding_box / 2
         x, y, _ = bpy.data.objects["Camera"].location
         self._ang_azimuth = math.degrees(math.atan2(y - center, x - center))
+
+        # the lightning rig is aligned with the camera, so a later view change has to
+        # bring the lamps along
+        if self.has_lights:
+            self._aim_lights()
         return self
 
     def create_cells(
@@ -800,27 +822,54 @@ class Scene:
 
         return group
 
+    @staticmethod
+    def _sun_euler(azimuth: float, elevation: float) -> tuple[float, float, float]:
+        """
+        Converts the direction a sun lamp shines *from* into its rotation.
+
+        ``azimuth`` is measured in the xy plane counter-clockwise from the +x
+        axis, ``elevation`` above the horizon, both in degrees, so a positive
+        elevation always puts the lamp above the scene. A sun lamp emits along
+        its local -Z, so an XYZ euler ``(rx, 0, rz)`` lights the scene from
+        ``(sin(rz)sin(rx), -cos(rz)sin(rx), cos(rx))``; matching that against
+        ``(cos(el)cos(az), cos(el)sin(az), sin(el))`` gives the rotation below.
+        """
+        return (math.radians(90 - elevation), 0.0, math.radians(azimuth + 90))
+
+    def _aim_lights(self) -> None:
+        """
+        Aims every lamp of the rig at the stage, using its azimuth offset
+        relative to the camera's current azimuth.
+        """
+        for name, _, _, d_azimuth, elevation in self._LIGHT_RIG:
+            obj = bpy.data.objects.get(name)
+            if obj is not None:
+                obj.rotation_euler = self._sun_euler(
+                    self._ang_azimuth + d_azimuth, elevation
+                )
+
     def create_lights(self) -> Self:
         """
         Adds all nessecary lightnings to the scene.
+
+        The lamps form a three-point rig anchored to the camera's azimuth (see
+        :attr:`_LIGHT_RIG`), so key and fill land on the side of the stage the
+        camera actually looks at instead of on fixed world directions that may
+        end up behind or underneath it. :meth:`rotate_azimuth` turns the lamps
+        with the camera, which keeps that anchoring intact.
         """
         col = bpy.data.collections.get("Lights")
         if not col:
             col = bpy.data.collections.new("Lights")
             bpy.context.scene.collection.children.link(col)
 
-        def add_sun(name, energy, angle_deg, rot_deg):
+        for name, energy, angle_deg, _, _ in self._LIGHT_RIG:
             light_data = bpy.data.lights.new(name=name, type="SUN")
             light_data.energy = energy
             light_data.angle = math.radians(angle_deg)
-            obj = bpy.data.objects.new(name, light_data)
-            obj.rotation_euler = tuple(math.radians(a) for a in rot_deg)
-            col.objects.link(obj)
-            return obj
+            col.objects.link(bpy.data.objects.new(name, light_data))
 
-        add_sun("Key_Light", energy=4.0, angle_deg=15, rot_deg=(-55, 0, -70))
-        add_sun("Fill_Light", energy=2.5, angle_deg=30, rot_deg=(-50, 0, 110))
-        add_sun("Rim_Light", energy=2.0, angle_deg=10, rot_deg=(140, 0, 20))
+        self._aim_lights()
 
         world = bpy.context.scene.world
         if world is None:
@@ -830,7 +879,7 @@ class Scene:
         bg = world.node_tree.nodes.get("Background")
         if bg:
             bg.inputs["Color"].default_value = (1.0, 1.0, 1.0, 1.0)
-            bg.inputs["Strength"].default_value = 0.15
+            bg.inputs["Strength"].default_value = 0.35
 
         self.has_lights = True
         return self
