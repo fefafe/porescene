@@ -64,6 +64,10 @@ class MultiplicationSymbol(Enum):
 
 
 class UnitExponentMetric(Enum):
+    """
+    Decadic exponent of each metric prefix. ``BASE`` denotes the unprefixed unit.
+    """
+
     QUETTA = 30
     RONNA = 27
     YOTTA = 24
@@ -76,6 +80,7 @@ class UnitExponentMetric(Enum):
     KILO = 3
     HECTO = 2
     DECA = 1
+    BASE = 0
     DECI = -1
     CENTI = -2
     MILLI = -3
@@ -91,6 +96,10 @@ class UnitExponentMetric(Enum):
 
 
 class UnitPrefixMetric(Enum):
+    """
+    Symbol of each metric prefix. ``BASE`` is the unprefixed unit and carries no symbol.
+    """
+
     QUETTA = "Q"
     RONNA = "R"
     YOTTA = "Y"
@@ -103,6 +112,7 @@ class UnitPrefixMetric(Enum):
     KILO = "k"
     HECTO = "h"
     DECA = "da"
+    BASE = ""
     DECI = "d"
     CENTI = "c"
     MILLI = "m"
