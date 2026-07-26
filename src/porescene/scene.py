@@ -489,6 +489,10 @@ class Scene:
         sbb = self.size_bounding_box
         pos = spec.positions
 
+        if len(pos) < 2:
+            # a single major tick has no adjacent tick to derive a spacing from
+            return
+
         if spec.minor_special and cfg.num_ticks_minor == 1:
             spacing = pos[1] - pos[0] / 2
         else:
