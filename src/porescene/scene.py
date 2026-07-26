@@ -461,7 +461,9 @@ class Scene:
             if idx == 0 and spec.hide_first_label:
                 continue
 
-            label = str(round(value, spec.precision)).rstrip("0").rstrip(".")
+            # the value is coerced to float so that an integer tick keeps its trailing
+            # zeros, which the stripping below would otherwise eat along with the dot
+            label = str(round(float(value), spec.precision)).rstrip("0").rstrip(".")
             label_loc = list(loc)
             label_loc[spec.label_dim] += cfg.spacing + cfg.tick_length
             self._add_text(
