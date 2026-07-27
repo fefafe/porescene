@@ -560,7 +560,7 @@ class AxesConfiguration:
         self,
         extent: np.ndarray,
         tick_interval: float | None = None,
-        unit_display: str = "MICRO",
+        unit_display: str | None = None,
         num_ticks: int = 6,
     ) -> None:
         """
@@ -573,9 +573,10 @@ class AxesConfiguration:
         tick_interval : float | None
             Spacing between major ticks, expressed in the displayed unit. Derived
             from ``extent`` when ``None``, see :attr:`tick_interval`.
-        unit_display : str
+        unit_display : str | None
             Metric prefix of the displayed tick values and axis labels, one of the
-            names of :class:`~porescene.utility.UnitPrefixMetric`.
+            names of :class:`~porescene.utility.UnitPrefixMetric`. Derived from
+            ``extent`` when ``None``, see :attr:`unit_display`.
         num_ticks : int
             Number of major ticks aimed for along the longest axis, see
             :attr:`num_ticks`. Sizes the derived ``tick_interval``, so it takes
@@ -583,6 +584,10 @@ class AxesConfiguration:
         """
         self._extent = np.asarray(extent, dtype=float)
         self._tick_interval = tick_interval
+
+        if unit_display is None:
+            unit_display = self._unit_metric(float(max(self._extent)))
+
         self._unit_display = unit_display
 
         self.font_size_labels = 0.5
@@ -593,7 +598,7 @@ class AxesConfiguration:
         self.enable_ticks = (True, True, True)
         self.enable_ticks_minor = (True, True, True)
         self.enable_labels_ticks = None
-        self.precision = (0, 0, 0)
+        self.precision = None
         self.indent_ticks = False
         self.num_ticks = num_ticks
         self.num_ticks_minor = None
@@ -608,6 +613,52 @@ class AxesConfiguration:
         self._calibrate()
 
     @staticmethod
+    def _decimals(ticks: Sequence[float], limit: int = 6) -> int:
+        """
+        Returns the smallest number of decimals, at most ``limit``, that writes every
+        value of ``ticks`` exactly.
+
+        A value counts as written exactly once rounding it no longer changes it, judged
+        with a relative tolerance so that the binary representation of a decimal step --
+        ``0.3`` arriving as ``0.30000000000000004`` -- does not claim digits of its own.
+        """
+        digits = 0
+        for tick in ticks:
+            while digits < limit and not math.isclose(round(tick, digits), tick):
+                digits += 1
+
+        return digits
+
+    @staticmethod
+    def _unit_metric(span: float) -> str:
+        """
+        Returns the name of the metric prefix that ``span``, in meters, reads best in,
+        so the displayed unit follows the size of the domain instead of being fixed.
+
+        The prefix is the one that scales ``span`` into ``[10, 10000)``, keeping the
+        tick values two to four digits long. Only the prefixes of the engineering
+        series are considered -- those of :class:`~porescene.utility.UnitExponentMetric`
+        whose exponent is a multiple of three, from ``QUECTO`` through ``BASE`` up to
+        ``QUETTA`` -- since a length is commonly given in those. Aiming above ``10``
+        rather than above ``1`` also keeps the derived :attr:`tick_interval` a whole
+        number, so the tick labels come out free of decimals.
+
+        Falls back to ``MICRO`` for a degenerate span, and is clamped to the outermost
+        prefixes for a span beyond their reach.
+        """
+        if not math.isfinite(span) or span <= 0:
+            return "MICRO"
+
+        units = {
+            unit.value: unit.name for unit in UnitExponentMetric if unit.value % 3 == 0
+        }
+
+        exponent = 3 * math.floor((math.log10(span) - 1) / 3)
+        exponent = min(max(exponent, min(units)), max(units))
+
+        return units[exponent]
+
+    @staticmethod
     def _interval_round(span: float, num_ticks: int) -> float:
         """
         Returns the tick interval from the 1-2-5-10 series that splits ``span`` into
@@ -616,8 +667,8 @@ class AxesConfiguration:
         The exact spacing ``span / (num_ticks - 1)`` is rounded to the closest member
         of the series, following Heckbert's *Nice Numbers for Graph Labels*. Sticking
         to that series keeps the ticks whole numbers in the displayed unit, which a
-        finer series such as 1-2-2.5-5-10 would not, and the tick labels are rendered
-        at a fixed :attr:`precision` that cannot show the extra digit.
+        finer series such as 1-2-2.5-5-10 would not, so the labels read without the
+        decimal that such a step would drag onto every one of them.
         """
         if not math.isfinite(span) or span <= 0:
             return 1.0
@@ -691,7 +742,7 @@ class AxesConfiguration:
         ins = cls(
             extent,
             tick_interval=data.get("tick_interval"),
-            unit_display=data.get("unit_display", "MICRO"),
+            unit_display=data.get("unit_display"),
             num_ticks=data.get("num_ticks", 6),
         )
 
@@ -739,6 +790,22 @@ class AxesConfiguration:
         return self._interval
 
     @property
+    def unit_display(self) -> str:
+        """
+        Metric prefix of the displayed tick values and axis labels.
+
+        The prefix is automatically derived from :attr:`extent`: it is the one of the
+        engineering series that scales the longest axis into ``[10, 10000)``, so the tick
+        values stay two to four digits long and a domain of, say, ``2e-03`` m is labelled
+        in µm rather than in mm.
+        """
+        return self._unit_display
+
+    @unit_display.setter
+    def unit_display(self, arg: str):
+        self._unit_display = arg
+
+    @property
     def factor(self) -> tuple[float, float, float]:
         """Factor to scale axis labels."""
         return self._factor
@@ -749,11 +816,33 @@ class AxesConfiguration:
 
     @property
     def precision(self) -> tuple[int, int, int]:
-        """Precision of axis labels. Applies after scaling."""
-        return self._precision
+        """
+        Number of decimals on the tick labels, per axis. Applies after scaling.
+
+        When set to ``None``, the precision is derived per axis from the tick values
+        themselves: it is the smallest number of decimals that still writes every tick
+        of that axis exactly, capped at six decimals. Ticks calibrated from
+        :attr:`extent` land on whole numbers in the displayed unit and so need none,
+        while ones that do not -- an explicit :attr:`tick_interval` of ``2.5``, an
+        explicit tick list, or a :attr:`unit_display` coarser than the domain -- get
+        just enough decimals to stay distinct instead of collapsing onto each other.
+
+        Since trailing zeros are dropped when a label is rendered, a precision above
+        what a tick needs is harmless; one below it silently rounds the label away.
+        """
+        if self._precision is not None:
+            return self._precision
+
+        return (
+            self._decimals(self.ticks_x),
+            self._decimals(self.ticks_y),
+            self._decimals(self.ticks_z),
+        )
 
     @precision.setter
-    def precision(self, arg: tuple[int, int, int]):
+    def precision(self, arg: int | tuple[int, int, int] | None):
+        if isinstance(arg, int):
+            arg = (arg, arg, arg)
         self._precision = arg
 
     @property

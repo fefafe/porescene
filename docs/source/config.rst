@@ -125,10 +125,14 @@ keys accept either a single value (applied to all three axes) or a three-element
      - Description
    * - ``unit_display``
      - str
-     - ``"MICRO"``
+     - auto
      - Metric prefix used for the displayed tick values and axis labels, e.g.
-       ``"MICRO"`` → µm, ``"MILLI"`` → mm, ``"NANO"`` → nm. Must be one of the names of
-       :class:`~porescene.utility.UnitPrefixMetric` (uppercase).
+       ``"MICRO"`` → µm, ``"MILLI"`` → mm, ``"NANO"`` → nm, ``"BASE"`` → m. Must be one of
+       the names of :class:`~porescene.utility.UnitPrefixMetric` (uppercase). If omitted,
+       the prefix is derived from ``dims``: the one of the engineering series --
+       ``NANO``, ``MICRO``, ``MILLI``, ``BASE``, ``KILO``, ... -- that scales the longest
+       axis to a value between ``10`` and ``10000``, so the tick values stay two to four
+       digits long.
    * - ``tick_interval``
      - number
      - auto
@@ -139,9 +143,14 @@ keys accept either a single value (applied to all three axes) or a three-element
        scale and a shorter axis carries fewer of them.
    * - ``precision``
      - int or list[int]
-     - ``[0, 0, 0]``
+     - auto
      - Number of decimal places on the tick labels, per axis. Applied after the values are
-       scaled into the displayed unit.
+       scaled into the displayed unit. If omitted, it is derived per axis from the tick
+       values: just enough decimals to write every tick of that axis exactly, capped at
+       ``6``. Ticks calibrated from ``dims`` are whole numbers and need none, while a
+       fractional ``tick_interval``, an explicit tick list, or a ``unit_display`` coarser
+       than the sample get the decimals they need. Trailing zeros are dropped when a label
+       is rendered, so a value above what a tick needs is harmless.
    * - ``enable_ticks``
      - bool or list[bool]
      - ``[true, true, true]``
