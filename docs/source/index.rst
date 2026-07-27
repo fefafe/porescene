@@ -15,6 +15,7 @@ papers, presentations, and animations.
 
 .. carousel::
    :interval: 2500
+   :copyright: Felix Faber / OVGU, Transport in Porous Media
 
    .. figure:: /_static/image/carousel/startpage/slide-0.png
 
