@@ -67,4 +67,23 @@ Static visualizations
 Animations
 ----------
 
-Coming soon ...
+.. raw:: html
+
+   <div class="ps-tiles col-2">
+     <a class="ps-tile" href="examples/animation_solid.html">
+       <video class="ps-tile-image" autoplay loop muted playsinline preload="metadata"
+              poster="_static/image/example/solid+axes.png"
+              aria-label="Turntable animation of a solid pore structure orbited by the camera">
+         <source src="_static/video/solid+axes.mp4" type="video/mp4">
+       </video>
+       <div class="ps-example-caption">
+         <h3 class="ps-tile-title">Rotating solid structure</h3>
+         <p class="ps-tile-desc">Orbit the camera around a solid pore structure, render every step as a frame, and encode the sequence into a seamlessly looping MP4.</p>
+       </div>
+     </a>
+   </div>
+
+.. toctree::
+   :hidden:
+
+   examples/animation_solid

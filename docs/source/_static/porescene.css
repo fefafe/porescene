@@ -289,9 +289,10 @@ figure.ps-figure {
     overflow: hidden;
 }
 
-figure.ps-figure img {
+figure.ps-figure img,
+figure.ps-figure video.ps-video {
     display: block;
-    width: 100%;
+    width: calc(100% - 3rem);
     aspect-ratio: 3 / 2;
     object-fit: contain;
     margin: 0;
@@ -525,7 +526,7 @@ p.topic-title::before {
     margin: 1.5rem 0 2.5rem;
 }
 .ps-tiles.col-2 {
-    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
 }
 
 .ps-tile {
