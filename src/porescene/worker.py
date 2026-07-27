@@ -357,21 +357,27 @@ def make_radius(
     prop = PoreNetworkProperty("radius")
 
     # collect throat radiii
-    if pn.throat_radius is not None:
+    if do_cylinders and pn.throat_radius is not None:
         r_t = pn.throat_radius
 
-    for b_name, b_value in sc._boundary_cylinder.items():
-        if b_value:
-            if getattr(pn, f"throat_radius_{b_name}") is not None:
-                r_t = np.concatenate([r_t, getattr(pn, f"throat_radius_{b_name}")])
-            else:
-                raise Exception(
-                    "Missing data: make sure that PoreNetwork.throat_radius_"
-                    f"{b_name} and PoreNetwork.pore_position_{b_name} are not "
-                    "empty."
-                )
+        for b_name, b_value in sc._boundary_cylinder.items():
+            if b_value:
+                if getattr(pn, f"throat_radius_{b_name}") is not None:
+                    r_t = np.concatenate([r_t, getattr(pn, f"throat_radius_{b_name}")])
+                else:
+                    raise Exception(
+                        "Missing data: make sure that PoreNetwork.throat_radius_"
+                        f"{b_name} and PoreNetwork.pore_position_{b_name} are not "
+                        "empty."
+                    )
 
-    prop.set_data(pn.pore_radius, r_t)
+    # collect throat radiii
+    if do_spheres and pn.pore_radius is not None:
+        r_p = pn.pore_radius
+    else:
+        r_p = None
+
+    prop.set_data(r_p, r_t)
 
     # setup colorbar
     mn, mx = _get_bounds(prop.min, prop.max, conf.precision, conf.factor)
@@ -384,8 +390,8 @@ def make_radius(
         do_spheres,
         do_cylinders,
         False,
-        grad(prop.pore_values),
-        grad(prop.throat_values),
+        grad(prop.pore_values) if do_spheres else [],
+        grad(prop.throat_values) if do_cylinders else [],
         [],
         "radius",
         "radius",
