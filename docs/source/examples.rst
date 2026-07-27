@@ -51,6 +51,13 @@ Static visualizations
          <p class="ps-tile-desc">Tell individual pores and throats apart with a random identity coloring, comparing a continuous and a qualitative palette.</p>
        </div>
      </a>
+     <a class="ps-tile" href="examples/network_state.html">
+       <img class="ps-tile-image" src="_static/image/carousel/example/cylinder-concentration+sphere-concentration+axes+state-700.png" alt="Pore network with pores and throats colored by concentration at one simulation state" loading="lazy">
+       <div class="ps-example-caption">
+         <h3 class="ps-tile-title">Network states</h3>
+         <p class="ps-tile-desc">Render a series of simulation states, coloring the pores and throats by concentration on one fixed color scale.</p>
+       </div>
+     </a>
    </div>
 
 .. toctree::
@@ -62,6 +69,7 @@ Static visualizations
    examples/network_morphology
    examples/network_coordination_number
    examples/network_random
+   examples/network_state
 
 
 Animations
