@@ -3,8 +3,8 @@ message: "If you use this software, please cite it as below."
 title: "PoreScene"
 abstract: "Blender-based Python toolkit for reproducible, publication-quality 3D visualization of porous media – tomographic images, pore networks, and tessellations."
 type: software
-version: 0.2.0
-date-released: 2026-07-22
+version: 0.3.0
+date-released: 2026-07-28
 license: GPL-3.0-only
 doi: 10.5281/zenodo.21494378
 authors:
