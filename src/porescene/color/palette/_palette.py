@@ -4,6 +4,7 @@
 
 import random
 import re
+from collections.abc import Iterator
 from enum import Enum
 from importlib import resources
 from typing import Self
@@ -200,20 +201,11 @@ class Palette:
     def __init__(self, colors: list[Color]) -> None:
         self.colors = colors
 
-    def __iter__(self) -> Self:
-        self.__i = 0
-        return self
+    def __iter__(self) -> Iterator[Color]:
+        return iter(self.colors)
 
     def __len__(self) -> int:
         return len(self.colors)
-
-    def __next__(self) -> Color:
-        if self.__i < len(self.colors) and self.__i >= 0:
-            color = self.colors[self.__i]
-            self.__i += 1
-            return color
-        else:
-            raise StopIteration
 
     @classmethod
     def load(cls, name: str | Colormap) -> Self:
@@ -244,7 +236,6 @@ class Palette:
         ref = resources.files("porescene").joinpath("data/colormap/" + name + ".txt")
 
         with resources.as_file(ref) as pth:
-
             colors = np.fromfile(pth, sep=" ").reshape((-1, 3))
 
             for color in colors:
@@ -293,7 +284,7 @@ class Palette:
             Number of colors to return, by default 1
         """
         colors = []
-        for k in range(n):
+        for _ in range(n):
             colors.append(random.choice(self.colors))
         return colors
 
