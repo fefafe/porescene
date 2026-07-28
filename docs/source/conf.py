@@ -123,6 +123,6 @@ from apa7_style import APAStyle  # type: ignore # noqa: E402
 
 register_plugin("pybtex.style.formatting", "apa7", APAStyle)
 
-bibtex_bibfiles = ["references.bib"]
+bibtex_bibfiles = ["references.bib", "publications.bib"]
 bibtex_default_style = "apa7"
 bibtex_reference_style = "label"
