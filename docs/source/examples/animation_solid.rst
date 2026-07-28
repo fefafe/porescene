@@ -167,7 +167,7 @@ Two details matter for the frames to form a stable video:
    frames.
 
 
-1. Encode the video
+5. Encode the video
 ^^^^^^^^^^^^^^^^^^^
 
 With all frames on disk, :func:`~porescene.image.frames2mp4` encodes them into an MP4
