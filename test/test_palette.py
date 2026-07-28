@@ -91,11 +91,6 @@ def test_palette_can_be_iterated_more_than_once(palette):
     assert len(list(palette)) == len(list(palette)) == len(palette)
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="__iter__ returns self and shares one cursor, so two concurrent "
-    "iterations over the same palette consume each other's items",
-)
 def test_concurrent_iterations_are_independent(palette):
     assert len(list(zip(palette, palette, strict=True))) == len(palette)
 
