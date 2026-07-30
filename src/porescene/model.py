@@ -96,6 +96,7 @@ class PoreNetworkState:
 
     def __init__(self) -> None:
         self._properties = []
+        self.time_point = None
 
     def __iter__(self) -> Self:
         self.__i = 0
@@ -153,16 +154,14 @@ class PoreNetworkState:
         return idx
 
     @property
-    def time_points(self) -> list[float]:
-        return self._time_points
-
-    @time_points.setter
-    def time_points(self, arg: list[float]) -> Self:
-        self._time_points = arg
-        return self
-
-    @property
     def no(self) -> int:
+        """
+        Index of the state in the source data, e.g. the column of the ``.mat`` variable
+        its values were read from.
+
+        Identifies *which* sample the state is, not *when* it happened -- see
+        :attr:`time_point` for the physical time.
+        """
         return self._no
 
     @no.setter
@@ -172,11 +171,32 @@ class PoreNetworkState:
 
     @property
     def properties(self) -> list[PoreNetworkProperty]:
+        """
+        The properties held by the state.
+        """
         return self._properties
 
-    @time_points.setter
-    def time_points(self, arg: list[PoreNetworkProperty]) -> Self:
+    @properties.setter
+    def properties(self, arg: list[PoreNetworkProperty]) -> Self:
         self._properties = arg
+        return self
+
+    @property
+    def time_point(self) -> float | None:
+        """
+        Physical time the state describes, or ``None`` when the source data carries no
+        time information.
+
+        Computed results are commonly written at irregular intervals, so the spacing
+        between the time points of consecutive states need not be constant, and it is
+        generally unrelated to the spacing of their :attr:`no` indices. States without a
+        time point stay fully usable -- they are then identified by :attr:`no` alone.
+        """
+        return self._time_point
+
+    @time_point.setter
+    def time_point(self, arg: float | None) -> Self:
+        self._time_point = arg
         return self
 
 
@@ -262,6 +282,7 @@ class PoreNetwork:
         vars_state: Sequence[StateVariableMap] = (),
         no_states: Sequence[int] = (),
         *,
+        var_time: str | None = None,
         swap_axes: bool = True,
     ) -> Self:
         """
@@ -379,7 +400,19 @@ class PoreNetwork:
                 :caption: Python
                 :linenos:
 
-                no_states = np.linspace(0, 1000, num=10)
+                no_states = np.linspace(0, 1000, num=10, dtype=int)
+
+        var_time : str | None, optional
+            Name of the ``.mat`` variable holding the physical time of every computed
+            step. When given, the :attr:`PoreNetworkState.time_point` of each imported
+            state is read from this vector at the state's own index, i.e. the same index
+            used to select its values from the state variables.
+
+            Computed results are commonly written at irregular intervals, so this vector
+            is generally not evenly spaced.
+
+            When ``None`` (default), the states carry no time information and are
+            identified by :attr:`PoreNetworkState.no` alone.
 
         swap_axes : bool, optional
             If ``True`` (default), swaps the first and third columns of every imported
@@ -490,7 +523,7 @@ class PoreNetwork:
                     np.array(f[vars_nwk["pore_neighboring_pores"]]).transpose() - 1
                 )
 
-        pn.load_states_from_mat(pth, vars_state, no_states)
+        pn.load_states_from_mat(pth, vars_state, no_states, var_time=var_time)
         return pn
 
     def __iter__(self) -> Self:
@@ -544,6 +577,8 @@ class PoreNetwork:
         pth_mat: Path,
         vars_state: Sequence[StateVariableMap],
         no_states: Sequence[int],
+        *,
+        var_time: str | None = None,
     ) -> Self:
         """
         Loads state data from a MATLAB ``.mat`` file into this instance.
@@ -575,6 +610,12 @@ class PoreNetwork:
         no_states : Sequence[int]
             State indices that are wrapped into :class:`PoreNetworkState` instances and
             appended to this :class:`PoreNetwork`.
+        var_time : str | None, optional
+            Name of the ``.mat`` variable holding the physical time of every computed
+            step. When given, the :attr:`PoreNetworkState.time_point` of each loaded
+            state is read from this vector at the state's own index. When ``None``
+            (default), the states carry no time information and are identified by
+            :attr:`PoreNetworkState.no` alone.
 
         Returns
         -------
@@ -585,13 +626,32 @@ class PoreNetwork:
         ------
         ValueError
             If a non-``None`` pore or throat variable named in ``vars_state`` is not
-            present in the ``.mat`` file.
+            present in the ``.mat`` file, if ``var_time`` is not present in the ``.mat``
+            file, or if a state index in ``no_states`` lies outside the time vector.
         """
 
         with File(pth_mat) as f:
+            time_points = None
+            if var_time is not None:
+                if var_time not in f:
+                    raise ValueError(
+                        f"Could not find variable '{var_time}' in given .mat file"
+                    )
+                time_points = np.asarray(f[var_time]).ravel()
+
             for state in no_states:
                 st = PoreNetworkState()
                 st.no = state
+
+                # a time point is optional; without it the state is known by its index
+                if time_points is not None:
+                    if state >= len(time_points):
+                        raise ValueError(
+                            f"State index {state} is out of range for the "
+                            f"{len(time_points)} time points in '{var_time}'"
+                        )
+                    st.time_point = time_points[state].item()
+
                 for svm in vars_state:
                     pn_prop = PoreNetworkProperty(svm.name)
 
@@ -871,6 +931,29 @@ class PoreNetwork:
     @states.setter
     def states(self, arg: list[PoreNetworkState]):
         self._states = arg
+
+    @property
+    def has_time_points(self) -> bool:
+        """
+        Whether every state of the pore network carries a physical time.
+
+        ``False`` for a network without states, or when at least one state was imported
+        without time information. Time-aware processing should fall back to identifying
+        states by :attr:`PoreNetworkState.no` in that case.
+        """
+        return len(self.states) > 0 and all(
+            st.time_point is not None for st in self.states
+        )
+
+    @property
+    def time_points(self) -> list[float | None]:
+        """
+        Physical time of each state, in state order.
+
+        Entries are ``None`` for states that carry no time information, see
+        :attr:`has_time_points`.
+        """
+        return [st.time_point for st in self.states]
 
     @property
     def throat_coordination_number(self) -> np.ndarray | None:
