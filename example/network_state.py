@@ -75,5 +75,6 @@ sc.create_axes()
 # =============================================================================
 # Render each state
 
-# render every state, coloring the pore spheres by concentration and by saturation
-sc, pth_img = worker.make_state(pth_frames, pn, sc)
+# render every selected state, coloring the pore spheres by concentration
+for no_state in no_states:
+    worker.make_state(pth_frames, pn, sc, no_state=no_state)

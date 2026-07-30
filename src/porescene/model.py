@@ -6,12 +6,15 @@
 Pore Networks
 """
 
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
+from math import floor
 from pathlib import Path
 from typing import Self
 
 import numpy as np
 from h5py import File
+
+from porescene.utility import InterpolationType
 
 
 class PoreNetworkProperty:
@@ -19,8 +22,11 @@ class PoreNetworkProperty:
     A wrapper for a single property of one state of a pore network.
     """
 
-    def __init__(self, n: str) -> None:
+    def __init__(
+        self, n: str, interpolation: InterpolationType = InterpolationType.PREVIOUS
+    ) -> None:
         self.name = n
+        self.interpolation = interpolation
         self.throat_values = None
         self.pore_values = None
 
@@ -59,6 +65,24 @@ class PoreNetworkProperty:
         return np.nanmin([m1, m2])
 
     @property
+    def interpolation(self) -> InterpolationType:
+        """
+        How the property's values are resolved between two computed states, see
+        :class:`~porescene.utility.InterpolationType`.
+
+        Defaults to :attr:`~porescene.utility.InterpolationType.PREVIOUS`, which never
+        reports a value the simulation did not compute. Set it to
+        :attr:`~porescene.utility.InterpolationType.LINEAR` for quantities that vary
+        smoothly in time.
+        """
+        return self._interpolation
+
+    @interpolation.setter
+    def interpolation(self, arg: InterpolationType) -> Self:
+        self._interpolation = arg
+        return self
+
+    @property
     def name(self) -> str:
         """Name of the property."""
         return self._name
@@ -92,25 +116,35 @@ class PoreNetworkProperty:
 class PoreNetworkState:
     """
     A wrapper for one state of a pore network.
+
+    Parameters
+    ----------
+    properties : Sequence[PoreNetworkProperty] | None, optional
+        Properties the state starts out with, by default ``None`` (no properties).
+        The sequence is copied, so the new state can be extended without touching the
+        one the properties came from; the :class:`PoreNetworkProperty` objects
+        themselves are shared, not duplicated.
+    no : int | None, optional
+        Index of the state in the source data, see :attr:`no`.
+    time_point : float | None, optional
+        Physical time the state describes, see :attr:`time_point`.
     """
 
-    def __init__(self) -> None:
-        self._properties = []
+    def __init__(
+        self,
+        properties: Sequence[PoreNetworkProperty] | None = None,
+        no: int | None = None,
+        time_point: float | None = None,
+    ) -> None:
+        self.properties = [] if properties is None else list(properties)
+        self.no = no
+        self.time_point = time_point
 
-    def __iter__(self) -> Self:
-        self.__i = 0
-        return self
+    def __iter__(self) -> Iterator[PoreNetworkProperty]:
+        return iter(self.properties)
 
     def __len__(self) -> int:
         return len(self.properties)
-
-    def __next__(self) -> PoreNetworkProperty:
-        if self.__i < len(self.properties) and self.__i >= 0:
-            prop = self.properties[self.__i]
-            self.__i += 1
-            return prop
-        else:
-            raise StopIteration
 
     def __setitem__(self, _, prop: PoreNetworkProperty):
         return self.add_property(prop)
@@ -153,30 +187,50 @@ class PoreNetworkState:
         return idx
 
     @property
-    def time_points(self) -> list[float]:
-        return self._time_points
+    def no(self) -> int | None:
+        """
+        Index of the state in the source data, e.g. the column of the ``.mat`` variable
+        its values were read from, or ``None`` when the state does not stem from an
+        indexed source.
 
-    @time_points.setter
-    def time_points(self, arg: list[float]) -> Self:
-        self._time_points = arg
-        return self
-
-    @property
-    def no(self) -> int:
+        Identifies *which* sample the state is, not *when* it happened -- see
+        :attr:`time_point` for the physical time.
+        """
         return self._no
 
     @no.setter
-    def no(self, arg: int) -> Self:
+    def no(self, arg: int | None) -> Self:
         self._no = arg
         return self
 
     @property
     def properties(self) -> list[PoreNetworkProperty]:
+        """
+        The properties held by the state.
+        """
         return self._properties
 
-    @time_points.setter
-    def time_points(self, arg: list[PoreNetworkProperty]) -> Self:
+    @properties.setter
+    def properties(self, arg: list[PoreNetworkProperty]) -> Self:
         self._properties = arg
+        return self
+
+    @property
+    def time_point(self) -> float | None:
+        """
+        Physical time the state describes, or ``None`` when the source data carries no
+        time information.
+
+        Computed results are commonly written at irregular intervals, so the spacing
+        between the time points of consecutive states need not be constant, and it is
+        generally unrelated to the spacing of their :attr:`no` indices. States without a
+        time point stay fully usable -- they are then identified by :attr:`no` alone.
+        """
+        return self._time_point
+
+    @time_point.setter
+    def time_point(self, arg: float | None) -> Self:
+        self._time_point = arg
         return self
 
 
@@ -187,11 +241,33 @@ class StateVariableMap:
     Relates a single property (identified by :attr:`name`) to the names of the MATLAB
     variables that store the property's per-pore (sphere) and per-throat (cylinder)
     values, telling :meth:`PoreNetwork.from_mat` and
-    :meth:`PoreNetwork.load_state_from_mat` which variables to import.
+    :meth:`PoreNetwork.load_states_from_mat` which variables to import.
     """
 
-    def __init__(self, prop_name: str):
+    def __init__(
+        self,
+        prop_name: str,
+        interpolation: InterpolationType = InterpolationType.PREVIOUS,
+    ):
         self.name = prop_name
+        self.interpolation = interpolation
+
+    @property
+    def interpolation(self) -> InterpolationType:
+        """
+        How the mapped property behaves between two computed states, see
+        :class:`~porescene.utility.InterpolationType`.
+
+        Copied onto every :class:`PoreNetworkProperty` imported through this map, where
+        :meth:`PoreNetwork.state_at` reads it. Declared here because it follows from the
+        physics of the quantity, not from how it is drawn.
+        """
+        return self._interpolation
+
+    @interpolation.setter
+    def interpolation(self, arg: InterpolationType):
+
+        self._interpolation = arg
 
     @property
     def name(self) -> str:
@@ -262,6 +338,7 @@ class PoreNetwork:
         vars_state: Sequence[StateVariableMap] = (),
         no_states: Sequence[int] = (),
         *,
+        var_time: str | None = None,
         swap_axes: bool = True,
     ) -> Self:
         """
@@ -379,7 +456,19 @@ class PoreNetwork:
                 :caption: Python
                 :linenos:
 
-                no_states = np.linspace(0, 1000, num=10)
+                no_states = np.linspace(0, 1000, num=10, dtype=int)
+
+        var_time : str | None, optional
+            Name of the ``.mat`` variable holding the physical time of every computed
+            step. When given, the :attr:`PoreNetworkState.time_point` of each imported
+            state is read from this vector at the state's own index, i.e. the same index
+            used to select its values from the state variables.
+
+            Computed results are commonly written at irregular intervals, so this vector
+            is generally not evenly spaced.
+
+            When ``None`` (default), the states carry no time information and are
+            identified by :attr:`PoreNetworkState.no` alone.
 
         swap_axes : bool, optional
             If ``True`` (default), swaps the first and third columns of every imported
@@ -490,26 +579,17 @@ class PoreNetwork:
                     np.array(f[vars_nwk["pore_neighboring_pores"]]).transpose() - 1
                 )
 
-        pn.load_states_from_mat(pth, vars_state, no_states)
+        pn.load_states_from_mat(pth, vars_state, no_states, var_time=var_time)
         return pn
 
-    def __iter__(self) -> Self:
-        self.__i = 0
-        return self
+    def __iter__(self) -> Iterator[PoreNetworkState]:
+        return iter(self.states)
 
     def __len__(self) -> int:
         """
         Return the number of states in the pore network.
         """
         return len(self.states)
-
-    def __next__(self) -> PoreNetworkState:
-        if self.__i < len(self.states) and self.__i >= 0:
-            st = self.states[self.__i]
-            self.__i += 1
-            return st
-        else:
-            raise StopIteration
 
     def __setitem__(self, _, prop: PoreNetworkState):
         return self.add_state(prop)
@@ -533,6 +613,114 @@ class PoreNetwork:
         self.states.append(no_state)
         return self
 
+    def frame_times(
+        self,
+        fps: int = 30,
+        *,
+        duration: float | None = None,
+        speed: float | None = None,
+        t_start: float | None = None,
+        t_end: float | None = None,
+    ) -> np.ndarray:
+        """
+        Builds the regular grid of times the frames of a video are rendered at.
+
+        Parameters
+        ----------
+        fps : int, optional
+            Playback speed of the video in frames per second, by default 30.
+        duration : float | None, optional
+            Wall-clock length of the video in seconds. The sampled range is spread over
+            exactly ``round(duration * fps)`` frames, with the first and the last frame
+            landing on its ends. Mutually exclusive with ``speed``.
+        speed : float | None, optional
+            Simulated seconds per wall-clock second, by default 1.0, i.e. real time. A
+            value of ``60`` plays one simulated minute per second of video. Mutually
+            exclusive with ``duration``.
+        t_start : float | None, optional
+            First frame time, by default the earliest time on the :attr:`time_axis`.
+        t_end : float | None, optional
+            Time the frames run up to, by default the latest time on the
+            :attr:`time_axis`.
+
+        Returns
+        -------
+        np.ndarray
+            Frame times, evenly spaced and ascending.
+
+        Raises
+        ------
+        ValueError
+            If both ``duration`` and ``speed`` are given, if ``fps``, ``duration`` or
+            ``speed`` is not positive, if ``t_end`` lies before ``t_start``, or if the
+            network holds no states.
+        """
+        if duration is not None and speed is not None:
+            raise ValueError("Give either 'duration' or 'speed', not both")
+        if fps <= 0:
+            raise ValueError(f"'fps' must be positive, got {fps}")
+
+        times = self.time_axis
+        if len(times) == 0:
+            raise ValueError("Cannot build frame times for a PoreNetwork without states")
+
+        t0 = float(times[0]) if t_start is None else float(t_start)
+        t1 = float(times[-1]) if t_end is None else float(t_end)
+        if t1 < t0:
+            raise ValueError(f"'t_end' ({t1}) lies before 't_start' ({t0})")
+
+        if duration is not None:
+            if duration <= 0:
+                raise ValueError(f"'duration' must be positive, got {duration}")
+            return np.linspace(t0, t1, max(round(duration * fps), 1))
+
+        speed = 1.0 if speed is None else speed
+        if speed <= 0:
+            raise ValueError(f"'speed' must be positive, got {speed}")
+        step = speed / fps
+        return t0 + np.arange(floor((t1 - t0) / step) + 1) * step
+
+    def frames(
+        self,
+        fps: int = 30,
+        *,
+        duration: float | None = None,
+        speed: float | None = None,
+        t_start: float | None = None,
+        t_end: float | None = None,
+    ) -> Iterator[PoreNetworkState]:
+        """
+        Resamples the network onto a regular grid of frame times.
+
+        Computed results are commonly written at irregular intervals, while a video
+        needs frames at regular ones. This walks the frame times of
+        :meth:`frame_times` and evaluates the network at each of them with
+        :meth:`state_at`, so that frame times -- rather than stored sample indices --
+        drive the rendering.
+
+        The states are produced lazily, so a long sequence never holds more than the
+        frame currently being rendered.
+
+        The parameters are those of :meth:`frame_times`.
+
+        .. code-block:: python
+            :caption: Python
+            :linenos:
+
+            # a 12 second video of the whole series at 30 fps
+            for st in pn.frames(fps=30, duration=12):
+                ...
+
+        Yields
+        ------
+        PoreNetworkState
+            The state of the network at each frame time.
+        """
+        for t in self.frame_times(
+            fps, duration=duration, speed=speed, t_start=t_start, t_end=t_end
+        ):
+            yield self.state_at(float(t))
+
     def get_state(self, no_state: int) -> PoreNetworkState:
         """
         Returns a :class:`PoreNetworkState` from the instance.
@@ -544,6 +732,8 @@ class PoreNetwork:
         pth_mat: Path,
         vars_state: Sequence[StateVariableMap],
         no_states: Sequence[int],
+        *,
+        var_time: str | None = None,
     ) -> Self:
         """
         Loads state data from a MATLAB ``.mat`` file into this instance.
@@ -575,6 +765,12 @@ class PoreNetwork:
         no_states : Sequence[int]
             State indices that are wrapped into :class:`PoreNetworkState` instances and
             appended to this :class:`PoreNetwork`.
+        var_time : str | None, optional
+            Name of the ``.mat`` variable holding the physical time of every computed
+            step. When given, the :attr:`PoreNetworkState.time_point` of each loaded
+            state is read from this vector at the state's own index. When ``None``
+            (default), the states carry no time information and are identified by
+            :attr:`PoreNetworkState.no` alone.
 
         Returns
         -------
@@ -585,15 +781,33 @@ class PoreNetwork:
         ------
         ValueError
             If a non-``None`` pore or throat variable named in ``vars_state`` is not
-            present in the ``.mat`` file.
+            present in the ``.mat`` file, if ``var_time`` is not present in the ``.mat``
+            file, or if a state index in ``no_states`` lies outside the time vector.
         """
 
         with File(pth_mat) as f:
+            time_points = None
+            if var_time is not None:
+                if var_time not in f:
+                    raise ValueError(
+                        f"Could not find variable '{var_time}' in given .mat file"
+                    )
+                time_points = np.asarray(f[var_time]).ravel()
+
             for state in no_states:
-                st = PoreNetworkState()
-                st.no = state
+                st = PoreNetworkState(no=state)
+
+                # a time point is optional; without it the state is known by its index
+                if time_points is not None:
+                    if state >= len(time_points):
+                        raise ValueError(
+                            f"State index {state} is out of range for the "
+                            f"{len(time_points)} time points in '{var_time}'"
+                        )
+                    st.time_point = time_points[state].item()
+
                 for svm in vars_state:
-                    pn_prop = PoreNetworkProperty(svm.name)
+                    pn_prop = PoreNetworkProperty(svm.name, svm.interpolation)
 
                     # load pore (sphere) data (skipped when no variable is given)
                     if svm.variable_sphere is not None:
@@ -620,6 +834,121 @@ class PoreNetwork:
                     st.add_property(pn_prop)
                 self.add_state(st)
             return self
+
+    def state_at(self, t: float) -> PoreNetworkState:
+        """
+        Returns the state of the network at time ``t``, interpolating between the stored
+        states where needed.
+
+        The counterpart to :meth:`get_state`, which picks a stored state by its
+        position: this evaluates the network anywhere on its :attr:`time_axis`,
+        including between two stored states.
+
+        Times outside the sampled range are clamped, i.e. the first and the last stored
+        state are held rather than extrapolated. Times falling between two stored states
+        are resolved per property, following each property's
+        :attr:`~PoreNetworkProperty.interpolation`, so a saturation field can be held
+        between samples while a temperature field is blended, within one and the same
+        frame.
+
+        .. attention::
+
+            The returned state may share its value arrays with the stored states instead
+            of copying them, which keeps a long frame sequence from duplicating every
+            field. Treat it as read-only.
+
+        Parameters
+        ----------
+        t : float
+            Point on the :attr:`time_axis` to evaluate.
+
+        Returns
+        -------
+        PoreNetworkState
+            State carrying ``t`` as its :attr:`~PoreNetworkState.time_point`. Its
+            :attr:`~PoreNetworkState.no` is that of the stored state at or before ``t``,
+            i.e. the step the frame is based on.
+
+        Raises
+        ------
+        ValueError
+            If the network holds no states, or a property carries an unknown
+            interpolation mode.
+        """
+        states, times = self._time_ordered()
+        if len(times) == 0:
+            raise ValueError("Cannot evaluate a PoreNetwork that holds no states")
+
+        # outside the stored range the nearest state is held, only restamped onto ``t``
+        if t <= times[0]:
+            return PoreNetworkState(states[0].properties, states[0].no, t)
+        if t >= times[-1]:
+            return PoreNetworkState(states[-1].properties, states[-1].no, t)
+
+        hi = int(np.searchsorted(times, t, side="right"))
+        lo = hi - 1
+
+        # guards against a zero-width interval, e.g. a state selected twice
+        span = times[hi] - times[lo]
+        w = 0.0 if span == 0 else float((t - times[lo]) / span)
+
+        st_lo = states[lo]
+        st_hi = states[hi]
+
+        out = PoreNetworkState(no=st_lo.no, time_point=t)
+        for prop in st_lo.properties:
+            other = (
+                st_hi.get_property(prop.name) if st_hi.has_property(prop.name) else None
+            )
+            out.add_property(PoreNetwork._resolve(prop, other, w))
+        return out
+
+    def _time_ordered(self) -> tuple[list[PoreNetworkState], np.ndarray]:
+        """
+        The states paired with the time axis they sit on, both in ascending time order.
+
+        :attr:`states` itself keeps the order the states were added in; only this view
+        is sorted, so that resampling stays correct even for states added out of order.
+        """
+        times = self._raw_times()
+        order = np.argsort(times, kind="stable")
+        return [self.states[i] for i in order], times[order]
+
+    def _raw_times(self) -> np.ndarray:
+        """
+        The time axis in :attr:`states` order, i.e. not necessarily ascending.
+        """
+        if self.has_time_points:
+            return np.array([st.time_point for st in self.states], dtype=float)
+        nos = [st.no for st in self.states]
+        if nos and all(no is not None for no in nos):
+            return np.array(nos, dtype=float)
+        return np.arange(len(self.states), dtype=float)
+
+    @staticmethod
+    def _resolve(
+        p_lo: PoreNetworkProperty,
+        p_hi: PoreNetworkProperty | None,
+        w: float,
+    ) -> PoreNetworkProperty:
+        """
+        Resolves one property between two stored states, ``w`` being the normalized
+        distance from the earlier state to the later one.
+
+        ``p_hi`` is ``None`` when the later state does not carry the property, in which
+        case the earlier one is held.
+        """
+        mode = p_lo.interpolation
+        if p_hi is None or mode is InterpolationType.PREVIOUS:
+            return p_lo
+        if mode is InterpolationType.NEAREST:
+            return p_lo if w < 0.5 else p_hi
+        if mode is not InterpolationType.LINEAR:
+            raise ValueError(f"Unknown interpolation mode '{mode}'")
+        return PoreNetworkProperty(p_lo.name, mode).set_data(
+            _lerp(p_lo.pore_values, p_hi.pore_values, w),
+            _lerp(p_lo.throat_values, p_hi.throat_values, w),
+        )
 
     @property
     def length_x(self) -> float:
@@ -873,6 +1202,57 @@ class PoreNetwork:
         self._states = arg
 
     @property
+    def has_time_points(self) -> bool:
+        """
+        Whether every state of the pore network carries a physical time.
+
+        ``False`` for a network without states, or when at least one state was imported
+        without time information, in which case :attr:`time_axis` falls back to a
+        substitute axis.
+        """
+        return len(self.states) > 0 and all(
+            st.time_point is not None for st in self.states
+        )
+
+    @property
+    def time_axis(self) -> np.ndarray:
+        """
+        The axis :meth:`state_at` and :meth:`frames` resample the network along,
+        ascending.
+
+        Built from the :attr:`~PoreNetworkState.time_point` of every state when they all
+        carry one. Otherwise the states' :attr:`~PoreNetworkState.no` indices stand in,
+        which spaces them correctly as long as the computed steps they were selected
+        from are themselves evenly spaced -- selecting states ``(0, 500, 600, 930)`` then
+        still yields the right relative spacing, even though no time is known. As a last
+        resort, for states carrying neither, the position in :attr:`states` is used and
+        the states are treated as evenly spaced.
+
+        In contrast to :attr:`time_points`, which reports the stored times verbatim,
+        this is always a usable axis and always ascending.
+
+        .. attention::
+
+            Only the first case reflects the real timing of the results. Import a time
+            vector via the ``var_time`` argument of :meth:`from_mat` whenever the
+            computed steps are not evenly spaced, otherwise a video built from this axis
+            plays back at the wrong speed. :attr:`has_time_points` reports which case
+            applies.
+        """
+        return self._time_ordered()[1]
+
+    @property
+    def time_points(self) -> list[float | None]:
+        """
+        Physical time of each state, in :attr:`states` order.
+
+        Entries are ``None`` for states that carry no time information, see
+        :attr:`has_time_points`. Use :attr:`time_axis` for the resolved axis that
+        resampling runs on.
+        """
+        return [st.time_point for st in self.states]
+
+    @property
     def throat_coordination_number(self) -> np.ndarray | None:
         """
         Coordination number of each throat.
@@ -1050,3 +1430,18 @@ class PoreNetwork:
         Neighbor pores of each throat.
         """
         return self._throat_neighboring_pores
+
+
+def _lerp(a: np.ndarray | None, b: np.ndarray | None, w: float) -> np.ndarray | None:
+    """
+    Blends two value arrays, weighting ``b`` by ``w``.
+
+    ``None`` on either side means the property does not carry that kind of data, so
+    ``a`` is passed through unchanged. ``NaN`` is deliberately not special-cased: it
+    marks a value the simulation did not define (e.g. the vapour pressure of a dry
+    pore), and letting it propagate keeps the gap visible instead of papering over it
+    with a neighbouring value.
+    """
+    if a is None or b is None:
+        return a
+    return a + (b - a) * w
