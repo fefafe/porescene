@@ -207,6 +207,7 @@ def make_img(
     name_cylinders: str = "",
     name_clusters: str = "",
     no_state: int | None = None,
+    no_frame: int | None = None,
     solid: Path | None = None,
     void: Path | None = None,
 ) -> Path:
@@ -254,7 +255,18 @@ def make_img(
         underscores replaced by hyphens, by default "".
     no_state : int | None, optional
         Index of the network state being rendered; when given, appended to the file name
-        as ``state@<no_state>``, by default None.
+        as ``state-<no_state>``, by default None. Ignored when ``no_frame`` is given.
+    no_frame : int | None, optional
+        Position of the image in a frame sequence; when given, appended to the file name
+        as a zero-padded ``frame-<no_frame>`` *instead of* ``state-<no_state>``, by
+        default None.
+
+        Frames of one sequence then share a common prefix and differ only in the padded
+        counter, so that sorting them by name -- as :func:`porescene.image.frames2mp4`
+        and :func:`porescene.image.frames2gif` expect -- yields the playback order. An
+        unpadded counter would sort ``frame-10`` before ``frame-2``, and keeping
+        ``state-<no_state>`` in the name would break the common prefix as soon as a frame
+        falls on a different stored state.
     solid : Path | None, optional
         Path to a solid-structure object to add to the scene; when given, the solid is
         created and ``solid`` is added to the file name, by default None.
@@ -295,7 +307,9 @@ def make_img(
         sc.show_axes()
         fname_fragments.append("axes")
 
-    if no_state is not None:
+    if no_frame is not None:
+        fname_fragments.append(f"frame-{no_frame:05d}")
+    elif no_state is not None:
         fname_fragments.append(f"state-{no_state}")
 
     # render image in given config
@@ -595,7 +609,75 @@ def make_structure(
     return pth_img
 
 
-def make_state(pth: Path, pn: PoreNetwork, sc: Scene):
+def make_state(
+    pth: Path,
+    pn: PoreNetwork,
+    sc: Scene,
+    *,
+    no_state: int | None = None,
+    time_point: float | None = None,
+    no_frame: int | None = None,
+) -> dict[str, Path]:
+    """
+    Renders one state of a pore network, one image per state property.
+
+    The state is selected either by its number or by a point in time. Selecting by
+    number renders a stored state verbatim; selecting by time evaluates the network at
+    that instant via :meth:`~porescene.model.PoreNetwork.state_at`, interpolating
+    between the stored states where needed.
+
+    Each property of the state is drawn onto its own image and annotated with a
+    matching colorbar. Whether the colorbar limits are shared across all states or
+    derived from the state at hand follows
+    :attr:`~porescene.config.PropertyConfiguration.use_global_boundaries`.
+
+    Parameters
+    ----------
+    pth : Path
+        Directory to save the rendered images at.
+    pn : PoreNetwork
+        The pore network to take the state from.
+    sc : Scene
+        Scene holding the already-built geometry, see :func:`build_structure`.
+    no_state : int | None, optional
+        Number of the state to render, matched against
+        :attr:`~porescene.model.PoreNetworkState.no`, i.e. the index the state was
+        loaded from the source data under -- not its position in
+        :attr:`~porescene.model.PoreNetwork.states`. Mutually exclusive with
+        ``time_point``.
+    time_point : float | None, optional
+        Point on the network's :attr:`~porescene.model.PoreNetwork.time_axis` to render.
+        Times between two stored states are interpolated per property, times outside the
+        stored range are clamped. Mutually exclusive with ``no_state``.
+    no_frame : int | None, optional
+        Position in a frame sequence, used to name the images, see :func:`make_img`.
+        Set by :func:`make_frames`; there is rarely a reason to pass it directly.
+
+    Returns
+    -------
+    dict[str, Path]
+        The rendered image per property name.
+
+    Raises
+    ------
+    ValueError
+        If neither or both of ``no_state`` and ``time_point`` are given, or if no stored
+        state carries the requested ``no_state``.
+    """
+    if (no_state is None) == (time_point is None):
+        raise ValueError("Give either 'no_state' or 'time_point', not both or neither")
+
+    if no_state is not None:
+        state = next((st for st in pn if st.no == no_state), None)
+        if state is None:
+            known = [st.no for st in pn]
+            raise ValueError(
+                f"No state numbered {no_state} in the pore network, which holds "
+                f"{len(known)} states: {known[:10]}{' ...' if len(known) > 10 else ''}"
+            )
+    else:
+        state = pn.state_at(time_point)
+
     do_spheres = sc.config_scene.enable_spheres and sc.has_spheres
     do_cylinders = sc.config_scene.enable_cylinders and sc.has_cylinders
     do_clusters = sc.config_scene.enable_clusters and sc.has_clusters
@@ -607,64 +689,141 @@ def make_state(pth: Path, pn: PoreNetwork, sc: Scene):
                 conf.colors, mn / conf.factor, mx / conf.factor
             )
 
-    for state in pn.states:
-        for prop in state.properties:
-            conf = sc.config_scene[prop.name]
+    pth_imgs: dict[str, Path] = {}
+    for prop in state.properties:
+        conf = sc.config_scene[prop.name]
 
-            if not conf.use_global_boundaries:
-                if conf.min is None:
-                    mn, _ = _get_bounds(
-                        prop.min,
-                        prop.max,
-                        conf.precision,
-                        conf.factor,
-                        conf.func_transform,
-                    )
-                else:
-                    mn = conf.min
-                if conf.max is None:
-                    _, mx = _get_bounds(
-                        prop.min,
-                        prop.max,
-                        conf.precision,
-                        conf.factor,
-                        conf.func_transform,
-                    )
-                else:
-                    mx = conf.max
-
-                grad = conf.gradient_class(
-                    conf.colors, mn / conf.factor, mx / conf.factor
+        if not conf.use_global_boundaries:
+            if conf.min is None:
+                mn, _ = _get_bounds(
+                    prop.min,
+                    prop.max,
+                    conf.precision,
+                    conf.factor,
+                    conf.func_transform,
                 )
             else:
-                grad = grad_dict[conf.name]
-                mn, mx = _get_bounds(conf.min, conf.max, conf.precision, conf.factor)
-            pth_vis = make_img(
-                pth,
-                sc,
-                do_spheres,
-                do_cylinders,
-                do_clusters,
-                grad(conf.func_transform(prop.pore_values)) if do_spheres else [],
-                grad(conf.func_transform(prop.throat_values)) if do_cylinders else [],
-                grad(conf.func_transform(prop.pore_values)) if do_clusters else [],
-                prop.name,
-                prop.name,
-                prop.name,
-                no_state=state.no,
-            )
+                mn = conf.min
+            if conf.max is None:
+                _, mx = _get_bounds(
+                    prop.min,
+                    prop.max,
+                    conf.precision,
+                    conf.factor,
+                    conf.func_transform,
+                )
+            else:
+                mx = conf.max
 
-            pth_cb = pth_vis.with_name("colorbar_" + prop.name + ".svg")
-            make_gradient_overlay(
-                pth_cb,
-                sc.config_scene[prop.name],
-                mn,
-                mx,
-            )
-            img_add_colorbar(
-                pth_vis, pth_cb.with_suffix(".png"), conf.align, conf.orientation
-            )
-    return sc, pth_vis
+            grad = conf.gradient_class(conf.colors, mn / conf.factor, mx / conf.factor)
+        else:
+            grad = grad_dict[conf.name]
+            mn, mx = _get_bounds(conf.min, conf.max, conf.precision, conf.factor)
+        pth_vis = make_img(
+            pth,
+            sc,
+            do_spheres,
+            do_cylinders,
+            do_clusters,
+            grad(conf.func_transform(prop.pore_values)) if do_spheres else [],
+            grad(conf.func_transform(prop.throat_values)) if do_cylinders else [],
+            grad(conf.func_transform(prop.pore_values)) if do_clusters else [],
+            prop.name,
+            prop.name,
+            prop.name,
+            no_state=state.no,
+            no_frame=no_frame,
+        )
+
+        pth_cb = pth_vis.with_name("colorbar_" + prop.name + ".svg")
+        make_gradient_overlay(
+            pth_cb,
+            sc.config_scene[prop.name],
+            mn,
+            mx,
+        )
+        img_add_colorbar(
+            pth_vis, pth_cb.with_suffix(".png"), conf.align, conf.orientation
+        )
+        pth_imgs[prop.name] = pth_vis
+    return pth_imgs
+
+
+def make_frames(
+    pth: Path,
+    pn: PoreNetwork,
+    sc: Scene,
+    fps: int = 30,
+    *,
+    duration: float | None = None,
+    speed: float | None = None,
+    t_start: float | None = None,
+    t_end: float | None = None,
+) -> dict[str, list[Path]]:
+    """
+    Renders the frames of a video by resampling a pore network onto regular time steps.
+
+    Computed results are commonly written at irregular intervals, while a video needs
+    frames at regular ones. This walks the frame times of
+    :meth:`~porescene.model.PoreNetwork.frame_times` and renders each of them with
+    :func:`make_state`, so that playback speed follows the physical time of the results
+    rather than the spacing of the stored states.
+
+    One frame sequence is produced per property, named so that sorting by file name
+    yields the playback order. Feed a sequence straight to
+    :func:`porescene.image.frames2mp4` or :func:`porescene.image.frames2gif`.
+
+    .. attention::
+
+        Rendering is by far the slowest part: a 12 second video at 30 fps means 360
+        renders per property. Check the schedule with
+        :meth:`~porescene.model.PoreNetwork.frame_times` before committing to it.
+
+    Parameters
+    ----------
+    pth : Path
+        Directory to save the rendered frames at.
+    pn : PoreNetwork
+        The pore network to resample.
+    sc : Scene
+        Scene holding the already-built geometry, see :func:`build_structure`.
+    fps : int, optional
+        Playback speed of the video in frames per second, by default 30.
+    duration : float | None, optional
+        Wall-clock length of the video in seconds. Mutually exclusive with ``speed``.
+    speed : float | None, optional
+        Simulated seconds per wall-clock second, by default 1.0, i.e. real time.
+        Mutually exclusive with ``duration``.
+    t_start : float | None, optional
+        First frame time, by default the earliest time in the network.
+    t_end : float | None, optional
+        Time the frames run up to, by default the latest time in the network.
+
+    Returns
+    -------
+    dict[str, list[Path]]
+        The rendered frames per property name, in playback order.
+
+    Examples
+    --------
+    .. code-block:: python
+        :caption: Python
+        :linenos:
+
+        frames = worker.make_frames(pth_frames, pn, sc, fps=30, duration=12)
+        for name, pths in frames.items():
+            image.frames2mp4(pths, pth_data / f"{name}.mp4", fps=30)
+    """
+    times = pn.frame_times(
+        fps, duration=duration, speed=speed, t_start=t_start, t_end=t_end
+    )
+
+    frames: dict[str, list[Path]] = {}
+    for no_frame, t in enumerate(times):
+        rendered = make_state(pth, pn, sc, time_point=float(t), no_frame=no_frame)
+        for name, pth_img in rendered.items():
+            frames.setdefault(name, []).append(pth_img)
+    return frames
 
 
 def make_gradient_overlay(
