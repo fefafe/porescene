@@ -6,7 +6,7 @@
 Pore Networks
 """
 
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
 from pathlib import Path
 from typing import Self
 
@@ -98,20 +98,11 @@ class PoreNetworkState:
         self._properties = []
         self.time_point = None
 
-    def __iter__(self) -> Self:
-        self.__i = 0
-        return self
+    def __iter__(self) -> Iterator[PoreNetworkProperty]:
+        return iter(self.properties)
 
     def __len__(self) -> int:
         return len(self.properties)
-
-    def __next__(self) -> PoreNetworkProperty:
-        if self.__i < len(self.properties) and self.__i >= 0:
-            prop = self.properties[self.__i]
-            self.__i += 1
-            return prop
-        else:
-            raise StopIteration
 
     def __setitem__(self, _, prop: PoreNetworkProperty):
         return self.add_property(prop)
@@ -526,23 +517,14 @@ class PoreNetwork:
         pn.load_states_from_mat(pth, vars_state, no_states, var_time=var_time)
         return pn
 
-    def __iter__(self) -> Self:
-        self.__i = 0
-        return self
+    def __iter__(self) -> Iterator[PoreNetworkState]:
+        return iter(self.states)
 
     def __len__(self) -> int:
         """
         Return the number of states in the pore network.
         """
         return len(self.states)
-
-    def __next__(self) -> PoreNetworkState:
-        if self.__i < len(self.states) and self.__i >= 0:
-            st = self.states[self.__i]
-            self.__i += 1
-            return st
-        else:
-            raise StopIteration
 
     def __setitem__(self, _, prop: PoreNetworkState):
         return self.add_state(prop)
