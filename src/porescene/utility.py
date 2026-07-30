@@ -53,6 +53,34 @@ class CompassDirection(Enum):
     NORTHWEST = "NW"
 
 
+class InterpolationType(Enum):
+    """
+    How a value is resolved between two samples.
+
+    Data is commonly recorded at irregular intervals, while it is needed at regular
+    ones, so a value has to be produced for positions that lie between two samples.
+    Which answer is defensible depends on the quantity:
+
+    ``PREVIOUS``
+        Hold the value of the earlier sample until the later one is reached (zero-order
+        hold). Never reports a value that was not recorded, which makes it the right
+        choice for quantities that change abruptly, where blending would invent
+        intermediate values that never occurred. This is the default.
+    ``NEAREST``
+        Take the value of whichever of the two samples is closer. Like ``PREVIOUS`` it
+        only ever reports recorded values, but it lets a change appear up to half an
+        interval before it was recorded.
+    ``LINEAR``
+        Blend both samples proportionally to their distance. Appropriate for quantities
+        that vary smoothly between samples -- temperature, concentration, pressure --
+        and the only mode that reports values which were never recorded.
+    """
+
+    PREVIOUS = "previous"
+    NEAREST = "nearest"
+    LINEAR = "linear"
+
+
 class Orientation(Enum):
     VERTICAL = "V"
     HORIZONTAL = "H"
