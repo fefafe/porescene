@@ -31,6 +31,7 @@ from porescene.utility import (
     Orientation,
     UnitExponentMetric,
     UnitPrefixMetric,
+    colorbar_limits,
     count_decimals,
     interval_round,
     unit_metric,
@@ -54,9 +55,8 @@ class QuantityConfiguration:
         align: CompassDirection = CompassDirection.NORTH,
         orientation: Orientation = Orientation.HORIZONTAL,
         precision: int = 0,
-        min: float | None = None,
-        max: float | None = None,
-        use_global_boundaries: bool = False,
+        limit_lower: float | None = None,
+        limit_upper: float | None = None,
         factor: float = 1.0,
         func_transform: Callable = lambda v: v,
         fit: bool = True,
@@ -73,9 +73,8 @@ class QuantityConfiguration:
         self.align = align
         self.orientation = orientation
         self.precision = precision
-        self.min = min
-        self.max = max
-        self.use_global_boundaries = use_global_boundaries
+        self.limit_lower = limit_lower
+        self.limit_upper = limit_upper
         self.factor = factor
         self.func_transform = func_transform
         self.fit = fit
@@ -177,42 +176,107 @@ class QuantityConfiguration:
     def fit(self, arg: bool):
         self._fit = arg
 
+    def value_display(
+        self, values: np.ndarray | float | None
+    ) -> np.ndarray | float | None:
+        """
+        Converts stored values into the unit the figure shows them in.
+
+        The single place where the data of a quantity is rewritten for display:
+        :attr:`func_transform` is applied first, then :attr:`factor` scales the result.
+        Everything a viewer reads off a figure -- the colors of the pores and throats,
+        the limits of the colorbar and the values on its ticks -- goes through here, so
+        one and the same value cannot end up in two different units.
+
+        Parameters
+        ----------
+        values
+            Value or array of values in the unit the data is stored in. ``None`` passes
+            through, so a quantity that carries no pore or throat data stays empty
+            rather than turning into a value.
+
+        Returns
+        -------
+        np.ndarray | float | None
+            The values in the displayed unit.
+        """
+        if values is None:
+            return None
+
+        return self.func_transform(values) * self.factor
+
+    def resolve_limits(self, mn: float, mx: float) -> tuple[float, float]:
+        """
+        Resolves the limits the colorbar spans for a range of data.
+
+        By default both limits are computed from the data: the range is converted with
+        :meth:`value_display` and rounded outward to even values by
+        :func:`~porescene.utility.colorbar_limits`, following :attr:`precision`. Where
+        :attr:`limit_lower` or :attr:`limit_upper` is set, it replaces the computed
+        limit -- each side on its own, so a colorbar can be pinned at the bottom and
+        left to follow the data at the top.
+
+        A pinned limit is taken verbatim: it is already given in the displayed unit, so
+        it is neither scaled by :attr:`factor` nor rounded to :attr:`precision`, and a
+        colorbar asked to start at ``0`` starts at ``0``. With both sides pinned the
+        data is not looked at all.
+
+        Parameters
+        ----------
+        mn, mx
+            Lowest and highest value the colorbar has to cover, in the unit the data is
+            stored in -- typically
+            :meth:`~porescene.model.PoreNetwork.quantity_min` and
+            :meth:`~porescene.model.PoreNetwork.quantity_max` for limits shared by every
+            state of a network, or :attr:`~porescene.model.PoreNetworkQuantity.min` and
+            :attr:`~porescene.model.PoreNetworkQuantity.max` for a single one. Both are
+            ignored when :attr:`limit_lower` and :attr:`limit_upper` are set.
+
+        Returns
+        -------
+        tuple[float, float]
+            Lower and upper limit, in the displayed unit.
+        """
+        if self.limit_lower is not None and self.limit_upper is not None:
+            return (float(self.limit_lower), float(self.limit_upper))
+
+        lower, upper = colorbar_limits(
+            self.value_display(mn), self.value_display(mx), self.precision
+        )
+        if self.limit_lower is not None:
+            lower = float(self.limit_lower)
+        if self.limit_upper is not None:
+            upper = float(self.limit_upper)
+
+        return (lower, upper)
+
     @property
-    def use_global_boundaries(self) -> bool:
-        """Whether to use colorbar limits across all states or per state."""
-        return self._use_global_boundaries
+    def limit_lower(self) -> float | None:
+        """
+        Lower limit of the colorbar, in the displayed unit.
 
-    @use_global_boundaries.setter
-    def use_global_boundaries(self, arg: bool):
-        self._use_global_boundaries = arg
+        ``None`` (default) reads the limit off the data instead, see
+        :meth:`resolve_limits`.
+        """
+        return self._limit_lower
+
+    @limit_lower.setter
+    def limit_lower(self, arg: float | None):
+        self._limit_lower = arg
 
     @property
-    def max(self) -> float | None:
+    def limit_upper(self) -> float | None:
         """
-        Upper limit of the colorbar, or ``None`` to read it off the data.
+        Upper limit of the colorbar, in the displayed unit.
 
-        See :func:`~porescene.utility.colorbar_limits`, which turns it into the limit
-        the colorbar is drawn with.
+        ``None`` (default) reads the limit off the data instead, see
+        :meth:`resolve_limits`.
         """
-        return self._max
+        return self._limit_upper
 
-    @max.setter
-    def max(self, arg: float | None):
-        self._max = arg
-
-    @property
-    def min(self) -> float | None:
-        """
-        Lower limit of the colorbar, or ``None`` to read it off the data.
-
-        See :func:`~porescene.utility.colorbar_limits`, which turns it into the limit
-        the colorbar is drawn with.
-        """
-        return self._min
-
-    @min.setter
-    def min(self, arg: float | None):
-        self._min = arg
+    @limit_upper.setter
+    def limit_upper(self, arg: float | None):
+        self._limit_upper = arg
 
     @property
     def name(self) -> str:

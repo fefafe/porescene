@@ -219,26 +219,27 @@ most importantly for a series, its bounds:
            orientation=Orientation.VERTICAL,  # colorbar orientation
            align=CompassDirection.WEST,  # colorbar position around the rendering
            precision=3,  # precision of colorbar ticks
-           use_global_boundaries=True,
-           min=0,
-           max=50,
+           # pinned colorbar limits, in place of the series minimum/maximum
+           limit_lower=0,
+           limit_upper=50,
        )
    )
 
 :meth:`Palette.load(Colormap.MATTER).all() <porescene.color.palette.Palette.all>` hands
 the full ``MATTER`` colormap to a smooth gradient, ``heading`` sets the colorbar title, and
 ``orientation`` together with ``align`` stands it vertically on the west (left) side.
-``use_global_boundaries=True`` combined with ``min`` and ``max`` fixes the color scale at
-``[0, 50] mol/l`` for *all* states, so every frame gets the same colorbar and equal
-concentrations map to equal colors from step to step.
+``limit_lower`` and ``limit_upper`` fix the color scale at ``[0, 50] mol/l``, so every frame gets the same
+colorbar and equal concentrations map to equal colors from step to step.
 
 .. tip::
 
-   Set ``use_global_boundaries=True`` (with an explicit ``min`` and ``max``) whenever the
-   states of a series should be *comparable*. Leave it off for a field whose range is
-   unknown or changes drastically, and each state auto-fits the gradient to its own value
-   range instead -- which makes a single frame easy to read, but the frames no longer
-   comparable to one another.
+   Both bounds are optional. Left out, they are computed from the data -- and from the
+   *whole series*, not from the state at hand, so the frames stay comparable either way
+   (see :meth:`~porescene.config.QuantityConfiguration.resolve_limits`). Pin them when the scale
+   should be a round, reportable range rather than whatever the simulation happened to
+   produce, or when several figures have to share one scale. Each side stands on its own:
+   an explicit ``limit_lower=0`` with the top left to follow the data is a common
+   choice.
 
 :func:`~porescene.worker.build_structure` then builds the stick-and-ball geometry, and
 calibrated axes are added around it:
@@ -259,33 +260,32 @@ step before.
 5. Render each state
 ^^^^^^^^^^^^^^^^^^^^
 
-:func:`~porescene.worker.make_state` walks every configured field of the selected state.
-It fits the gradient (here once, from the global bounds), colors the enabled layers, and
-renders the scene -- one image per field, each reported as a
-:class:`~porescene.worker.Render` carrying the colorbar limits it was colored by:
+:func:`~porescene.worker.make_state_quantity` renders one field of one state: it fits
+the gradient (here once, from the pinned limits), colors the enabled layers, and returns
+the path of the image. A state carrying several fields is drawn by calling it once per
+field -- here the loop runs over the scene configuration itself, which iterates over the
+:class:`~porescene.config.QuantityConfiguration` of every quantity added to it:
 
 .. code-block:: python
 
    # render every selected state, coloring the pore spheres by concentration
    for no_state in no_states:
-       renders = worker.make_state(pth_frames, pn, sc, no_state=no_state)
+       for conf in sc.config_scene:
+           pth_vis = worker.make_state_quantity(
+               pth_frames, pn, sc, conf.name, no_state=no_state
+           )
 
-Composing the finished image is a separate step: the colorbar is rendered from the
-reported limits with :func:`~porescene.worker.make_colorbar` and joined to the
-render with :func:`~porescene.image.compose_colorbar`. Since the bounds are global here,
-every state ends up on one and the same color scale:
+Composing the finished image is a separate step: :func:`~porescene.worker.make_colorbar`
+draws the colorbar on the scale the render was colored on, and
+:func:`~porescene.image.compose_colorbar` joins the two. The alignment and orientation
+it is placed at come straight off the ``conf`` the loop hands out, so no second lookup
+is needed. Since the limits are pinned here, every state ends up on one and the same
+color scale:
 
 .. code-block:: python
 
-       # a colorbar is rendered and composed onto every image afterwards
-       for name, render in renders.items():
-           conf = sc.config_scene[name]
-           cb = worker.make_colorbar(
-               pth_frames / f"cb-{name}.svg", conf, render.lower, render.upper
-           )
-           image.compose_colorbar(
-               render.path, cb.path.with_suffix(".png"), conf.align, conf.orientation
-           )
+           pth_cb = worker.make_colorbar(pth_frames, pn, sc, conf.name)
+           image.compose_colorbar(pth_vis, pth_cb, conf.align, conf.orientation)
 
 Each render is named after the layers it shows, the field they are colored by, and the
 state index, so the frames of the series end up next to each other in ``pth_frames`` as
@@ -300,7 +300,7 @@ scale.
    order) to :func:`~porescene.image.frames2mp4` or :func:`~porescene.image.frames2gif`
    turns the series into a video, the same way the :doc:`solid animation
    <animation_solid>` example does it. Pass the composites to carry the colorbar into
-   the video, or the bare ``render.path`` images to leave it out.
+   the video, or the bare renders to leave it out.
 
 
 Full script

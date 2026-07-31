@@ -55,13 +55,9 @@ sc.create_axes()
 # Render pores colored by coordination number
 
 # render the scene and color the pores according to their coordination number
-render = worker.make_coordination_number(pth_data, pn, sc)
+pth_vis = worker.make_coordination_number(pth_data, pn, sc)
 
-# render a colorbar for the limits the render was colored by, and compose the two
+# render a colorbar on the same scale, and compose the two
 conf = sc.config_scene["coordination_number"]
-cb = worker.make_colorbar(
-    pth_data / "cb-coordination_number.svg", conf, render.lower, render.upper
-)
-pth_img = image.compose_colorbar(
-    render.path, cb.path.with_suffix(".png"), conf.align, conf.orientation
-)
+pth_cb = worker.make_colorbar(pth_data, pn, sc, "coordination_number")
+pth_img = image.compose_colorbar(pth_vis, pth_cb, conf.align, conf.orientation)

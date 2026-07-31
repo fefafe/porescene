@@ -6,7 +6,7 @@ import base64
 import contextlib
 import hashlib
 import os
-from collections.abc import Callable, Generator, Mapping, Sequence
+from collections.abc import Generator, Mapping, Sequence
 from enum import Enum
 from math import ceil, floor, isclose, isfinite, log10
 from pathlib import Path
@@ -653,8 +653,6 @@ def colorbar_limits(
     mn: float,
     mx: float,
     precision: int | None = None,
-    factor: float = 1.0,
-    func_transform: Callable | None = None,
     *,
     num_ticks: int = 6,
 ) -> tuple[float, float]:
@@ -663,30 +661,21 @@ def colorbar_limits(
 
     The data range a colorbar covers rarely ends on a value worth printing, so the limits
     are widened until they do -- never narrowed, so that no value falls outside the
-    gradient. ``mn`` and ``mx`` typically come from the data itself, via
-    :meth:`~porescene.model.PoreNetwork.quantity_min` and
-    :meth:`~porescene.model.PoreNetwork.quantity_max` for limits shared by every state,
-    or :attr:`~porescene.model.PoreNetworkQuantity.min` and
-    :attr:`~porescene.model.PoreNetworkQuantity.max` for a single one, and otherwise from
-    the :attr:`~porescene.config.QuantityConfiguration.min` and
-    :attr:`~porescene.config.QuantityConfiguration.max` a configuration pins them to.
+    gradient. Both values are expected in the unit the colorbar is labelled in, which
+    :meth:`~porescene.config.QuantityConfiguration.value_display` converts data into;
+    :meth:`~porescene.config.QuantityConfiguration.resolve_limits` pairs the two and is
+    the usual way into this function.
 
     Parameters
     ----------
     mn, mx
-        Lowest and highest value the colorbar has to cover, before scaling.
+        Lowest and highest value the colorbar has to cover, in the displayed unit.
     precision
         Decimal place the limits are rounded to, in the sense of :func:`round`: ``2``
         rounds to hundredths, ``-1`` to whole tens. When ``None`` (default), the place is
         derived from the range itself -- the limits are rounded to a multiple of the tick
         interval :func:`interval_round` picks for ``num_ticks`` ticks, which lands them on
         round values whatever the magnitude of the data.
-    factor
-        Number to scale the values by, to convert the unit. An example would be ``1e6``
-        to display values given in [m] as [µm].
-    func_transform
-        Transformation applied to both values before scaling, e.g. to display a quantity
-        on a derived scale.
     num_ticks
         Number of ticks the derived interval aims for, ignored when ``precision`` is
         given. Only sizes the rounding of the limits; the ticks themselves are placed by
@@ -695,9 +684,9 @@ def colorbar_limits(
     Returns
     -------
     tuple[float, float]
-        Lower and upper limit, in the scaled unit. The two are never equal: a range that
-        collapses onto a single value is widened by one rounding step, so the colorbar
-        keeps a span to draw.
+        Lower and upper limit. The two are never equal: a range that collapses onto a
+        single value is widened by one rounding step, so the colorbar keeps a span to
+        draw.
 
     Raises
     ------
@@ -705,11 +694,8 @@ def colorbar_limits(
         If either limit is not finite -- a quantity holding nothing but ``NaN`` yields
         such a range -- or if ``mx`` lies below ``mn``.
     """
-    if func_transform is not None:
-        mn = func_transform(mn)
-        mx = func_transform(mx)
-    mn = float(mn) * factor
-    mx = float(mx) * factor
+    mn = float(mn)
+    mx = float(mx)
 
     if not isfinite(mn) or not isfinite(mx):
         raise ValueError(f"Colorbar limits must be finite, got ({mn}, {mx})")

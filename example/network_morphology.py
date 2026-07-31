@@ -52,14 +52,12 @@ sc.create_axes()
 # Render pores and throats colored by radius
 
 # render the scene and color pores and throats according to their radius
-render = worker.make_radius(pth_data, pn, sc)
+pth_vis = worker.make_radius(pth_data, pn, sc)
 
-# render a colorbar for the limits the render was colored by, and compose the two
+# render a colorbar on the same scale, and compose the two
 conf = sc.config_scene["radius"]
-cb = worker.make_colorbar(pth_data / "cb-radius.svg", conf, render.lower, render.upper)
-pth_img = image.compose_colorbar(
-    render.path, cb.path.with_suffix(".png"), conf.align, conf.orientation
-)
+pth_cb = worker.make_colorbar(pth_data, pn, sc, "radius")
+pth_img = image.compose_colorbar(pth_vis, pth_cb, conf.align, conf.orientation)
 
 
 # =============================================================================
@@ -75,10 +73,8 @@ sc.config_scene.enable_spheres = False
 sc.config_scene["radius"].colors = Palette.load(Colormap.SPEED).all()
 
 # render the scene and color the throats according to their radius
-render = worker.make_radius(pth_data, pn, sc)
+pth_vis = worker.make_radius(pth_data, pn, sc)
 
 # the colorbar follows the new colormap, so it is rendered and composed again
-cb = worker.make_colorbar(pth_data / "cb-radius.svg", conf, render.lower, render.upper)
-pth_img = image.compose_colorbar(
-    render.path, cb.path.with_suffix(".png"), conf.align, conf.orientation
-)
+pth_cb = worker.make_colorbar(pth_data, pn, sc, "radius")
+pth_img = image.compose_colorbar(pth_vis, pth_cb, conf.align, conf.orientation)

@@ -190,29 +190,25 @@ sphere per pore and one cylinder per throat. Calibrated axes are added around it
 :func:`~porescene.worker.make_coordination_number` does the coloring: it fits the
 segmented gradient to the coordination-number range, colors the enabled layers
 accordingly, and renders the scene into ``pth_data``. Because the cylinders were
-disabled, only the pore spheres are drawn and colored. The
-:class:`~porescene.worker.Render` it returns carries the image path together with the
-limits the gradient was fitted to:
+disabled, only the pore spheres are drawn and colored. It draws no colorbar and returns
+the path of the bare image:
 
 .. code-block:: python
 
    # render the scene and color the pores according to their coordination number
-   render = worker.make_coordination_number(pth_data, pn, sc)
+   pth_vis = worker.make_coordination_number(pth_data, pn, sc)
 
 Rendering the scene and composing the finished image are separate steps, so the colorbar
-is drawn from those limits with :func:`~porescene.worker.make_colorbar` and
-joined to the render with :func:`~porescene.image.compose_colorbar`:
+is drawn by :func:`~porescene.worker.make_colorbar` -- which works out the same limits
+the render was colored on -- and joined to it with
+:func:`~porescene.image.compose_colorbar`:
 
 .. code-block:: python
 
-   # render a colorbar for the limits the render was colored by, and compose the two
+   # render a colorbar on the same scale, and compose the two
    conf = sc.config_scene["coordination_number"]
-   cb = worker.make_colorbar(
-       pth_data / "cb-coordination_number.svg", conf, render.lower, render.upper
-   )
-   pth_img = image.compose_colorbar(
-       render.path, cb.path.with_suffix(".png"), conf.align, conf.orientation
-   )
+   pth_cb = worker.make_colorbar(pth_data, pn, sc, "coordination_number")
+   pth_img = image.compose_colorbar(pth_vis, pth_cb, conf.align, conf.orientation)
 
 The render is named after the layer it shows -- the pore spheres, colored by
 coordination number -- yielding ``sphere-coordination-number+axes.png``, which the

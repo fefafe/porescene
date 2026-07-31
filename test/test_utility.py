@@ -403,10 +403,11 @@ def test_colorbar_limits_widen_a_range_that_collapses():
     assert colorbar_limits(2.4, 2.4, 0) == (2.0, 3.0)
 
 
-def test_colorbar_limits_apply_the_factor_and_the_transform():
-    # 2 µm .. 7 µm, given in meters and displayed in µm
-    assert colorbar_limits(2e-06, 7e-06, 0, 1e6) == (2.0, 7.0)
-    assert colorbar_limits(2.0, 3.0, 0, 1.0, lambda v: v**2) == (4.0, 9.0)
+def test_colorbar_limits_take_the_range_in_the_displayed_unit():
+    # converting the data into that unit is the job of
+    # QuantityConfiguration.value_display, so nothing is scaled here
+    assert colorbar_limits(2e-06, 7e-06, 0) == (0.0, 1.0)
+    assert colorbar_limits(2.0, 7.0, 0) == (2.0, 7.0)
 
 
 @pytest.mark.parametrize(

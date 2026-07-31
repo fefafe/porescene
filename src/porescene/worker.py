@@ -4,7 +4,6 @@
 
 
 from pathlib import Path
-from typing import NamedTuple
 
 import bpy
 import numpy as np
@@ -13,52 +12,99 @@ from mathutils import Matrix, Vector  # type: ignore  # isort:skip
 
 from porescene.color import Color
 from porescene.color.gradient import DiscreteGradient, SegmentedGradient, SmoothGradient
-from porescene.config import QuantityConfiguration
 from porescene.layout import (
     DiscreteGradientAnnotation,
-    Gradient,
     SegmentedGradientAnnotation,
     SmoothGradientAnnotation,
 )
 from porescene.model import PoreNetwork, PoreNetworkQuantity
 from porescene.scene import Scene
-from porescene.utility import colorbar_limits, colorbar_ticks, svg2png, tick_labels
+from porescene.utility import colorbar_ticks, svg2png, tick_labels
 
 SEPARATOR_FRAGMENTS = "+"
 SEPARATOR_PROPERTY = "-"
 
 
-class Render(NamedTuple):
+def quantity_range(pn: PoreNetwork, sc: Scene, name: str) -> tuple[float, float]:
     """
-    One rendered image together with the colorbar limits it was colored by.
+    The range the quantity ``name`` covers in a pore network, in stored units.
 
-    Rendering and image composition are kept apart: the ``make_*`` functions render the
-    scene and hand back this record, leaving it to the caller to render a colorbar for
-    it with :func:`make_colorbar` and to join the two with
-    :func:`porescene.image.compose_colorbar`.
+    The range every ``make_*`` function fits its color gradient to, and the one
+    :func:`make_colorbar` works its limits out from, so that an image and the colorbar
+    composited onto it report one and the same scale.
 
-    .. code-block:: python
-        :caption: Python
-        :linenos:
+    For a quantity carried by the states of the network the range spans the whole
+    series, so that states rendered one after another stay comparable. For one of the
+    geometry quantities -- ``"radius"`` and ``"coordination_number"``, which the network
+    holds once rather than per state -- it covers the values the scene actually draws,
+    i.e. the radii of the boundary throats only count when those throats were built into
+    it.
 
-        for name, render in worker.make_state(pth, pn, sc, no_state=0).items():
-            conf = sc.config_scene[name]
-            cb = worker.make_colorbar(
-                pth / f"cb-{name}.svg", conf, render.lower, render.upper
-            )
-            image.compose_colorbar(
-                render.path, cb.path.with_suffix(".png"), conf.align, conf.orientation
-            )
+    Parameters
+    ----------
+    pn : PoreNetwork
+        The pore network holding the data.
+    sc : Scene
+        The scene the quantity is drawn in.
+    name : str
+        Name of the quantity.
+
+    Returns
+    -------
+    tuple[float, float]
+        Lowest and highest value, in the unit the data is stored in. Feed both to
+        :meth:`~porescene.config.QuantityConfiguration.resolve_limits` to turn them into
+        the limits a colorbar spans.
+
+    Raises
+    ------
+    ValueError
+        If the network carries no quantity of that name.
     """
+    if pn.has_quantity(name):
+        return pn.quantity_min(name), pn.quantity_max(name)
 
-    #: Name of the quantity the image was colored by.
-    name: str
-    #: File path of the rendered image, without a colorbar.
-    path: Path
-    #: Lower limit of the color gradient, in the displayed unit.
-    lower: float
-    #: Upper limit of the color gradient, in the displayed unit.
-    upper: float
+    quant = _quantity_geometry(pn, sc, name)
+    return float(quant.min), float(quant.max)
+
+
+def _quantity_geometry(pn: PoreNetwork, sc: Scene, name: str) -> PoreNetworkQuantity:
+    """
+    Wraps a quantity of the network geometry -- one the network holds once rather than
+    per state -- into a :class:`~porescene.model.PoreNetworkQuantity`.
+    """
+    quant = PoreNetworkQuantity(name)
+
+    if name == "coordination_number":
+        return quant.set_data(pn.pore_coordination_number, pn.throat_coordination_number)
+
+    if name != "radius":
+        raise ValueError(
+            f"Could not find a quantity named '{name}': the network carries it in "
+            "none of its states, and it is not one of the geometry quantities "
+            "('radius', 'coordination_number')"
+        )
+
+    do_spheres = sc.config_scene.enable_spheres and sc.has_spheres
+    do_cylinders = sc.config_scene.enable_cylinders and sc.has_cylinders
+
+    # only the layers the scene draws take part in the range, so a view showing the
+    # throats alone is not colored by a scale stretched to fit the pores as well
+    r_p = pn.pore_radius if do_spheres else None
+    r_t = None
+    if do_cylinders and pn.throat_radius is not None:
+        r_t = pn.throat_radius
+        for b_name, b_value in sc._boundary_cylinder.items():
+            if not b_value:
+                continue
+            if getattr(pn, f"throat_radius_{b_name}") is None:
+                raise Exception(
+                    "Missing data: make sure that PoreNetwork.throat_radius_"
+                    f"{b_name} and PoreNetwork.pore_position_{b_name} are not empty."
+                )
+            r_t = np.concatenate([r_t, getattr(pn, f"throat_radius_{b_name}")])
+
+    return quant.set_data(r_p, r_t)
 
 
 def build_structure(
@@ -365,18 +411,19 @@ def make_radius(
     dir_save: Path,
     pn: PoreNetwork,
     sc: Scene,
-) -> Render:
+) -> Path:
     """
     Renders the pore network with pores and throats colored by their radius.
 
-    A smooth color gradient is fitted to the radius range (across pore and throat radii)
-    and the sphere and cylinder layers are colored accordingly via :func:`make_img`.
-    Spheres and cylinders are only colored and shown when enabled in the scene
-    configuration *and* the corresponding radius data is present.
+    A smooth color gradient is fitted to the radius range (across pore and throat radii,
+    see :meth:`~porescene.config.QuantityConfiguration.resolve_limits`) and the sphere and
+    cylinder layers are colored accordingly via :func:`make_img`. Spheres and cylinders
+    are only colored and shown when enabled in the scene configuration *and* the
+    corresponding radius data is present.
 
-    No colorbar is drawn onto the image -- the returned :class:`Render` carries the
-    limits the gradient was fitted to, so that one can be rendered and composited
-    afterwards.
+    No colorbar is drawn onto the image. Render one with :func:`make_colorbar`, which
+    works out the same limits by itself, and composite the two with
+    :func:`porescene.image.compose_colorbar`.
 
     Parameters
     ----------
@@ -390,8 +437,8 @@ def make_radius(
 
     Returns
     -------
-    Render
-        The rendered image and the colorbar limits it was colored by.
+    Path
+        The file path to the rendered image.
 
     Raises
     ------
@@ -403,68 +450,44 @@ def make_radius(
     do_spheres = sc.config_scene.enable_spheres and sc.has_spheres
     do_cylinders = sc.config_scene.enable_cylinders and sc.has_cylinders
 
-    # create quantity instance
+    # collect the radii the scene draws, see quantity_range
     conf = sc.config_scene["radius"]
-    quant = PoreNetworkQuantity("radius")
-
-    # collect throat radiii
-    if do_cylinders and pn.throat_radius is not None:
-        r_t = pn.throat_radius
-
-        for b_name, b_value in sc._boundary_cylinder.items():
-            if b_value:
-                if getattr(pn, f"throat_radius_{b_name}") is not None:
-                    r_t = np.concatenate([r_t, getattr(pn, f"throat_radius_{b_name}")])
-                else:
-                    raise Exception(
-                        "Missing data: make sure that PoreNetwork.throat_radius_"
-                        f"{b_name} and PoreNetwork.pore_position_{b_name} are not "
-                        "empty."
-                    )
-
-    # collect throat radiii
-    if do_spheres and pn.pore_radius is not None:
-        r_p = pn.pore_radius
-    else:
-        r_p = None
-
-    quant.set_data(r_p, r_t)
+    quant = _quantity_geometry(pn, sc, "radius")
 
     # setup colorbar
-    mn, mx = colorbar_limits(quant.min, quant.max, conf.precision, conf.factor)
-    grad = SmoothGradient(conf.colors, mn / conf.factor, mx / conf.factor, fit=True)
+    mn, mx = conf.resolve_limits(quant.min, quant.max)
+    grad = SmoothGradient(conf.colors, mn, mx, fit=True)
 
     # render given configuration
-    pth_vis = make_img(
+    return make_img(
         dir_save,
         sc,
         do_spheres,
         do_cylinders,
         False,
-        grad(quant.pore_values) if do_spheres else [],
-        grad(quant.throat_values) if do_cylinders else [],
+        grad(conf.value_display(quant.pore_values)) if do_spheres else [],
+        grad(conf.value_display(quant.throat_values)) if do_cylinders else [],
         [],
         "radius",
         "radius",
     )
 
-    return Render("radius", pth_vis, mn, mx)
 
-
-def make_coordination_number(dir_img: Path, pn: PoreNetwork, sc: Scene) -> Render:
+def make_coordination_number(dir_img: Path, pn: PoreNetwork, sc: Scene) -> Path:
     """
     Renders the pore network with pores, throats, and clusters colored by their
     coordination number.
 
     A color gradient (the gradient class configured for the ``coordination_number``
-    quantity) is fitted to the coordination-number range, and the sphere, cylinder, and
-    cluster layers are colored accordingly via :func:`make_img`. Each layer is only
-    colored and shown when it is enabled in the scene configuration and the
+    quantity) is fitted to the coordination-number range (see
+    :meth:`~porescene.config.QuantityConfiguration.resolve_limits`), and the sphere,
+    cylinder and cluster layers are colored accordingly via :func:`make_img`. Each layer
+    is only colored and shown when it is enabled in the scene configuration and the
     corresponding data is available.
 
-    No colorbar is drawn onto the image -- the returned :class:`Render` carries the
-    limits the gradient was fitted to, so that one can be rendered and composited
-    afterwards.
+    No colorbar is drawn onto the image. Render one with :func:`make_colorbar`, which
+    works out the same limits by itself, and composite the two with
+    :func:`porescene.image.compose_colorbar`.
 
     Parameters
     ----------
@@ -478,37 +501,34 @@ def make_coordination_number(dir_img: Path, pn: PoreNetwork, sc: Scene) -> Rende
 
     Returns
     -------
-    Render
-        The rendered image and the colorbar limits it was colored by.
+    Path
+        The file path to the rendered image.
     """
     # check scene components
     do_spheres = sc.config_scene.enable_spheres and sc.has_spheres
     do_cylinders = sc.config_scene.enable_cylinders and sc.has_cylinders
     do_clusters = sc.config_scene.enable_clusters and sc.has_clusters
 
-    # create quantity instance
+    # collect the coordination numbers, see quantity_range
     conf = sc.config_scene["coordination_number"]
-    quant = PoreNetworkQuantity("coordination_number")
+    quant = _quantity_geometry(pn, sc, "coordination_number")
 
-    quant.set_data(pn.pore_coordination_number, pn.throat_coordination_number)
-    mn, mx = colorbar_limits(quant.min, quant.max, conf.precision, conf.factor)
-    grad = conf.gradient_class(conf.colors, mn / conf.factor, mx / conf.factor)
+    limit_lower, limit_upper = conf.resolve_limits(quant.min, quant.max)
+    grad = conf.gradient_class(conf.colors, limit_lower, limit_upper)
 
-    pth_vis = make_img(
+    return make_img(
         dir_img,
         sc,
         do_spheres,
         do_cylinders,
         do_clusters,
-        grad(quant.pore_values) if do_spheres else [],
-        grad(quant.throat_values) if do_cylinders else [],
-        grad(quant.pore_values) if do_clusters else [],
+        grad(conf.value_display(quant.pore_values)) if do_spheres else [],
+        grad(conf.value_display(quant.throat_values)) if do_cylinders else [],
+        grad(conf.value_display(quant.pore_values)) if do_clusters else [],
         "coordination-number",
         "coordination-number",
         "coordination-number",
     )
-
-    return Render("coordination_number", pth_vis, mn, mx)
 
 
 def make_random(dir_img: Path, pn: PoreNetwork, sc: Scene) -> Path:
@@ -542,7 +562,7 @@ def make_random(dir_img: Path, pn: PoreNetwork, sc: Scene) -> Path:
     do_clusters = sc.config_scene.enable_clusters and sc.has_clusters
 
     # render scene configuration
-    pth_img = make_img(
+    return make_img(
         dir_img,
         sc,
         do_spheres,
@@ -559,8 +579,6 @@ def make_random(dir_img: Path, pn: PoreNetwork, sc: Scene) -> Path:
         "random",
         "random",
     )
-
-    return pth_img
 
 
 def make_structure(
@@ -599,7 +617,7 @@ def make_structure(
     N_p = pn.pore_count
     N_t = pn.throat_count(**sc._boundary_cylinder)
 
-    pth_img = make_img(
+    return make_img(
         dir_img,
         sc,
         do_spheres,
@@ -613,40 +631,47 @@ def make_structure(
         "structure",
     )
 
-    return pth_img
 
-
-def make_state(
-    pth: Path,
+def make_state_quantity(
+    dir_img: Path,
     pn: PoreNetwork,
     sc: Scene,
+    name: str,
     *,
     no_state: int | None = None,
     time_point: float | None = None,
     no_frame: int | None = None,
-) -> dict[str, Render]:
+) -> Path:
     """
-    Renders one state of a pore network, one image per state quantity.
+    Renders one quantity of one state of a pore network.
 
     The state is selected either by its number or by a point in time. Selecting by
     number renders a stored state verbatim; selecting by time evaluates the network at
     that instant via :meth:`~porescene.model.PoreNetwork.state_at`, interpolating
-    between the stored states where needed.
+    between the stored states where needed. Call this once per quantity to draw a state
+    that carries several of them.
 
-    Each quantity of the state is drawn onto its own image. Whether the colorbar limits
-    are shared across all states or derived from the state at hand follows
-    :attr:`~porescene.config.QuantityConfiguration.use_global_boundaries`; either way
-    they are reported per quantity, so that a colorbar can be rendered and composited
-    onto the image afterwards -- see :class:`Render`.
+    The color scale spans the whole series rather than the state at hand -- the limits
+    are resolved by :meth:`~porescene.config.QuantityConfiguration.resolve_limits` from
+    the range the quantity covers across every state of the network, so that states
+    rendered one after another stay comparable, and a limit pinned on the configuration
+    wins over the computed one.
+
+    No colorbar is drawn onto the image. Render one with :func:`make_colorbar`, which
+    works out the same limits by itself, and composite it with
+    :func:`porescene.image.compose_colorbar`.
 
     Parameters
     ----------
-    pth : Path
-        Directory to save the rendered images at.
+    dir_img : Path
+        Directory to save the rendered image at.
     pn : PoreNetwork
         The pore network to take the state from.
     sc : Scene
         Scene holding the already-built geometry, see :func:`build_structure`.
+    name : str
+        Name of the quantity to color the network by. The state has to carry it, and
+        the scene has to hold a configuration for it.
     no_state : int | None, optional
         Number of the state to render, matched against
         :attr:`~porescene.model.PoreNetworkState.no`, i.e. the index the state was
@@ -658,19 +683,20 @@ def make_state(
         Times between two stored states are interpolated per quantity, times outside the
         stored range are clamped. Mutually exclusive with ``no_state``.
     no_frame : int | None, optional
-        Position in a frame sequence, used to name the images, see :func:`make_img`.
+        Position in a frame sequence, used to name the image, see :func:`make_img`.
         Set by :func:`make_frames`; there is rarely a reason to pass it directly.
 
     Returns
     -------
-    dict[str, Render]
-        The rendered image and its colorbar limits, per quantity name.
+    Path
+        The file path to the rendered image.
 
     Raises
     ------
     ValueError
-        If neither or both of ``no_state`` and ``time_point`` are given, or if no stored
-        state carries the requested ``no_state``.
+        If neither or both of ``no_state`` and ``time_point`` are given, if no stored
+        state carries the requested ``no_state``, or if the state carries no quantity
+        named ``name``.
     """
     if (no_state is None) == (time_point is None):
         raise ValueError("Give either 'no_state' or 'time_point', not both or neither")
@@ -686,96 +712,65 @@ def make_state(
     else:
         state = pn.state_at(time_point)
 
+    quant = state.get_quantity(name)
+    conf = sc.config_scene[name]
+
+    # check scene layers
     do_spheres = sc.config_scene.enable_spheres and sc.has_spheres
     do_cylinders = sc.config_scene.enable_cylinders and sc.has_cylinders
     do_clusters = sc.config_scene.enable_clusters and sc.has_clusters
-    grad_dict = {}
-    for conf in sc.config_scene:
-        if conf.use_global_boundaries:
-            mn, mx = colorbar_limits(conf.min, conf.max, conf.precision, conf.factor)
-            grad_dict[conf.name] = conf.gradient_class(
-                conf.colors, mn / conf.factor, mx / conf.factor
-            )
 
-    renders: dict[str, Render] = {}
-    for quant in state.quantities:
-        conf = sc.config_scene[quant.name]
+    limits = conf.resolve_limits(*quantity_range(pn, sc, name))
+    grad = conf.gradient_class(conf.colors, *limits)
 
-        if not conf.use_global_boundaries:
-            if conf.min is None:
-                mn, _ = colorbar_limits(
-                    quant.min,
-                    quant.max,
-                    conf.precision,
-                    conf.factor,
-                    conf.func_transform,
-                )
-            else:
-                mn = conf.min
-            if conf.max is None:
-                _, mx = colorbar_limits(
-                    quant.min,
-                    quant.max,
-                    conf.precision,
-                    conf.factor,
-                    conf.func_transform,
-                )
-            else:
-                mx = conf.max
-
-            grad = conf.gradient_class(conf.colors, mn / conf.factor, mx / conf.factor)
-        else:
-            grad = grad_dict[conf.name]
-            mn, mx = colorbar_limits(conf.min, conf.max, conf.precision, conf.factor)
-        pth_vis = make_img(
-            pth,
-            sc,
-            do_spheres,
-            do_cylinders,
-            do_clusters,
-            grad(conf.func_transform(quant.pore_values)) if do_spheres else [],
-            grad(conf.func_transform(quant.throat_values)) if do_cylinders else [],
-            grad(conf.func_transform(quant.pore_values)) if do_clusters else [],
-            quant.name,
-            quant.name,
-            quant.name,
-            no_state=state.no,
-            no_frame=no_frame,
-        )
-
-        renders[quant.name] = Render(quant.name, pth_vis, mn, mx)
-    return renders
+    return make_img(
+        dir_img,
+        sc,
+        do_spheres,
+        do_cylinders,
+        do_clusters,
+        grad(conf.value_display(quant.pore_values)) if do_spheres else [],
+        grad(conf.value_display(quant.throat_values)) if do_cylinders else [],
+        grad(conf.value_display(quant.pore_values)) if do_clusters else [],
+        name,
+        name,
+        name,
+        no_state=state.no,
+        no_frame=no_frame,
+    )
 
 
 def make_frames(
     pth: Path,
     pn: PoreNetwork,
     sc: Scene,
+    name: str,
     fps: int = 30,
     *,
     duration: float | None = None,
     speed: float | None = None,
     t_start: float | None = None,
     t_end: float | None = None,
-) -> dict[str, list[Render]]:
+) -> list[Path]:
     """
     Renders the frames of a video by resampling a pore network onto regular time steps.
 
     Computed results are commonly written at irregular intervals, while a video needs
     frames at regular ones. This walks the frame times of
     :meth:`~porescene.model.PoreNetwork.frame_times` and renders each of them with
-    :func:`make_state`, so that playback speed follows the physical time of the results
-    rather than the spacing of the stored states.
+    :func:`make_state_quantity`, so that playback speed follows the physical time of the
+    results rather than the spacing of the stored states.
 
-    One frame sequence is produced per quantity, named so that sorting by file name
-    yields the playback order. Feed the frame paths -- either the bare renders or the
-    composites a colorbar was joined onto, see :class:`Render` -- straight to
-    :func:`porescene.image.frames2mp4` or :func:`porescene.image.frames2gif`.
+    The frames are named so that sorting by file name yields the playback order. Feed
+    them -- either the bare renders or the composites a colorbar was joined onto with
+    :func:`porescene.image.compose_colorbar` -- straight to
+    :func:`porescene.image.frames2mp4` or :func:`porescene.image.frames2gif`. Call this
+    once per quantity to turn several of them into videos.
 
     .. attention::
 
         Rendering is by far the slowest part: a 12 second video at 30 fps means 360
-        renders per quantity. Check the schedule with
+        renders. Check the schedule with
         :meth:`~porescene.model.PoreNetwork.frame_times` before committing to it.
 
     Parameters
@@ -786,6 +781,9 @@ def make_frames(
         The pore network to resample.
     sc : Scene
         Scene holding the already-built geometry, see :func:`build_structure`.
+    name : str
+        Name of the quantity to color the network by, see
+        :func:`make_state_quantity`.
     fps : int, optional
         Playback speed of the video in frames per second, by default 30.
     duration : float | None, optional
@@ -800,8 +798,8 @@ def make_frames(
 
     Returns
     -------
-    dict[str, list[Render]]
-        The rendered frames per quantity name, in playback order.
+    list[Path]
+        The rendered frames, in playback order.
 
     Examples
     --------
@@ -809,105 +807,123 @@ def make_frames(
         :caption: Python
         :linenos:
 
-        frames = worker.make_frames(pth_frames, pn, sc, fps=30, duration=12)
-        for name, renders in frames.items():
-            image.frames2mp4(
-                [render.path for render in renders], pth_data / f"{name}.mp4", fps=30
-            )
+        for svm in vars_state:
+            pths = worker.make_frames(pth_frames, pn, sc, svm.name, fps=30, duration=12)
+            image.frames2mp4(pths, pth_data / f"{svm.name}.mp4", fps=30)
     """
     times = pn.frame_times(
         fps, duration=duration, speed=speed, t_start=t_start, t_end=t_end
     )
 
-    frames: dict[str, list[Render]] = {}
-    for no_frame, t in enumerate(times):
-        rendered = make_state(pth, pn, sc, time_point=float(t), no_frame=no_frame)
-        for name, render in rendered.items():
-            frames.setdefault(name, []).append(render)
-    return frames
+    return [
+        make_state_quantity(pth, pn, sc, name, time_point=float(t), no_frame=no_frame)
+        for no_frame, t in enumerate(times)
+    ]
 
 
 def make_colorbar(
-    pth: Path,
-    config: QuantityConfiguration,
-    mn: float,
-    mx: float,
+    dir_img: Path,
+    pn: PoreNetwork,
+    sc: Scene,
+    name: str,
     /,
     ticks: tuple[str, ...] = (),
     **kwargs,
-) -> Gradient:
+) -> Path:
     """
     Renders the colorbar of a quantity as SVG and PNG.
 
+    The counterpart to the ``make_*`` functions that render the scene: they leave their
+    images bare, and this draws the scale they were colored on, to be joined to one of
+    them with :func:`porescene.image.compose_colorbar`.
+
+    The limits are worked out the same way the render worked them out, from
+    :func:`quantity_range` and
+    :meth:`~porescene.config.QuantityConfiguration.resolve_limits`, so that the two
+    agree without the render having to hand anything over. The data is only read where
+    the configuration does not pin both limits itself.
+
     The gradient class configured for the quantity decides the kind of colorbar; its
-    colors, heading, subheading, text, alignment and orientation are taken from
-    ``config``. Unless ``ticks`` are given, they are placed equidistantly between
-    ``mn`` and ``mx`` -- one per color boundary for a segmented gradient, five
+    colors, heading, subheading, text, alignment and orientation are taken from the
+    configuration as well. Unless ``ticks`` are given, they are placed equidistantly
+    between the limits -- one per color boundary for a segmented gradient, five
     otherwise -- and labelled at the configured precision. Remaining ``kwargs`` are
     applied to the underlying annotation where it has a matching attribute.
 
-    The colorbar is not written to ``pth`` verbatim: its stem is extended by an
-    ``id-<fingerprint>`` part identifying the rendered markup (see
+    The file is named after the quantity, as ``cb-<name>``, and its stem is extended by
+    an ``id-<fingerprint>`` part identifying the rendered markup (see
     :attr:`~porescene.layout.BackgroundAnnotation.id`), so that colorbars differing in
-    palette, limits, ticks or label do not overwrite each other. Read the actual
-    location off the returned annotation's
-    :attr:`~porescene.layout.BackgroundAnnotation.path`.
+    palette, limits, ticks or label do not overwrite each other. Read the location off
+    the returned path.
 
     Parameters
     ----------
-    pth
-        Base path of the SVG file. The written file carries the fingerprint part in
-        addition; the PNG sits next to it under the same stem.
-    config
-        Configuration of the quantity the colorbar belongs to.
-    mn, mx
-        Lower and upper limit the ticks span.
+    dir_img
+        Directory to save the rendered colorbar at.
+    pn
+        The pore network the colorbar reports the scale of.
+    sc
+        The scene holding the configuration of the quantity.
+    name
+        Name of the quantity the colorbar belongs to.
     ticks
-        Tick labels, by default derived from ``mn``, ``mx`` and the configuration.
+        Tick labels, by default derived from the limits and the configuration.
     **kwargs
         Overrides applied to the annotation before it is rendered.
 
     Returns
     -------
-    Gradient
-        The rendered annotation, holding the path it was written to.
+    Path
+        The file path of the rendered PNG. The SVG it was converted from sits next to
+        it under the same stem.
 
     Raises
     ------
     ValueError
         If the quantity is configured with an unknown gradient class.
     """
-    if config.gradient_class is SmoothGradient:
+    conf = sc.config_scene[name]
+
+    if conf.limit_lower is not None and conf.limit_upper is not None:
+        limit_lower, limit_upper = float(conf.limit_lower), float(conf.limit_upper)
+    else:
+        limit_lower, limit_upper = conf.resolve_limits(*quantity_range(pn, sc, name))
+
+    pth = dir_img / ("cb" + SEPARATOR_PROPERTY + name + ".svg")
+
+    if conf.gradient_class is SmoothGradient:
         ovl = SmoothGradientAnnotation(pth)
-    elif config.gradient_class is SegmentedGradient:
+    elif conf.gradient_class is SegmentedGradient:
         ovl = SegmentedGradientAnnotation(pth)
-    elif config.gradient_class is DiscreteGradient:
+    elif conf.gradient_class is DiscreteGradient:
         ovl = DiscreteGradientAnnotation(pth)
     else:
         raise ValueError("Unknown gradient class")
     if len(ticks) == 0:
-        if config.gradient_class is SegmentedGradient:
-            n_ticks = len(config.colors) + 1
+        if conf.gradient_class is SegmentedGradient:
+            n_ticks = len(conf.colors) + 1
         else:
             n_ticks = 5
         # two decimals beyond the configured precision keep a tick that falls between
         # two rounding steps of the limits legible instead of collapsing it onto one
         ticks = tick_labels(
-            colorbar_ticks(mn, mx, n_ticks, precision=config.precision + 2),
-            decimals=max(config.precision, 0) + 2,
+            colorbar_ticks(
+                limit_lower, limit_upper, n_ticks, precision=conf.precision + 2
+            ),
+            decimals=max(conf.precision, 0) + 2,
         )
     for arg in kwargs.items():
         if hasattr(ovl, arg[0]):
             setattr(ovl, arg[0], arg[1])
-    ovl.gradient_colors = config.colors
+    ovl.gradient_colors = conf.colors
     # the annotation reverses the ticks in place for a vertical colorbar
     ovl.ticks = list(ticks)
-    ovl.heading = config.heading
-    ovl.subheading = config.subheading
-    ovl.text = config.text
-    ovl.align = config.align
-    ovl.orientation = config.orientation
-    ovl.color_nan = None  # config.color_nan
+    ovl.heading = conf.heading
+    ovl.subheading = conf.subheading
+    ovl.text = conf.text
+    ovl.align = conf.align
+    ovl.orientation = conf.orientation
+    ovl.color_nan = conf.color_nan
     ovl.save(stamp_id=True)
-    svg2png(ovl.path)
-    return ovl
+
+    return svg2png(ovl.path)

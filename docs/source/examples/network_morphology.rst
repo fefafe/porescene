@@ -168,28 +168,26 @@ sphere per pore and one cylinder per throat. Calibrated axes are added around it
 
 :func:`~porescene.worker.make_radius` does the coloring: it fits a smooth gradient to the
 combined pore- and throat-radius range, colors the sphere and cylinder layers accordingly,
-and renders the scene into ``pth_data``. It draws no colorbar -- the
-:class:`~porescene.worker.Render` it returns carries the image path together with the
-limits the gradient was fitted to:
+and renders the scene into ``pth_data``. It draws no colorbar and returns the path of
+the bare image:
 
 .. code-block:: python
 
    # render the scene and color pores and throats according to their radius
-   render = worker.make_radius(pth_data, pn, sc)
+   pth_vis = worker.make_radius(pth_data, pn, sc)
 
-Those limits are what a colorbar has to be labelled with, so the colorbar is rendered from
-them with :func:`~porescene.worker.make_colorbar` and joined to the image with
-:func:`~porescene.image.compose_colorbar`. Keeping the two steps apart means the same
-render can be given a colorbar in a different place, or none at all:
+The colorbar is a separate step: :func:`~porescene.worker.make_colorbar` works out the
+same limits the render was colored on -- from the same
+:func:`~porescene.worker.quantity_range` -- and
+:func:`~porescene.image.compose_colorbar` joins the two images. Keeping them apart means
+the same render can be given a colorbar in a different place, or none at all:
 
 .. code-block:: python
 
-   # render a colorbar for the limits the render was colored by, and compose the two
+   # render a colorbar on the same scale, and compose the two
    conf = sc.config_scene["radius"]
-   cb = worker.make_colorbar(pth_data / "cb-radius.svg", conf, render.lower, render.upper)
-   pth_img = image.compose_colorbar(
-       render.path, cb.path.with_suffix(".png"), conf.align, conf.orientation
-   )
+   pth_cb = worker.make_colorbar(pth_data, pn, sc, "radius")
+   pth_img = image.compose_colorbar(pth_vis, pth_cb, conf.align, conf.orientation)
 
 This first composite is the stick-and-ball view shown at the top of the page: every pore
 and throat carries its own color from the reversed ``EMBER`` gradient, next to the
@@ -225,13 +223,11 @@ that view:
 .. code-block:: python
 
    # render the scene and color the throats according to their radius
-   render = worker.make_radius(pth_data, pn, sc)
+   pth_vis = worker.make_radius(pth_data, pn, sc)
 
    # the colorbar follows the new colormap, so it is rendered and composed again
-   cb = worker.make_colorbar(pth_data / "cb-radius.svg", conf, render.lower, render.upper)
-   pth_img = image.compose_colorbar(
-       render.path, cb.path.with_suffix(".png"), conf.align, conf.orientation
-   )
+   pth_cb = worker.make_colorbar(pth_data, pn, sc, "radius")
+   pth_img = image.compose_colorbar(pth_vis, pth_cb, conf.align, conf.orientation)
 
 .. note::
 

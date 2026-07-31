@@ -59,9 +59,9 @@ sc.config_scene.add_quantity(
         orientation=Orientation.VERTICAL,  # colorbar orientation
         align=CompassDirection.WEST,  # colorbar position around the rendering
         precision=3,  # precision of colorbar ticks
-        use_global_boundaries=True,  # clamp colorbar imits to series minimum/maximum
-        min=0,
-        max=50,
+        # pinned colorbar limits, in place of the series minimum/maximum
+        limit_lower=0,
+        limit_upper=50,
     )
 )
 
@@ -77,14 +77,10 @@ sc.create_axes()
 
 # render every selected state, coloring the pore spheres by concentration
 for no_state in no_states:
-    renders = worker.make_state(pth_frames, pn, sc, no_state=no_state)
-
-    # a colorbar is rendered and composed onto every image afterwards
-    for name, render in renders.items():
-        conf = sc.config_scene[name]
-        cb = worker.make_colorbar(
-            pth_frames / f"cb-{name}.svg", conf, render.lower, render.upper
+    # one image per configured quantity, each with its own colorbar composed onto it
+    for conf in sc.config_scene:
+        pth_vis = worker.make_state_quantity(
+            pth_frames, pn, sc, conf.name, no_state=no_state
         )
-        image.compose_colorbar(
-            render.path, cb.path.with_suffix(".png"), conf.align, conf.orientation
-        )
+        pth_cb = worker.make_colorbar(pth_frames, pn, sc, conf.name)
+        image.compose_colorbar(pth_vis, pth_cb, conf.align, conf.orientation)

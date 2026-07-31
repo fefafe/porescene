@@ -42,9 +42,8 @@ def test_quantity_stores_the_given_settings():
         align=CompassDirection.SOUTHEAST,
         orientation=Orientation.VERTICAL,
         precision=3,
-        min=0.0,
-        max=1.0,
-        use_global_boundaries=True,
+        limit_lower=0.0,
+        limit_upper=1.0,
         factor=1e6,
         fit=False,
     )
@@ -55,8 +54,7 @@ def test_quantity_stores_the_given_settings():
     assert p.align is CompassDirection.SOUTHEAST
     assert p.orientation is Orientation.VERTICAL
     assert p.precision == 3
-    assert (p.min, p.max) == (0.0, 1.0)
-    assert p.use_global_boundaries is True
+    assert (p.limit_lower, p.limit_upper) == (0.0, 1.0)
     assert p.factor == 1e6
     assert p.fit is False
 
@@ -79,6 +77,78 @@ def test_quantity_out_of_range_colors_are_stored():
 def test_quantity_transform_is_applied_by_the_caller_not_stored_eagerly():
     p = QuantityConfiguration("radius", func_transform=lambda v: v * 2)
     assert p.func_transform(21) == 42
+
+
+# -----------------------------------------------------------------------------
+# QuantityConfiguration -- displayed values
+
+
+def test_value_display_defaults_to_the_stored_value():
+    assert QuantityConfiguration("radius").value_display(7.0) == 7.0
+
+
+def test_value_display_transforms_before_it_scales():
+    # v - 273.15 first, then x2 -- the other order would give 286.85
+    p = QuantityConfiguration(
+        "temperature", factor=2.0, func_transform=lambda v: v - 273.15
+    )
+    assert p.value_display(280.0) == pytest.approx(13.7)
+
+
+def test_value_display_works_on_an_array():
+    p = QuantityConfiguration("radius", factor=2e6)
+    assert p.value_display(np.array([1e-06, 2e-06])) == pytest.approx([2.0, 4.0])
+
+
+def test_value_display_passes_missing_data_through():
+    # a quantity may carry pore data but no throat data, or the other way round
+    assert QuantityConfiguration("radius", factor=2e6).value_display(None) is None
+
+
+# -----------------------------------------------------------------------------
+# QuantityConfiguration -- colorbar limits
+
+
+def test_limits_are_computed_from_the_data_by_default():
+    p = QuantityConfiguration("radius", precision=0)
+    assert p.resolve_limits(0.3, 4.2) == (0.0, 5.0)
+
+
+def test_limits_follow_the_factor_and_the_transform():
+    p = QuantityConfiguration("radius", precision=0, factor=1e6)
+    assert p.resolve_limits(2.4e-06, 7.8e-06) == (2.0, 8.0)
+
+    p = QuantityConfiguration(
+        "temperature", precision=0, func_transform=lambda v: v - 273.15
+    )
+    assert p.resolve_limits(280.0, 300.0) == (6.0, 27.0)
+
+
+def test_a_pinned_limit_replaces_the_computed_one():
+    p = QuantityConfiguration("radius", precision=0, limit_lower=1.0)
+    assert p.resolve_limits(0.3, 4.2) == (1.0, 5.0)
+
+    p = QuantityConfiguration("radius", precision=0, limit_upper=9.0)
+    assert p.resolve_limits(0.3, 4.2) == (0.0, 9.0)
+
+
+def test_pinned_limits_are_neither_scaled_nor_rounded():
+    # a colorbar asked to start at 0.3 starts at 0.3, not at the rounded-down 0.0
+    p = QuantityConfiguration(
+        "radius", precision=0, factor=1e6, limit_lower=0.3, limit_upper=4.2
+    )
+    assert p.resolve_limits(0.0, 1.0) == (0.3, 4.2)
+
+
+def test_pinned_limits_do_not_look_at_the_data():
+    p = QuantityConfiguration("radius", limit_lower=0.0, limit_upper=1.0)
+    assert p.resolve_limits(float("nan"), float("nan")) == (0.0, 1.0)
+
+
+def test_limits_reject_a_data_range_that_is_not_finite():
+    # an all-NaN quantity yields such a range; pinning both limits is the way out
+    with pytest.raises(ValueError, match="must be finite"):
+        QuantityConfiguration("radius").resolve_limits(float("nan"), float("nan"))
 
 
 # =============================================================================
