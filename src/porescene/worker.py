@@ -24,6 +24,8 @@ from porescene.model import PoreNetwork, PoreNetworkQuantity
 from porescene.scene import Scene
 from porescene.utility import colorbar_limits, colorbar_ticks, svg2png, tick_labels
 
+SEPARATOR_FRAGMENTS = "+"
+
 
 class Render(NamedTuple):
     """
@@ -346,7 +348,7 @@ def make_img(
         fname_fragments.append(f"state-{no_state}")
 
     # render image in given config
-    fname = "+".join(fname_fragments) + ".png"
+    fname = SEPARATOR_FRAGMENTS.join(fname_fragments) + ".png"
     pth_render = sc.render(dir_img / fname)
 
     # reset scene
