@@ -736,6 +736,33 @@ class PoreNetwork:
         """
         return self.states[no_state]
 
+    def has_quantity(self, name: str) -> bool:
+        """
+        Whether any state of the network carries a quantity named ``name``.
+
+        The counterpart to :meth:`PoreNetworkState.has_quantity`, which covers one
+        state alone: states are free to carry different quantities, so the network
+        holds one as soon as a single state does. This is the question
+        :meth:`quantity_min` and :meth:`quantity_max` are answered from -- both raise
+        wherever this returns ``False``.
+
+        The geometry quantities ``"radius"`` and ``"coordination_number"`` are held by
+        the network once rather than per state, so they are reported as missing here
+        even though a scene can be colored by them, see
+        :func:`porescene.worker.quantity_range`.
+
+        Parameters
+        ----------
+        name : str
+            Name of the quantity, see :attr:`PoreNetworkQuantity.name`.
+
+        Returns
+        -------
+        bool
+            ``True`` if at least one state carries the quantity.
+        """
+        return any(st.has_quantity(name) for st in self.states)
+
     def load_states_from_mat(
         self,
         pth_mat: Path,
