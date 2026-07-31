@@ -107,9 +107,9 @@ def compose_colorbar(
     """
     Composites the colorbar next to the visualization image.
 
-    The counterpart to the rendering step: :func:`porescene.worker.make_state` and its
-    siblings render the scene, :func:`porescene.worker.make_colorbar` renders the
-    colorbar, and this joins the two finished images.
+    The counterpart to the rendering step: :func:`porescene.worker.make_state_quantity`
+    and its siblings render the scene, :func:`porescene.worker.make_colorbar` renders
+    the colorbar, and this joins the two finished images.
 
     Both images are trimmed to their content before being placed on a common,
     transparent canvas. The colorbar is scaled to 60 % of the visualization's extent
