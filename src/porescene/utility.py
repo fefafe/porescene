@@ -8,7 +8,7 @@ import hashlib
 import os
 from collections.abc import Callable, Generator, Mapping, Sequence
 from enum import Enum
-from math import ceil, floor, isclose
+from math import ceil, floor, isclose, isfinite, log10
 from pathlib import Path
 from typing import Literal, overload
 
@@ -577,54 +577,245 @@ def _rectangles2corners(
     return corners
 
 
-def _get_bounds(
+def count_decimals(values: Sequence[float], limit: int = 6) -> int:
+    """
+    Returns the smallest number of decimals, at most ``limit``, that writes every value
+    of ``values`` exactly.
+
+    A value counts as written exactly once rounding it no longer changes it, judged with
+    a relative tolerance so that the binary representation of a decimal step -- ``0.3``
+    arriving as ``0.30000000000000004`` -- does not claim digits of its own.
+    """
+    digits = 0
+    for value in values:
+        while digits < limit and not isclose(round(value, digits), value):
+            digits += 1
+
+    return digits
+
+
+def interval_round(span: float, num_ticks: int) -> float:
+    """
+    Returns the tick interval from the 1-2-5-10 series that splits ``span`` into roughly
+    ``num_ticks`` ticks, so they land on round values.
+
+    The exact spacing ``span / (num_ticks - 1)`` is rounded to the closest member of the
+    series, following Heckbert's *Nice Numbers for Graph Labels*. Sticking to that series
+    keeps the ticks whole numbers wherever the span allows it, which a finer series such
+    as 1-2-2.5-5-10 would not, so the labels read without the decimal that such a step
+    would drag onto every one of them.
+    """
+    if not isfinite(span) or span <= 0:
+        return 1.0
+
+    step = span / (num_ticks - 1)
+    magnitude = 10.0 ** floor(log10(step))
+    residual = step / magnitude
+
+    if residual < 1.5:
+        return magnitude
+    if residual < 3:
+        return 2 * magnitude
+    if residual < 7:
+        return 5 * magnitude
+
+    return 10 * magnitude
+
+
+def unit_metric(span: float) -> str:
+    """
+    Returns the name of the metric prefix that ``span``, in meters, reads best in, so a
+    displayed unit follows the size of the domain instead of being fixed.
+
+    The prefix is the one that scales ``span`` into ``[10, 10000)``, keeping the tick
+    values two to four digits long. Only the prefixes of the engineering series are
+    considered -- those of :class:`UnitExponentMetric` whose exponent is a multiple of
+    three, from ``QUECTO`` through ``BASE`` up to ``QUETTA`` -- since a length is commonly
+    given in those. Aiming above ``10`` rather than above ``1`` also keeps a tick interval
+    derived by :func:`interval_round` a whole number, so the tick labels come out free of
+    decimals.
+
+    Falls back to ``MICRO`` for a degenerate span, and is clamped to the outermost
+    prefixes for a span beyond their reach.
+    """
+    if not isfinite(span) or span <= 0:
+        return "MICRO"
+
+    units = {unit.value: unit.name for unit in UnitExponentMetric if unit.value % 3 == 0}
+
+    exponent = 3 * floor((log10(span) - 1) / 3)
+    exponent = min(max(exponent, min(units)), max(units))
+
+    return units[exponent]
+
+
+def colorbar_limits(
     mn: float,
     mx: float,
-    prec: int = 0,
+    precision: int | None = None,
     factor: float = 1.0,
     func_transform: Callable | None = None,
+    *,
+    num_ticks: int = 6,
 ) -> tuple[float, float]:
     """
-    Computes even boundaries for a gradient scale.
+    Computes the limits a colorbar axis spans, rounded outward to even values.
+
+    The data range a colorbar covers rarely ends on a value worth printing, so the limits
+    are widened until they do -- never narrowed, so that no value falls outside the
+    gradient. ``mn`` and ``mx`` typically come from the data itself, via
+    :meth:`~porescene.model.PoreNetwork.quantity_min` and
+    :meth:`~porescene.model.PoreNetwork.quantity_max` for limits shared by every state,
+    or :attr:`~porescene.model.PoreNetworkQuantity.min` and
+    :attr:`~porescene.model.PoreNetworkQuantity.max` for a single one, and otherwise from
+    the :attr:`~porescene.config.QuantityConfiguration.min` and
+    :attr:`~porescene.config.QuantityConfiguration.max` a configuration pins them to.
 
     Parameters
     ----------
-    vals
-            Values to compute boundaries for.
-    prec
-            The place to round numbers.
+    mn, mx
+        Lowest and highest value the colorbar has to cover, before scaling.
+    precision
+        Decimal place the limits are rounded to, in the sense of :func:`round`: ``2``
+        rounds to hundredths, ``-1`` to whole tens. When ``None`` (default), the place is
+        derived from the range itself -- the limits are rounded to a multiple of the tick
+        interval :func:`interval_round` picks for ``num_ticks`` ticks, which lands them on
+        round values whatever the magnitude of the data.
     factor
-            Number to scale the values up or down, to convert the unit.
-            An example would be `1e-6` to convert [μm] into [m].
+        Number to scale the values by, to convert the unit. An example would be ``1e6``
+        to display values given in [m] as [µm].
+    func_transform
+        Transformation applied to both values before scaling, e.g. to display a quantity
+        on a derived scale.
+    num_ticks
+        Number of ticks the derived interval aims for, ignored when ``precision`` is
+        given. Only sizes the rounding of the limits; the ticks themselves are placed by
+        :func:`colorbar_ticks`.
 
     Returns
     -------
-    bounds
-            Two-element tuple with lower and upper boundary.
+    tuple[float, float]
+        Lower and upper limit, in the scaled unit. The two are never equal: a range that
+        collapses onto a single value is widened by one rounding step, so the colorbar
+        keeps a span to draw.
+
+    Raises
+    ------
+    ValueError
+        If either limit is not finite -- a quantity holding nothing but ``NaN`` yields
+        such a range -- or if ``mx`` lies below ``mn``.
     """
     if func_transform is not None:
         mn = func_transform(mn)
         mx = func_transform(mx)
-    mn *= factor
-    mx *= factor
-    lw = floor(mn * 10**prec)
-    up = ceil(mx * 10**prec)
-    if isclose(lw, up):
-        up += 1
-    lw /= 10**prec
-    up /= 10**prec
-    return (lw, up)
+    mn = float(mn) * factor
+    mx = float(mx) * factor
+
+    if not isfinite(mn) or not isfinite(mx):
+        raise ValueError(f"Colorbar limits must be finite, got ({mn}, {mx})")
+    if mx < mn:
+        raise ValueError(f"Upper limit ({mx}) lies below the lower one ({mn})")
+
+    if precision is not None:
+        scale = 10**precision
+        lower = floor(mn * scale)
+        upper = ceil(mx * scale)
+        if isclose(lower, upper):
+            upper += 1
+        return (lower / scale, upper / scale)
+
+    step = interval_round(mx - mn, num_ticks)
+    # a multiple of the step is written exactly by the decimals the step itself needs,
+    # so rounding to those keeps the limits free of binary representation noise
+    digits = max(0, -floor(log10(step))) + 1
+    lower = round(floor(mn / step) * step, digits)
+    upper = round(ceil(mx / step) * step, digits)
+    if isclose(lower, upper):
+        upper = round(upper + step, digits)
+
+    return (float(lower), float(upper))
 
 
-def _get_labels(model, config):
+def colorbar_ticks(
+    lower: float,
+    upper: float,
+    num_ticks: int = 5,
+    precision: int | None = None,
+) -> tuple[float, ...]:
+    """
+    Places the tick values of a colorbar axis between its limits.
+
+    The ticks are spread evenly and include both limits, since a colorbar is drawn as a
+    band between them -- the ends of that band are values in their own right, and the
+    ticks are placed along it by their position in the sequence, not by their value.
+    Feeding the ticks limits from :func:`colorbar_limits` is what lands them on round
+    values.
+
+    Parameters
+    ----------
+    lower, upper
+        Limits the ticks span, see :func:`colorbar_limits`.
+    num_ticks
+        Number of ticks, including the two on the limits, by default 5.
+    precision
+        Decimal place the tick values are rounded to, in the sense of :func:`round`. When
+        ``None`` (default), they are returned as they fall, which leaves the number of
+        decimals to :func:`tick_labels`.
+
+    Returns
+    -------
+    tuple[float, ...]
+        Tick values, ascending, starting on ``lower`` and ending on ``upper``.
+
+    Raises
+    ------
+    ValueError
+        If fewer than two ticks are asked for -- a colorbar carries one on either limit.
+    """
+    if num_ticks < 2:
+        raise ValueError(f"A colorbar carries at least 2 ticks, got {num_ticks}")
+
+    step = (upper - lower) / (num_ticks - 1)
+    # the last tick is set rather than stepped to, so it lands on the limit exactly
+    values = [lower + step * i for i in range(num_ticks - 1)] + [upper]
+
+    if precision is not None:
+        values = [round(value, precision) for value in values]
+
+    return tuple(float(value) for value in values)
+
+
+def tick_labels(values: Sequence[float], decimals: int | None = None) -> tuple[str, ...]:
+    """
+    Writes tick values as labels, dropping decimals that carry no information.
+
+    Trailing zeros are stripped per value, so a tick that happens to be whole reads as
+    ``"20"`` while its neighbour still reads as ``"17.5"``.
+
+    Parameters
+    ----------
+    values
+        Tick values to label, e.g. from :func:`colorbar_ticks`.
+    decimals
+        Number of decimals a label is written with before its trailing zeros are
+        stripped. When ``None`` (default), the smallest number that writes every value
+        of ``values`` exactly is used, see :func:`count_decimals`.
+
+    Returns
+    -------
+    tuple[str, ...]
+        One label per value, in the order the values came in.
+    """
+    if decimals is None:
+        decimals = count_decimals(values)
+
     labels = []
-    for i in range(3):
-        no = round(
-            model.size[i] * config.factor_scalebars[i], config.precision_scalebars[i]
-        )
-        if config.precision_scalebars[i] >= 0:
-            no = int(no)
-        labels.append(f"{no} {config.unit_scalebars[i]}")
+    for value in values:
+        text = f"{float(value):.{decimals}f}"
+        if "." in text:
+            text = text.rstrip("0").rstrip(".")
+        labels.append(text)
+
     return tuple(labels)
 
 
