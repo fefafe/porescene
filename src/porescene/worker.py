@@ -292,6 +292,8 @@ def make_img(
     no_frame: int | None = None,
     solid: Path | None = None,
     void: Path | None = None,
+    *,
+    trim: bool = True,
 ) -> Path:
     """
     Populates the scene with the specified components, renders it, and resets the
@@ -355,6 +357,11 @@ def make_img(
     void : Path | None, optional
         Path to a void-space object to add to the scene; when given, the void is created
         and ``void`` is added to the file name, by default None.
+    trim : bool, optional
+        If true, the rendered image is cropped to its content, removing the surrounding
+        empty margins, by default True. Renders of one series are trimmed each to their
+        own content, so turn this off where they have to stay on a common canvas -- the
+        frames of a video, or images meant to be placed side by side.
 
     Returns
     -------
@@ -395,7 +402,7 @@ def make_img(
 
     # render image in given config
     fname = SEPARATOR_FRAGMENTS.join(fname_fragments) + ".png"
-    pth_render = sc.render(dir_img / fname)
+    pth_render = sc.render(dir_img / fname, trim=trim)
 
     # reset scene
     sc.hide_cylinders()
@@ -411,6 +418,8 @@ def make_radius(
     dir_save: Path,
     pn: PoreNetwork,
     sc: Scene,
+    *,
+    trim: bool = True,
 ) -> Path:
     """
     Renders the pore network with pores and throats colored by their radius.
@@ -434,6 +443,9 @@ def make_radius(
     sc : Scene
         The scene holding the already-built geometry and the ``radius`` quantity
         configuration.
+    trim : bool, optional
+        Whether to crop the rendered image to its content, see :func:`make_img`, by
+        default True.
 
     Returns
     -------
@@ -470,10 +482,17 @@ def make_radius(
         [],
         "radius",
         "radius",
+        trim=trim,
     )
 
 
-def make_coordination_number(dir_img: Path, pn: PoreNetwork, sc: Scene) -> Path:
+def make_coordination_number(
+    dir_img: Path,
+    pn: PoreNetwork,
+    sc: Scene,
+    *,
+    trim: bool = True,
+) -> Path:
     """
     Renders the pore network with pores, throats, and clusters colored by their
     coordination number.
@@ -498,6 +517,9 @@ def make_coordination_number(dir_img: Path, pn: PoreNetwork, sc: Scene) -> Path:
     sc : Scene
         The scene holding the already-built geometry and the ``coordination_number``
         quantity configuration.
+    trim : bool, optional
+        Whether to crop the rendered image to its content, see :func:`make_img`, by
+        default True.
 
     Returns
     -------
@@ -528,10 +550,17 @@ def make_coordination_number(dir_img: Path, pn: PoreNetwork, sc: Scene) -> Path:
         "coordination-number",
         "coordination-number",
         "coordination-number",
+        trim=trim,
     )
 
 
-def make_random(dir_img: Path, pn: PoreNetwork, sc: Scene) -> Path:
+def make_random(
+    dir_img: Path,
+    pn: PoreNetwork,
+    sc: Scene,
+    *,
+    trim: bool = True,
+) -> Path:
     """
     Renders the pore network with pores, throats, and clusters assigned random colors.
 
@@ -550,6 +579,9 @@ def make_random(dir_img: Path, pn: PoreNetwork, sc: Scene) -> Path:
         random color sets.
     sc : Scene
         The scene holding the already-built geometry and the color palette.
+    trim : bool, optional
+        Whether to crop the rendered image to its content, see :func:`make_img`, by
+        default True.
 
     Returns
     -------
@@ -578,6 +610,7 @@ def make_random(dir_img: Path, pn: PoreNetwork, sc: Scene) -> Path:
         "random",
         "random",
         "random",
+        trim=trim,
     )
 
 
@@ -585,6 +618,8 @@ def make_structure(
     dir_img: Path,
     pn: PoreNetwork,
     sc: Scene,
+    *,
+    trim: bool = True,
 ) -> Path:
     """
     Renders the pore network with all pores, throats, and clusters in a uniform gray.
@@ -602,6 +637,9 @@ def make_structure(
         The pore network providing the pore and throat counts.
     sc : Scene
         The scene holding the already-built geometry.
+    trim : bool, optional
+        Whether to crop the rendered image to its content, see :func:`make_img`, by
+        default True.
 
     Returns
     -------
@@ -629,6 +667,7 @@ def make_structure(
         "structure",
         "structure",
         "structure",
+        trim=trim,
     )
 
 
@@ -641,6 +680,7 @@ def make_state_quantity(
     no_state: int | None = None,
     time_point: float | None = None,
     no_frame: int | None = None,
+    trim: bool = True,
 ) -> Path:
     """
     Renders one quantity of one state of a pore network.
@@ -685,6 +725,10 @@ def make_state_quantity(
     no_frame : int | None, optional
         Position in a frame sequence, used to name the image, see :func:`make_img`.
         Set by :func:`make_frames`; there is rarely a reason to pass it directly.
+    trim : bool, optional
+        Whether to crop the rendered image to its content, see :func:`make_img`, by
+        default True. States rendered for a series are trimmed each to their own
+        content, so pass ``False`` to keep them on a common canvas.
 
     Returns
     -------
@@ -737,6 +781,7 @@ def make_state_quantity(
         name,
         no_state=state.no,
         no_frame=no_frame,
+        trim=trim,
     )
 
 
@@ -751,6 +796,7 @@ def make_frames(
     speed: float | None = None,
     t_start: float | None = None,
     t_end: float | None = None,
+    trim: bool = True,
 ) -> list[Path]:
     """
     Renders the frames of a video by resampling a pore network onto regular time steps.
@@ -795,6 +841,11 @@ def make_frames(
         First frame time, by default the earliest time in the network.
     t_end : float | None, optional
         Time the frames run up to, by default the latest time in the network.
+    trim : bool, optional
+        Whether to crop each rendered frame to its content, see :func:`make_img`, by
+        default True. Since every frame is cropped on its own, the sequence can end up
+        with frames of differing size; pass ``False`` where the encoder needs one and
+        the same canvas throughout.
 
     Returns
     -------
@@ -816,7 +867,9 @@ def make_frames(
     )
 
     return [
-        make_state_quantity(pth, pn, sc, name, time_point=float(t), no_frame=no_frame)
+        make_state_quantity(
+            pth, pn, sc, name, time_point=float(t), no_frame=no_frame, trim=trim
+        )
         for no_frame, t in enumerate(times)
     ]
 
