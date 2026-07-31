@@ -4,13 +4,19 @@
 
 import subprocess
 import tempfile
+from collections.abc import Iterator
 from pathlib import Path
-from typing import Iterator
 
 import imageio_ffmpeg
 import PIL.Image
 
-from porescene.utility import CompassDirection, Orientation
+from porescene.utility import (
+    CompassDirection,
+    Orientation,
+    filepath_add_id,
+    filepath_read_id,
+    make_id,
+)
 
 
 def img_trim(pth_img: Path) -> Path:
@@ -100,6 +106,52 @@ def img_add_colorbar(
 ) -> Path:
     """
     Composites the colorbar next to the visualization image.
+
+    Both images are trimmed to their content before being placed on a common,
+    transparent canvas. The colorbar is scaled to 60 % of the visualization's extent
+    along the edge it is stacked against -- its height for a vertical colorbar, its
+    width for a horizontal one -- keeping its aspect ratio, and is set off from the
+    visualization by a quarter of its own thickness.
+
+    Where the colorbar lands is read off ``align`` one component at a time: the
+    component along the stacking axis picks the side -- west or east for a vertical
+    colorbar, north or south for a horizontal one -- while the perpendicular component
+    flushes both images against that edge of the canvas, centering them where it is
+    absent. :attr:`~porescene.utility.CompassDirection.SOUTHWEST` on a vertical
+    colorbar therefore puts the colorbar to the west and aligns both images with the
+    bottom edge.
+
+    The composite is written next to ``pth_vis`` under the same stem, extended by the
+    identifier the colorbar was named after when it was rendered (see
+    :func:`~porescene.utility.stamp_id`). Compositing a different colorbar -- another
+    color palette, other limits, ticks or label -- onto the same visualization
+    therefore yields its own file instead of overwriting the earlier one. ``pth_vis``
+    itself is left untouched.
+
+    Parameters
+    ----------
+    pth_vis : Path
+        Path of the rendered visualization image.
+    pth_cb : Path
+        Path of the rendered colorbar image.
+    align : CompassDirection, optional
+        Placement of the colorbar relative to the visualization, by default
+        :attr:`~porescene.utility.CompassDirection.SOUTH`.
+    orientation : Orientation, optional
+        Whether the colorbar is stacked beside the visualization
+        (:attr:`~porescene.utility.Orientation.VERTICAL`) or above respectively below
+        it (:attr:`~porescene.utility.Orientation.HORIZONTAL`), by default
+        :attr:`~porescene.utility.Orientation.HORIZONTAL`.
+    center_rendering : bool, optional
+        If ``True``, a second, empty colorbar slot is reserved on the side opposite
+        the colorbar, leaving the visualization horizontally centered on the canvas
+        instead of pushed aside by the colorbar. Only honored for vertical colorbars,
+        by default ``False``.
+
+    Returns
+    -------
+    Path
+        File path of the written composite image.
     """
 
     img_ax = PIL.Image.open(pth_cb).convert("RGBA")
@@ -132,6 +184,7 @@ def img_add_colorbar(
         else:
             vis_x, cb_x = 0, w_vis + spacing
             if center_rendering:
+                vis_x += spacing + w_cb
                 cb_x += spacing + w_cb
 
         # north -> top, south -> bottom, else vertically centered
@@ -169,10 +222,10 @@ def img_add_colorbar(
 
         vis_x, cb_x = hpos(w_vis), hpos(w_cb)
 
-    parts_fname = pth_vis.stem.split("+")
-    parts_fname.append(f"colorbar-{align.value}-{orientation.value}")
-
-    pth_comp = pth_vis.with_stem("+".join(parts_fname))
+    id_cb = filepath_read_id(pth_cb) or make_id(pth_cb.stem)
+    pth_comp = filepath_add_id(
+        pth_vis, id_cb + "-centered" if center_rendering else id_cb
+    )
 
     img_comp = PIL.Image.new("RGBA", (canvas_w, canvas_h), (0, 0, 0, 0))
     img_comp.alpha_composite(img_vis, (vis_x, vis_y))
@@ -442,8 +495,8 @@ def _trim_common_padding(images: list[PIL.Image.Image]) -> list[PIL.Image.Image]
     boxes = [img.getbbox() or (0, 0, img.width, img.height) for img in images]
     left = min(box[0] for box in boxes)
     top = min(box[1] for box in boxes)
-    right = min(img.width - box[2] for img, box in zip(images, boxes))
-    bottom = min(img.height - box[3] for img, box in zip(images, boxes))
+    right = min(img.width - box[2] for img, box in zip(images, boxes, strict=False))
+    bottom = min(img.height - box[3] for img, box in zip(images, boxes, strict=False))
     return [
         img.crop((left, top, img.width - right, img.height - bottom)) for img in images
     ]

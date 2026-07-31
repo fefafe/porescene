@@ -15,8 +15,8 @@ from porescene.color.gradient import DiscreteGradient, SegmentedGradient, Smooth
 from porescene.config import PropertyConfiguration
 from porescene.image import img_add_colorbar
 from porescene.layout import (
-    Annotation,
     DiscreteGradientAnnotation,
+    Gradient,
     SegmentedGradientAnnotation,
     SmoothGradientAnnotation,
 )
@@ -412,9 +412,8 @@ def make_radius(
     )
 
     # render the colorbar image
-    pth_cb = dir_save / "colorbar-radius.svg"
-    make_gradient_overlay(
-        pth_cb,
+    ovl_cb = make_gradient_overlay(
+        dir_save / "cb-radius.svg",
         sc.config_scene["radius"],
         mn,
         mx,
@@ -423,7 +422,7 @@ def make_radius(
     # compose rendered scene and colorbar
     img_add_colorbar(
         pth_vis,
-        pth_cb.with_suffix(".png"),
+        ovl_cb.path.with_suffix(".png"),
         sc.config_scene["radius"].align,
         sc.config_scene["radius"].orientation,
     )
@@ -485,9 +484,8 @@ def make_coordination_number(dir_img: Path, pn: PoreNetwork, sc: Scene) -> Path:
     )
 
     # render the colorbar image
-    pth_cb = pth_vis.with_name("colorbar_coordination_number.svg")
-    make_gradient_overlay(
-        pth_cb,
+    ovl_cb = make_gradient_overlay(
+        pth_vis.with_name("cb-coordination_number.svg"),
         conf,
         mn,
         mx,
@@ -496,7 +494,7 @@ def make_coordination_number(dir_img: Path, pn: PoreNetwork, sc: Scene) -> Path:
     # compose rendered scene and colorbar
     img_add_colorbar(
         pth_vis,
-        pth_cb.with_suffix(".png"),
+        ovl_cb.path.with_suffix(".png"),
         conf.align,
         conf.orientation,
     )
@@ -735,15 +733,14 @@ def make_state(
             no_frame=no_frame,
         )
 
-        pth_cb = pth_vis.with_name("colorbar_" + prop.name + ".svg")
-        make_gradient_overlay(
-            pth_cb,
+        ovl_cb = make_gradient_overlay(
+            pth_vis.with_name("cb-" + prop.name + ".svg"),
             sc.config_scene[prop.name],
             mn,
             mx,
         )
         img_add_colorbar(
-            pth_vis, pth_cb.with_suffix(".png"), conf.align, conf.orientation
+            pth_vis, ovl_cb.path.with_suffix(".png"), conf.align, conf.orientation
         )
         pth_imgs[prop.name] = pth_vis
     return pth_imgs
@@ -834,7 +831,48 @@ def make_gradient_overlay(
     /,
     ticks: tuple[str, ...] = (),
     **kwargs,
-) -> Annotation:
+) -> Gradient:
+    """
+    Renders the colorbar of a property as SVG and PNG.
+
+    The gradient class configured for the property decides the kind of colorbar; its
+    colors, heading, subheading, text, alignment and orientation are taken from
+    ``config``. Unless ``ticks`` are given, they are placed equidistantly between
+    ``mn`` and ``mx`` -- one per color boundary for a segmented gradient, five
+    otherwise -- and labelled at the configured precision. Remaining ``kwargs`` are
+    applied to the underlying annotation where it has a matching attribute.
+
+    The colorbar is not written to ``pth`` verbatim: its stem is extended by an
+    ``id-<fingerprint>`` part identifying the rendered markup (see
+    :attr:`~porescene.layout.BackgroundAnnotation.id`), so that colorbars differing in
+    palette, limits, ticks or label do not overwrite each other. Read the actual
+    location off the returned annotation's
+    :attr:`~porescene.layout.BackgroundAnnotation.path`.
+
+    Parameters
+    ----------
+    pth
+        Base path of the SVG file. The written file carries the fingerprint part in
+        addition; the PNG sits next to it under the same stem.
+    config
+        Configuration of the property the colorbar belongs to.
+    mn, mx
+        Lower and upper limit the ticks span.
+    ticks
+        Tick labels, by default derived from ``mn``, ``mx`` and the configuration.
+    **kwargs
+        Overrides applied to the annotation before it is rendered.
+
+    Returns
+    -------
+    Gradient
+        The rendered annotation, holding the path it was written to.
+
+    Raises
+    ------
+    ValueError
+        If the property is configured with an unknown gradient class.
+    """
     if config.gradient_class is SmoothGradient:
         ovl = SmoothGradientAnnotation(pth)
     elif config.gradient_class is SegmentedGradient:
@@ -876,6 +914,6 @@ def make_gradient_overlay(
     ovl.align = config.align
     ovl.orientation = config.orientation
     ovl.color_nan = None  # config.color_nan
-    ovl.save()
-    svg2png(pth)
+    ovl.save(stamp_id=True)
+    svg2png(ovl.path)
     return ovl

@@ -2,7 +2,9 @@
 # Copyright (C) 2026 Felix Faber /
 # Otto von Guericke University Magdeburg, Thermal Process Engineering
 
+import base64
 import contextlib
+import hashlib
 import os
 from collections.abc import Callable, Generator, Mapping, Sequence
 from enum import Enum
@@ -624,6 +626,95 @@ def _get_labels(model, config):
             no = int(no)
         labels.append(f"{no} {config.unit_scalebars[i]}")
     return tuple(labels)
+
+
+def make_id(*parts: object, length: int = 8) -> str:
+    """
+    Derives a short, stable identifier from the given values.
+
+    The values are digested into a fixed-length, alphanumeric token: identical values
+    always reproduce the same token, while a difference in any of them yields a
+    different one. The typical use is naming a generated file after the inputs it was
+    built from, so that variants come to rest side by side instead of overwriting each
+    other.
+
+    ``bytes`` are digested as they are, every other value through its string
+    representation. The parts are kept apart inside the digest, so that ``("ab", "c")``
+    and ``("a", "bc")`` do not collide.
+
+    Parameters
+    ----------
+    *parts
+        Values the identifier is derived from.
+    length
+        Number of characters of the identifier, by default 8. Every character carries
+        five bits, so the default spans 40 bits.
+
+    Returns
+    -------
+    str
+        Identifier made up of the characters ``a`` to ``z`` and ``2`` to ``7``. Being
+        single-case, it stays unambiguous on case-insensitive file systems.
+    """
+    digest = hashlib.blake2b(digest_size=ceil(length * 5 / 8))
+
+    for part in parts:
+        digest.update(part if isinstance(part, bytes) else str(part).encode())
+        digest.update(b"\x00")
+
+    return base64.b32encode(digest.digest()).decode().lower()[:length]
+
+
+#: Marks the identifier part in the stem of a file named after its content.
+PREFIX_ID = "id-"
+
+
+def filepath_add_id(pth: Path, identifier: str) -> Path:
+    """
+    Names a file after the identifier of the content it holds.
+
+    The identifier is appended to the file's stem as a ``+id-<identifier>`` part, so
+    that contents that differ come to rest side by side instead of overwriting each
+    other. A stem that already carries such a part is restamped rather than extended,
+    which keeps the name from growing every time the file is rewritten.
+
+    Parameters
+    ----------
+    pth
+        Path to name after its content.
+    identifier
+        Identifier of the content, typically from :func:`make_id`.
+
+    Returns
+    -------
+    Path
+        The stamped path. The file itself is left untouched.
+    """
+    parts = [part for part in pth.stem.split("+") if not part.startswith(PREFIX_ID)]
+    parts.append(PREFIX_ID + identifier)
+
+    return pth.with_stem("+".join(parts))
+
+
+def filepath_read_id(pth: Path) -> str | None:
+    """
+    Reads back the identifier :func:`filepath_add_id` wrote into a file name.
+
+    Parameters
+    ----------
+    pth
+        Path to read the identifier off.
+
+    Returns
+    -------
+    str | None
+        The identifier, or ``None`` if the name carries none.
+    """
+    for part in reversed(pth.stem.split("+")):
+        if part.startswith(PREFIX_ID):
+            return part.removeprefix(PREFIX_ID)
+
+    return None
 
 
 def svg2png(pth: Path, crop: bool = True) -> Path:

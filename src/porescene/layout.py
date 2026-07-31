@@ -3,7 +3,6 @@
 # Otto von Guericke University Magdeburg, Thermal Process Engineering
 
 import abc
-import random
 from pathlib import Path
 from typing import Self
 
@@ -11,7 +10,25 @@ import numpy as np
 
 from porescene.color import Color
 from porescene.color.gradient import SmoothGradient
-from porescene.utility import CompassDirection, MultiplicationSymbol, Orientation
+from porescene.utility import (
+    CompassDirection,
+    MultiplicationSymbol,
+    Orientation,
+    make_id,
+)
+from porescene.utility import filepath_add_id as _stamp_id
+
+
+def _id_gradient(*parts: object) -> str:
+    """
+    Names the ``<linearGradient>`` element a colorbar refers to.
+
+    The name is derived from the gradient's own definition rather than drawn at
+    random, so that the same gradient always yields the same markup. Two gradients
+    that differ in any way still end up with distinct names, and two that do not
+    describe the very same element, so sharing a name does them no harm.
+    """
+    return make_id(*parts)
 
 
 class Annotation(abc.ABC):  # noqa: B024
@@ -81,13 +98,39 @@ class BackgroundAnnotation(Annotation):
         svg += "</svg>"
         return svg
 
-    def save(self) -> Self:
+    @property
+    def id(self) -> str:
+        """
+        Fingerprint of the annotation, derived from the SVG markup it renders to.
+
+        Since the markup describes the annotation in full, annotations that differ in
+        any respect -- color palette, limits, ticks, headings, geometry -- carry
+        different fingerprints, while one that is left alone keeps its own across
+        renders. Use :meth:`save` with ``stamp_id`` to name the file after it.
+        """
+        return make_id(self.get_svg())
+
+    def save(self, *, stamp_id: bool = False) -> Self:
         """
         Saves the SVG image as file with specified filename.
+
+        Parameters
+        ----------
+        stamp_id
+            If ``True``, an ``id-<fingerprint>`` part is appended to the file's stem
+            (see :attr:`id`) and :attr:`path` is updated accordingly, so that
+            annotations differing in any respect are written side by side instead of
+            overwriting each other. An already stamped path is restamped rather than
+            extended, by default ``False``.
         """
+        svg = self.get_svg()
+
+        if stamp_id:
+            self.path = _stamp_id(self.path, make_id(svg))
+
         with self.path.open(mode="w+", encoding="utf-8") as file:
             file.write(self._xml_declaration)
-            file.write(self.get_svg())
+            file.write(svg)
         return self
 
     def _build(self) -> str:
@@ -728,7 +771,7 @@ class Gradient(TitleAnnotation, abc.ABC):
         )
 
     @abc.abstractmethod
-    def _get_tag_defs(self) -> tuple[str, int]:
+    def _get_tag_defs(self) -> tuple[str, str]:
         """<defs>"""
 
     # @abc.abstractmethod
@@ -1148,23 +1191,25 @@ class SmoothGradientAnnotation(Gradient):
         super().__init__(pth, res, pad)
 
     def _get_tag_defs(self):
-        id_grad = random.getrandbits(32)
         # Vertical gradients run bottom -> top; horizontal run left -> right.
         if self.orientation is Orientation.VERTICAL:
             p1, p2 = (0, 1), (0, 0)
         else:
             p1, p2 = (0, 0), (1, 0)
         grad = SmoothGradient(self.gradient_colors)
+        stops = ""
+        for value in np.linspace(0.0, 1.0, 100):
+            stops += (
+                f'<stop offset="{round(value * 100, 6)}%" '
+                f'stop-color="{grad(value)[0].str_rgb}"/>'
+            )
+        id_grad = _id_gradient(p1, p2, stops)
         tag = "<defs>"
         tag += (
             f'<linearGradient id="gradient-{id_grad}" x1="{p1[0]}" y1="{p1[1]}" '
             f'x2="{p2[0]}" y2="{p2[1]}">'
         )
-        for value in np.linspace(0.0, 1.0, 100):
-            tag += (
-                f'<stop offset="{round(value * 100, 6)}%" '
-                f'stop-color="{grad(value)[0].str_rgb}"/>'
-            )
+        tag += stops
         tag += "</linearGradient>"
         tag += "</defs>"
         return tag, id_grad
@@ -1182,29 +1227,31 @@ class SegmentedGradientAnnotation(Gradient):
         super().__init__(pth, res, pad)
 
     def _get_tag_defs(self):
-        id_grad = random.getrandbits(32)
         # Vertical gradients run bottom -> top; horizontal run left -> right.
         if self.orientation is Orientation.VERTICAL:
             p1, p2 = (0, 1), (0, 0)
         else:
             p1, p2 = (0, 0), (1, 0)
+        length = len(self.gradient_colors)
+        frag = 1 / length
+        stops = ""
+        for i in range(length):
+            stops += (
+                f'<stop offset="{round(frag * i * 100, 6)}%" '
+                f'stop-color="{self.gradient_colors[i].str_rgb}"/>'
+            )
+            if i < length - 1:
+                stops += (
+                    f'<stop offset="{round(frag * (i + 1) * 100, 6)}%" '
+                    f'stop-color="{self.gradient_colors[i].str_rgb}"/>'
+                )
+        id_grad = _id_gradient(p1, p2, stops)
         tag = "<defs>"
         tag += (
             f'<linearGradient id="gradient-{id_grad}" x1="{p1[0]}" y1="{p1[1]}" '
             f'x2="{p2[0]}" y2="{p2[1]}">'
         )
-        length = len(self.gradient_colors)
-        frag = 1 / length
-        for i in range(length):
-            tag += (
-                f'<stop offset="{round(frag * i * 100, 6)}%" '
-                f'stop-color="{self.gradient_colors[i].str_rgb}"/>'
-            )
-            if i < length - 1:
-                tag += (
-                    f'<stop offset="{round(frag * (i + 1) * 100, 6)}%" '
-                    f'stop-color="{self.gradient_colors[i].str_rgb}"/>'
-                )
+        tag += stops
         tag += "</linearGradient>"
         tag += "</defs>"
         return tag, id_grad
