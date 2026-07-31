@@ -655,7 +655,7 @@ class Gradient(TitleAnnotation, abc.ABC):
 
     def _build(self):
         # A vertical colorbar has no sensible centered (north/south) layout -- the
-        # bar collides with its own ticks and heading. Since img_add_colorbar places
+        # bar collides with its own ticks and heading. Since compose_colorbar places
         # north/south vertical bars on the outer (east) side of the scene anyway,
         # render them exactly like an east-aligned bar.
         if self.orientation is Orientation.VERTICAL and self.align in (

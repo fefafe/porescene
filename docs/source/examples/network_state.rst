@@ -68,7 +68,7 @@ Make sure to have ``porescene`` installed (see :doc:`../installation`). At first
 
    import numpy as np
 
-   from porescene import worker
+   from porescene import image, worker
    from porescene.color.palette import Colormap, Palette
    from porescene.config import QuantityConfiguration
    from porescene.model import PoreNetwork, StateVariableMap
@@ -259,14 +259,33 @@ step before.
 5. Render each state
 ^^^^^^^^^^^^^^^^^^^^
 
-:func:`~porescene.worker.make_state` walks every loaded state and, for each state, every
-configured field. It fits the gradient (here once, from the global bounds), colors the
-enabled layers, renders the scene, and composites the matching colorbar:
+:func:`~porescene.worker.make_state` walks every configured field of the selected state.
+It fits the gradient (here once, from the global bounds), colors the enabled layers, and
+renders the scene -- one image per field, each reported as a
+:class:`~porescene.worker.Render` carrying the colorbar limits it was colored by:
 
 .. code-block:: python
 
-   # render every state, coloring the pore spheres and throat cylinders by concentration
-   sc, pth_img = worker.make_state(pth_frames, pn, sc)
+   # render every selected state, coloring the pore spheres by concentration
+   for no_state in no_states:
+       renders = worker.make_state(pth_frames, pn, sc, no_state=no_state)
+
+Composing the finished image is a separate step: the colorbar is rendered from the
+reported limits with :func:`~porescene.worker.make_colorbar` and joined to the
+render with :func:`~porescene.image.compose_colorbar`. Since the bounds are global here,
+every state ends up on one and the same color scale:
+
+.. code-block:: python
+
+       # a colorbar is rendered and composed onto every image afterwards
+       for name, render in renders.items():
+           conf = sc.config_scene[name]
+           cb = worker.make_colorbar(
+               pth_frames / f"cb-{name}.svg", conf, render.lower, render.upper
+           )
+           image.compose_colorbar(
+               render.path, cb.path.with_suffix(".png"), conf.align, conf.orientation
+           )
 
 Each render is named after the layers it shows, the field they are colored by, and the
 state index, so the frames of the series end up next to each other in ``pth_frames`` as
@@ -277,10 +296,11 @@ scale.
 
 .. tip::
 
-   The rendered states are a ready-made frame sequence: passing them (in order) to
-   :func:`~porescene.image.frames2mp4` or :func:`~porescene.image.frames2gif` turns the
-   series into a video, the same way the :doc:`solid animation <animation_solid>` example
-   does it.
+   The rendered states are a ready-made frame sequence: passing the image paths (in
+   order) to :func:`~porescene.image.frames2mp4` or :func:`~porescene.image.frames2gif`
+   turns the series into a video, the same way the :doc:`solid animation
+   <animation_solid>` example does it. Pass the composites to carry the colorbar into
+   the video, or the bare ``render.path`` images to leave it out.
 
 
 Full script

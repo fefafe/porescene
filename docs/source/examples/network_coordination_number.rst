@@ -41,7 +41,7 @@ Make sure to have ``porescene`` installed (see :doc:`../installation`). At first
    import json
    from pathlib import Path
 
-   from porescene import worker
+   from porescene import image, worker
    from porescene.color.gradient import SegmentedGradient
    from porescene.color.palette import Colormap, Palette
    from porescene.config import QuantityConfiguration
@@ -187,20 +187,36 @@ sphere per pore and one cylinder per throat. Calibrated axes are added around it
 5. Render by coordination number
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-:func:`~porescene.worker.make_coordination_number` does the coloring in one call: it fits
-the segmented gradient to the coordination-number range, colors the enabled layers
-accordingly, renders the scene, and composites the colorbar described by the
-``coordination_number`` quantity. Because the cylinders were disabled, only the pore
-spheres are drawn and colored. The result is written into ``pth_data``:
+:func:`~porescene.worker.make_coordination_number` does the coloring: it fits the
+segmented gradient to the coordination-number range, colors the enabled layers
+accordingly, and renders the scene into ``pth_data``. Because the cylinders were
+disabled, only the pore spheres are drawn and colored. The
+:class:`~porescene.worker.Render` it returns carries the image path together with the
+limits the gradient was fitted to:
 
 .. code-block:: python
 
    # render the scene and color the pores according to their coordination number
-   pth_img = worker.make_coordination_number(pth_data, pn, sc)
+   render = worker.make_coordination_number(pth_data, pn, sc)
+
+Rendering the scene and composing the finished image are separate steps, so the colorbar
+is drawn from those limits with :func:`~porescene.worker.make_colorbar` and
+joined to the render with :func:`~porescene.image.compose_colorbar`:
+
+.. code-block:: python
+
+   # render a colorbar for the limits the render was colored by, and compose the two
+   conf = sc.config_scene["coordination_number"]
+   cb = worker.make_colorbar(
+       pth_data / "cb-coordination_number.svg", conf, render.lower, render.upper
+   )
+   pth_img = image.compose_colorbar(
+       render.path, cb.path.with_suffix(".png"), conf.align, conf.orientation
+   )
 
 The render is named after the layer it shows -- the pore spheres, colored by
-coordination number -- yielding ``sphere-coordination-number+axes.png`` next to its
-colorbar and the on-scale axes.
+coordination number -- yielding ``sphere-coordination-number+axes.png``, which the
+composite then pairs with its colorbar and the on-scale axes.
 
 
 Full script

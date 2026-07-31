@@ -96,7 +96,7 @@ def img_pad(
     return pth_img
 
 
-def img_add_colorbar(
+def compose_colorbar(
     pth_vis: Path,
     pth_cb: Path,
     align: CompassDirection = CompassDirection.SOUTH,
@@ -106,6 +106,10 @@ def img_add_colorbar(
 ) -> Path:
     """
     Composites the colorbar next to the visualization image.
+
+    The counterpart to the rendering step: :func:`porescene.worker.make_state` and its
+    siblings render the scene, :func:`porescene.worker.make_colorbar` renders the
+    colorbar, and this joins the two finished images.
 
     Both images are trimmed to their content before being placed on a common,
     transparent canvas. The colorbar is scaled to 60 % of the visualization's extent
@@ -123,8 +127,8 @@ def img_add_colorbar(
 
     The composite is written next to ``pth_vis`` under the same stem, extended by the
     identifier the colorbar was named after when it was rendered (see
-    :func:`~porescene.utility.stamp_id`). Compositing a different colorbar -- another
-    color palette, other limits, ticks or label -- onto the same visualization
+    :func:`~porescene.utility.filepath_add_id`). Compositing a different colorbar --
+    another color palette, other limits, ticks or label -- onto the same visualization
     therefore yields its own file instead of overwriting the earlier one. ``pth_vis``
     itself is left untouched.
 

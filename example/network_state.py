@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from porescene import worker
+from porescene import image, worker
 from porescene.color.palette import Colormap, Palette
 from porescene.config import QuantityConfiguration
 from porescene.model import PoreNetwork, StateVariableMap
@@ -77,4 +77,14 @@ sc.create_axes()
 
 # render every selected state, coloring the pore spheres by concentration
 for no_state in no_states:
-    worker.make_state(pth_frames, pn, sc, no_state=no_state)
+    renders = worker.make_state(pth_frames, pn, sc, no_state=no_state)
+
+    # a colorbar is rendered and composed onto every image afterwards
+    for name, render in renders.items():
+        conf = sc.config_scene[name]
+        cb = worker.make_colorbar(
+            pth_frames / f"cb-{name}.svg", conf, render.lower, render.upper
+        )
+        image.compose_colorbar(
+            render.path, cb.path.with_suffix(".png"), conf.align, conf.orientation
+        )

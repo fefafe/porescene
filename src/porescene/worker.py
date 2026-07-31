@@ -4,6 +4,7 @@
 
 
 from pathlib import Path
+from typing import NamedTuple
 
 import bpy
 import numpy as np
@@ -13,7 +14,6 @@ from mathutils import Matrix, Vector  # type: ignore  # isort:skip
 from porescene.color import Color
 from porescene.color.gradient import DiscreteGradient, SegmentedGradient, SmoothGradient
 from porescene.config import QuantityConfiguration
-from porescene.image import img_add_colorbar
 from porescene.layout import (
     DiscreteGradientAnnotation,
     Gradient,
@@ -23,6 +23,39 @@ from porescene.layout import (
 from porescene.model import PoreNetwork, PoreNetworkQuantity
 from porescene.scene import Scene
 from porescene.utility import colorbar_limits, colorbar_ticks, svg2png, tick_labels
+
+
+class Render(NamedTuple):
+    """
+    One rendered image together with the colorbar limits it was colored by.
+
+    Rendering and image composition are kept apart: the ``make_*`` functions render the
+    scene and hand back this record, leaving it to the caller to render a colorbar for
+    it with :func:`make_colorbar` and to join the two with
+    :func:`porescene.image.compose_colorbar`.
+
+    .. code-block:: python
+        :caption: Python
+        :linenos:
+
+        for name, render in worker.make_state(pth, pn, sc, no_state=0).items():
+            conf = sc.config_scene[name]
+            cb = worker.make_colorbar(
+                pth / f"cb-{name}.svg", conf, render.lower, render.upper
+            )
+            image.compose_colorbar(
+                render.path, cb.path.with_suffix(".png"), conf.align, conf.orientation
+            )
+    """
+
+    #: Name of the quantity the image was colored by.
+    name: str
+    #: File path of the rendered image, without a colorbar.
+    path: Path
+    #: Lower limit of the color gradient, in the displayed unit.
+    lower: float
+    #: Upper limit of the color gradient, in the displayed unit.
+    upper: float
 
 
 def build_structure(
@@ -330,21 +363,23 @@ def make_radius(
     dir_save: Path,
     pn: PoreNetwork,
     sc: Scene,
-) -> Path:
+) -> Render:
     """
-    Renders the pore network with pores and throats colored by their radius and
-    composites a matching colorbar onto the image.
+    Renders the pore network with pores and throats colored by their radius.
 
-    A smooth color gradient is fitted to the radius range (across pore and throat radii),
-    the sphere and cylinder layers are colored accordingly via
-    :func:`make_img`, the rendered image is trimmed, and a colorbar for the gradient is
-    added. Spheres and cylinders are only colored and shown when enabled in the scene
+    A smooth color gradient is fitted to the radius range (across pore and throat radii)
+    and the sphere and cylinder layers are colored accordingly via :func:`make_img`.
+    Spheres and cylinders are only colored and shown when enabled in the scene
     configuration *and* the corresponding radius data is present.
+
+    No colorbar is drawn onto the image -- the returned :class:`Render` carries the
+    limits the gradient was fitted to, so that one can be rendered and composited
+    afterwards.
 
     Parameters
     ----------
     dir_save : Path
-        Directory to save the rendered image and colorbar at.
+        Directory to save the rendered image at.
     pn : PoreNetwork
         The pore network providing the pore and throat radii.
     sc : Scene
@@ -353,8 +388,8 @@ def make_radius(
 
     Returns
     -------
-    Path
-        The file path to the rendered image with colorbar.
+    Render
+        The rendered image and the colorbar limits it was colored by.
 
     Raises
     ------
@@ -411,40 +446,28 @@ def make_radius(
         "radius",
     )
 
-    # render the colorbar image
-    ovl_cb = make_gradient_overlay(
-        dir_save / "cb-radius.svg",
-        sc.config_scene["radius"],
-        mn,
-        mx,
-    )
-
-    # compose rendered scene and colorbar
-    img_add_colorbar(
-        pth_vis,
-        ovl_cb.path.with_suffix(".png"),
-        sc.config_scene["radius"].align,
-        sc.config_scene["radius"].orientation,
-    )
-
-    return pth_vis
+    return Render("radius", pth_vis, mn, mx)
 
 
-def make_coordination_number(dir_img: Path, pn: PoreNetwork, sc: Scene) -> Path:
+def make_coordination_number(dir_img: Path, pn: PoreNetwork, sc: Scene) -> Render:
     """
     Renders the pore network with pores, throats, and clusters colored by their
-    coordination number and composites a matching colorbar onto the image.
+    coordination number.
 
     A color gradient (the gradient class configured for the ``coordination_number``
-    quantity) is fitted to the coordination-number range, the sphere, cylinder, and
-    cluster layers are colored accordingly via :func:`make_img`, and a colorbar for the
-    gradient is added. Each layer is only colored and shown when it is enabled in the
-    scene configuration and the corresponding data is available.
+    quantity) is fitted to the coordination-number range, and the sphere, cylinder, and
+    cluster layers are colored accordingly via :func:`make_img`. Each layer is only
+    colored and shown when it is enabled in the scene configuration and the
+    corresponding data is available.
+
+    No colorbar is drawn onto the image -- the returned :class:`Render` carries the
+    limits the gradient was fitted to, so that one can be rendered and composited
+    afterwards.
 
     Parameters
     ----------
     dir_img : Path
-        Directory to save the rendered image and colorbar at.
+        Directory to save the rendered image at.
     pn : PoreNetwork
         The pore network providing the pore and throat coordination numbers.
     sc : Scene
@@ -453,8 +476,8 @@ def make_coordination_number(dir_img: Path, pn: PoreNetwork, sc: Scene) -> Path:
 
     Returns
     -------
-    Path
-        The file path to the rendered image with colorbar.
+    Render
+        The rendered image and the colorbar limits it was colored by.
     """
     # check scene components
     do_spheres = sc.config_scene.enable_spheres and sc.has_spheres
@@ -483,23 +506,7 @@ def make_coordination_number(dir_img: Path, pn: PoreNetwork, sc: Scene) -> Path:
         "coordination-number",
     )
 
-    # render the colorbar image
-    ovl_cb = make_gradient_overlay(
-        pth_vis.with_name("cb-coordination_number.svg"),
-        conf,
-        mn,
-        mx,
-    )
-
-    # compose rendered scene and colorbar
-    img_add_colorbar(
-        pth_vis,
-        ovl_cb.path.with_suffix(".png"),
-        conf.align,
-        conf.orientation,
-    )
-
-    return pth_vis
+    return Render("coordination_number", pth_vis, mn, mx)
 
 
 def make_random(dir_img: Path, pn: PoreNetwork, sc: Scene) -> Path:
@@ -615,7 +622,7 @@ def make_state(
     no_state: int | None = None,
     time_point: float | None = None,
     no_frame: int | None = None,
-) -> dict[str, Path]:
+) -> dict[str, Render]:
     """
     Renders one state of a pore network, one image per state quantity.
 
@@ -624,10 +631,11 @@ def make_state(
     that instant via :meth:`~porescene.model.PoreNetwork.state_at`, interpolating
     between the stored states where needed.
 
-    Each quantity of the state is drawn onto its own image and annotated with a
-    matching colorbar. Whether the colorbar limits are shared across all states or
-    derived from the state at hand follows
-    :attr:`~porescene.config.QuantityConfiguration.use_global_boundaries`.
+    Each quantity of the state is drawn onto its own image. Whether the colorbar limits
+    are shared across all states or derived from the state at hand follows
+    :attr:`~porescene.config.QuantityConfiguration.use_global_boundaries`; either way
+    they are reported per quantity, so that a colorbar can be rendered and composited
+    onto the image afterwards -- see :class:`Render`.
 
     Parameters
     ----------
@@ -653,8 +661,8 @@ def make_state(
 
     Returns
     -------
-    dict[str, Path]
-        The rendered image per quantity name.
+    dict[str, Render]
+        The rendered image and its colorbar limits, per quantity name.
 
     Raises
     ------
@@ -687,7 +695,7 @@ def make_state(
                 conf.colors, mn / conf.factor, mx / conf.factor
             )
 
-    pth_imgs: dict[str, Path] = {}
+    renders: dict[str, Render] = {}
     for quant in state.quantities:
         conf = sc.config_scene[quant.name]
 
@@ -733,17 +741,8 @@ def make_state(
             no_frame=no_frame,
         )
 
-        ovl_cb = make_gradient_overlay(
-            pth_vis.with_name("cb-" + quant.name + ".svg"),
-            sc.config_scene[quant.name],
-            mn,
-            mx,
-        )
-        img_add_colorbar(
-            pth_vis, ovl_cb.path.with_suffix(".png"), conf.align, conf.orientation
-        )
-        pth_imgs[quant.name] = pth_vis
-    return pth_imgs
+        renders[quant.name] = Render(quant.name, pth_vis, mn, mx)
+    return renders
 
 
 def make_frames(
@@ -756,7 +755,7 @@ def make_frames(
     speed: float | None = None,
     t_start: float | None = None,
     t_end: float | None = None,
-) -> dict[str, list[Path]]:
+) -> dict[str, list[Render]]:
     """
     Renders the frames of a video by resampling a pore network onto regular time steps.
 
@@ -767,7 +766,8 @@ def make_frames(
     rather than the spacing of the stored states.
 
     One frame sequence is produced per quantity, named so that sorting by file name
-    yields the playback order. Feed a sequence straight to
+    yields the playback order. Feed the frame paths -- either the bare renders or the
+    composites a colorbar was joined onto, see :class:`Render` -- straight to
     :func:`porescene.image.frames2mp4` or :func:`porescene.image.frames2gif`.
 
     .. attention::
@@ -798,7 +798,7 @@ def make_frames(
 
     Returns
     -------
-    dict[str, list[Path]]
+    dict[str, list[Render]]
         The rendered frames per quantity name, in playback order.
 
     Examples
@@ -808,22 +808,24 @@ def make_frames(
         :linenos:
 
         frames = worker.make_frames(pth_frames, pn, sc, fps=30, duration=12)
-        for name, pths in frames.items():
-            image.frames2mp4(pths, pth_data / f"{name}.mp4", fps=30)
+        for name, renders in frames.items():
+            image.frames2mp4(
+                [render.path for render in renders], pth_data / f"{name}.mp4", fps=30
+            )
     """
     times = pn.frame_times(
         fps, duration=duration, speed=speed, t_start=t_start, t_end=t_end
     )
 
-    frames: dict[str, list[Path]] = {}
+    frames: dict[str, list[Render]] = {}
     for no_frame, t in enumerate(times):
         rendered = make_state(pth, pn, sc, time_point=float(t), no_frame=no_frame)
-        for name, pth_img in rendered.items():
-            frames.setdefault(name, []).append(pth_img)
+        for name, render in rendered.items():
+            frames.setdefault(name, []).append(render)
     return frames
 
 
-def make_gradient_overlay(
+def make_colorbar(
     pth: Path,
     config: QuantityConfiguration,
     mn: float,

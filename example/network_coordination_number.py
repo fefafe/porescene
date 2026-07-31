@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from porescene import worker
+from porescene import image, worker
 from porescene.color.gradient import SegmentedGradient
 from porescene.color.palette import Colormap, Palette
 from porescene.config import QuantityConfiguration
@@ -55,4 +55,13 @@ sc.create_axes()
 # Render pores colored by coordination number
 
 # render the scene and color the pores according to their coordination number
-pth_img = worker.make_coordination_number(pth_data, pn, sc)
+render = worker.make_coordination_number(pth_data, pn, sc)
+
+# render a colorbar for the limits the render was colored by, and compose the two
+conf = sc.config_scene["coordination_number"]
+cb = worker.make_colorbar(
+    pth_data / "cb-coordination_number.svg", conf, render.lower, render.upper
+)
+pth_img = image.compose_colorbar(
+    render.path, cb.path.with_suffix(".png"), conf.align, conf.orientation
+)
