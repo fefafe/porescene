@@ -4,6 +4,15 @@
 
 """
 Pore Networks
+-------------
+
+Data structures describing a pore network model and its time-resolved state
+variables, typically imported from a MATLAB ``.mat`` file:
+
+* :class:`PoreNetwork` -- network geometry and its ordered list of states.
+* :class:`PoreNetworkState` -- one state of the network and its quantities.
+* :class:`PoreNetworkQuantity` -- per-pore and per-throat values of one quantity.
+* :class:`StateVariableMap` -- maps a quantity to the ``.mat`` variables holding it.
 """
 
 from collections.abc import Iterator, Sequence
@@ -17,9 +26,9 @@ from h5py import File
 from porescene.utility import InterpolationType
 
 
-class PoreNetworkProperty:
+class PoreNetworkQuantity:
     """
-    A wrapper for a single property of one state of a pore network.
+    A wrapper for a single quantity of one state of a pore network.
     """
 
     def __init__(
@@ -67,7 +76,7 @@ class PoreNetworkProperty:
     @property
     def interpolation(self) -> InterpolationType:
         """
-        How the property's values are resolved between two computed states, see
+        How the quantity's values are resolved between two computed states, see
         :class:`~porescene.utility.InterpolationType`.
 
         Defaults to :attr:`~porescene.utility.InterpolationType.PREVIOUS`, which never
@@ -84,7 +93,7 @@ class PoreNetworkProperty:
 
     @property
     def name(self) -> str:
-        """Name of the property."""
+        """Name of the quantity."""
         return self._name
 
     @name.setter
@@ -119,10 +128,10 @@ class PoreNetworkState:
 
     Parameters
     ----------
-    properties : Sequence[PoreNetworkProperty] | None, optional
-        Properties the state starts out with, by default ``None`` (no properties).
+    quantities : Sequence[PoreNetworkQuantity] | None, optional
+        Quantities the state starts out with, by default ``None`` (no quantities).
         The sequence is copied, so the new state can be extended without touching the
-        one the properties came from; the :class:`PoreNetworkProperty` objects
+        one the quantities came from; the :class:`PoreNetworkQuantity` objects
         themselves are shared, not duplicated.
     no : int | None, optional
         Index of the state in the source data, see :attr:`no`.
@@ -132,57 +141,57 @@ class PoreNetworkState:
 
     def __init__(
         self,
-        properties: Sequence[PoreNetworkProperty] | None = None,
+        quantities: Sequence[PoreNetworkQuantity] | None = None,
         no: int | None = None,
         time_point: float | None = None,
     ) -> None:
-        self.properties = [] if properties is None else list(properties)
+        self.quantities = [] if quantities is None else list(quantities)
         self.no = no
         self.time_point = time_point
 
-    def __iter__(self) -> Iterator[PoreNetworkProperty]:
-        return iter(self.properties)
+    def __iter__(self) -> Iterator[PoreNetworkQuantity]:
+        return iter(self.quantities)
 
     def __len__(self) -> int:
-        return len(self.properties)
+        return len(self.quantities)
 
-    def __setitem__(self, _, prop: PoreNetworkProperty):
-        return self.add_property(prop)
+    def __setitem__(self, _, quant: PoreNetworkQuantity):
+        return self.add_quantity(quant)
 
-    def __getitem__(self, idx: str) -> PoreNetworkProperty:
-        return self.get_property(idx)
+    def __getitem__(self, idx: str) -> PoreNetworkQuantity:
+        return self.get_quantity(idx)
 
-    def add_property(self, prop: PoreNetworkProperty) -> Self:
+    def add_quantity(self, quant: PoreNetworkQuantity) -> Self:
         """
-        Add a :class:`PoreNetworkProperty`.
+        Add a :class:`PoreNetworkQuantity`.
         """
-        if self.has_property(prop.name):
-            self.properties[self._property_index(prop.name)] = prop
+        if self.has_quantity(quant.name):
+            self.quantities[self._quantity_index(quant.name)] = quant
         else:
-            self._properties.append(prop)
+            self._quantities.append(quant)
         return self
 
-    def get_property(self, name: str) -> PoreNetworkProperty:
+    def get_quantity(self, name: str) -> PoreNetworkQuantity:
         """
-        Returns a :class:`PoreNetworkProperty` by name.
+        Returns a :class:`PoreNetworkQuantity` by name.
         """
-        return self.properties[self._property_index(name)]
+        return self.quantities[self._quantity_index(name)]
 
-    def has_property(self, name: str) -> bool:
+    def has_quantity(self, name: str) -> bool:
         """
-        Check if the model has data about property `name`.
+        Check if the model has data about quantity `name`.
         """
-        for prop in self.properties:
-            if prop.name == name:
+        for quant in self.quantities:
+            if quant.name == name:
                 return True
         return False
 
-    def _property_index(self, name) -> int:
-        if not self.has_property(name):
-            raise ValueError(f"Could not find a property named '{name}'")
+    def _quantity_index(self, name) -> int:
+        if not self.has_quantity(name):
+            raise ValueError(f"Could not find a quantity named '{name}'")
         idx = -1
-        for i, prop in enumerate(self._properties):
-            if prop.name == name:
+        for i, quant in enumerate(self._quantities):
+            if quant.name == name:
                 idx = i
         return idx
 
@@ -204,15 +213,15 @@ class PoreNetworkState:
         return self
 
     @property
-    def properties(self) -> list[PoreNetworkProperty]:
+    def quantities(self) -> list[PoreNetworkQuantity]:
         """
-        The properties held by the state.
+        The quantities held by the state.
         """
-        return self._properties
+        return self._quantities
 
-    @properties.setter
-    def properties(self, arg: list[PoreNetworkProperty]) -> Self:
-        self._properties = arg
+    @quantities.setter
+    def quantities(self, arg: list[PoreNetworkQuantity]) -> Self:
+        self._quantities = arg
         return self
 
     @property
@@ -236,29 +245,29 @@ class PoreNetworkState:
 
 class StateVariableMap:
     """
-    Maps a pore network property to the ``.mat`` variables holding its data.
+    Maps a pore network quantity to the ``.mat`` variables holding its data.
 
-    Relates a single property (identified by :attr:`name`) to the names of the MATLAB
-    variables that store the property's per-pore (sphere) and per-throat (cylinder)
+    Relates a single quantity (identified by :attr:`name`) to the names of the MATLAB
+    variables that store the quantity's per-pore (sphere) and per-throat (cylinder)
     values, telling :meth:`PoreNetwork.from_mat` and
     :meth:`PoreNetwork.load_states_from_mat` which variables to import.
     """
 
     def __init__(
         self,
-        prop_name: str,
+        quant_name: str,
         interpolation: InterpolationType = InterpolationType.PREVIOUS,
     ):
-        self.name = prop_name
+        self.name = quant_name
         self.interpolation = interpolation
 
     @property
     def interpolation(self) -> InterpolationType:
         """
-        How the mapped property behaves between two computed states, see
+        How the mapped quantity behaves between two computed states, see
         :class:`~porescene.utility.InterpolationType`.
 
-        Copied onto every :class:`PoreNetworkProperty` imported through this map, where
+        Copied onto every :class:`PoreNetworkQuantity` imported through this map, where
         :meth:`PoreNetwork.state_at` reads it. Declared here because it follows from the
         physics of the quantity, not from how it is drawn.
         """
@@ -272,7 +281,7 @@ class StateVariableMap:
     @property
     def name(self) -> str:
         """
-        Name of the mapped property.
+        Name of the mapped quantity.
         """
         return self._name
 
@@ -364,7 +373,7 @@ class PoreNetwork:
             are ``0``-indexed. This importer function automatically converts the MATLAB
             indices into ``0``-based Python indices.
 
-            Note that this applies to following properties:
+            Note that this applies to following attributes:
 
             - :attr:`PoreNetwork.pores_left`
             - :attr:`PoreNetwork.pores_right`
@@ -404,18 +413,18 @@ class PoreNetwork:
             Path to the MATLAB ``.mat`` file.
         vars_nwk : dict[str, str]
             A map that specifies the corresponding variables in the ``.mat`` file for the
-            properties of the :class:`PoreNetwork` instance.
+            attributes of the :class:`PoreNetwork` instance.
         vars_state : Sequence[StateVariableMap], optional
             The :class:`StateVariableMap` instances that relate the state variables in
-            the ``.mat`` file to :class:`PoreNetworkProperty` instances.
+            the ``.mat`` file to :class:`PoreNetworkQuantity` instances.
 
-            Each :class:`StateVariableMap` carries a property name
+            Each :class:`StateVariableMap` carries a quantity name
             (:attr:`StateVariableMap.name`, identical to
-            :attr:`PoreNetworkProperty.name`) together with the names of the ``.mat``
+            :attr:`PoreNetworkQuantity.name`) together with the names of the ``.mat``
             variables holding the per-pore and per-throat data
             (:attr:`StateVariableMap.variable_sphere` and
             :attr:`StateVariableMap.variable_cylinder`, respectively). A variable left as
-            ``None`` is skipped, so a property may provide pore data, throat data, or
+            ``None`` is skipped, so a quantity may provide pore data, throat data, or
             both.
 
             As example: in case of ``"temperature"`` field data, the ``.mat`` file
@@ -591,8 +600,8 @@ class PoreNetwork:
         """
         return len(self.states)
 
-    def __setitem__(self, _, prop: PoreNetworkState):
-        return self.add_state(prop)
+    def __setitem__(self, _, state: PoreNetworkState):
+        return self.add_state(state)
 
     def __getitem__(self, idx: int) -> PoreNetworkState:
         return self.get_state(idx)
@@ -740,7 +749,7 @@ class PoreNetwork:
 
         In contrast to :meth:`from_mat`, which builds a new :class:`PoreNetwork`, this
         method appends the requested states to an already existing instance, loading both
-        pore and throat data for each :class:`PoreNetworkProperty`.
+        pore and throat data for each :class:`PoreNetworkQuantity`.
 
         .. attention::
 
@@ -755,12 +764,12 @@ class PoreNetwork:
             Path to the MATLAB ``.mat`` file.
         vars_state : Sequence[StateVariableMap]
             The :class:`StateVariableMap` instances that relate the state variables in
-            the ``.mat`` file to :class:`PoreNetworkProperty` instances. Each map carries
-            a property name (:attr:`StateVariableMap.name`) together with the names of
+            the ``.mat`` file to :class:`PoreNetworkQuantity` instances. Each map carries
+            a quantity name (:attr:`StateVariableMap.name`) together with the names of
             the ``.mat`` variables holding the per-pore and per-throat data
             (:attr:`StateVariableMap.variable_sphere` and
             :attr:`StateVariableMap.variable_cylinder`, respectively). A variable left as
-            ``None`` is skipped, so a property may provide pore data, throat data, or
+            ``None`` is skipped, so a quantity may provide pore data, throat data, or
             both.
         no_states : Sequence[int]
             State indices that are wrapped into :class:`PoreNetworkState` instances and
@@ -807,7 +816,7 @@ class PoreNetwork:
                     st.time_point = time_points[state].item()
 
                 for svm in vars_state:
-                    pn_prop = PoreNetworkProperty(svm.name, svm.interpolation)
+                    pn_quant = PoreNetworkQuantity(svm.name, svm.interpolation)
 
                     # load pore (sphere) data (skipped when no variable is given)
                     if svm.variable_sphere is not None:
@@ -816,7 +825,7 @@ class PoreNetwork:
                                 "Could not find variable "
                                 f"'{svm.variable_sphere}' in given .mat file"
                             )
-                        pn_prop.pore_values = np.array(
+                        pn_quant.pore_values = np.array(
                             f[svm.variable_sphere][state, :]
                         ).transpose()
 
@@ -827,13 +836,66 @@ class PoreNetwork:
                                 "Could not find variable "
                                 f"'{svm.variable_cylinder}' in given .mat file"
                             )
-                        pn_prop.throat_values = np.array(
+                        pn_quant.throat_values = np.array(
                             f[svm.variable_cylinder][state, :]
                         ).transpose()
 
-                    st.add_property(pn_prop)
+                    st.add_quantity(pn_quant)
                 self.add_state(st)
             return self
+
+    def quantity_max(self, name: str) -> float:
+        """
+        Highest value of the quantity ``name`` over all states of the network.
+
+        The counterpart to :attr:`PoreNetworkQuantity.max`, which covers one state
+        alone: this spans the whole series, so that every frame of a video can share
+        one set of colour boundaries instead of rescaling from state to state. It also
+        bounds the states :meth:`state_at` returns, since interpolation never leaves
+        the range of the stored states it blends.
+
+        States that do not carry the quantity are skipped, and ``NaN`` values are
+        ignored.
+
+        Parameters
+        ----------
+        name : str
+            Name of the quantity, see :attr:`PoreNetworkQuantity.name`.
+
+        Returns
+        -------
+        float
+            Highest value across the pores and throats of all states.
+
+        Raises
+        ------
+        ValueError
+            If no state of the network carries a quantity named ``name``.
+        """
+        return float(np.nanmax([q.max for q in self._quantities_named(name)]))
+
+    def quantity_min(self, name: str) -> float:
+        """
+        Lowest value of the quantity ``name`` over all states of the network.
+
+        The counterpart to :attr:`PoreNetworkQuantity.min`, see :meth:`quantity_max`.
+
+        Parameters
+        ----------
+        name : str
+            Name of the quantity, see :attr:`PoreNetworkQuantity.name`.
+
+        Returns
+        -------
+        float
+            Lowest value across the pores and throats of all states.
+
+        Raises
+        ------
+        ValueError
+            If no state of the network carries a quantity named ``name``.
+        """
+        return float(np.nanmin([q.min for q in self._quantities_named(name)]))
 
     def state_at(self, t: float) -> PoreNetworkState:
         """
@@ -846,8 +908,8 @@ class PoreNetwork:
 
         Times outside the sampled range are clamped, i.e. the first and the last stored
         state are held rather than extrapolated. Times falling between two stored states
-        are resolved per property, following each property's
-        :attr:`~PoreNetworkProperty.interpolation`, so a saturation field can be held
+        are resolved per quantity, following each quantity's
+        :attr:`~PoreNetworkQuantity.interpolation`, so a saturation field can be held
         between samples while a temperature field is blended, within one and the same
         frame.
 
@@ -872,7 +934,7 @@ class PoreNetwork:
         Raises
         ------
         ValueError
-            If the network holds no states, or a property carries an unknown
+            If the network holds no states, or a quantity carries an unknown
             interpolation mode.
         """
         states, times = self._time_ordered()
@@ -881,9 +943,9 @@ class PoreNetwork:
 
         # outside the stored range the nearest state is held, only restamped onto ``t``
         if t <= times[0]:
-            return PoreNetworkState(states[0].properties, states[0].no, t)
+            return PoreNetworkState(states[0].quantities, states[0].no, t)
         if t >= times[-1]:
-            return PoreNetworkState(states[-1].properties, states[-1].no, t)
+            return PoreNetworkState(states[-1].quantities, states[-1].no, t)
 
         hi = int(np.searchsorted(times, t, side="right"))
         lo = hi - 1
@@ -896,12 +958,24 @@ class PoreNetwork:
         st_hi = states[hi]
 
         out = PoreNetworkState(no=st_lo.no, time_point=t)
-        for prop in st_lo.properties:
+        for quant in st_lo.quantities:
             other = (
-                st_hi.get_property(prop.name) if st_hi.has_property(prop.name) else None
+                st_hi.get_quantity(quant.name) if st_hi.has_quantity(quant.name) else None
             )
-            out.add_property(PoreNetwork._resolve(prop, other, w))
+            out.add_quantity(PoreNetwork._resolve(quant, other, w))
         return out
+
+    def _quantities_named(self, name: str) -> list[PoreNetworkQuantity]:
+        """
+        The quantity ``name`` of every state carrying it, in :attr:`states` order.
+
+        States are free to carry different quantities, so this skips the ones the
+        quantity is missing from rather than treating them as a gap.
+        """
+        quants = [st.get_quantity(name) for st in self.states if st.has_quantity(name)]
+        if not quants:
+            raise ValueError(f"No state carries a quantity named '{name}'")
+        return quants
 
     def _time_ordered(self) -> tuple[list[PoreNetworkState], np.ndarray]:
         """
@@ -927,15 +1001,15 @@ class PoreNetwork:
 
     @staticmethod
     def _resolve(
-        p_lo: PoreNetworkProperty,
-        p_hi: PoreNetworkProperty | None,
+        p_lo: PoreNetworkQuantity,
+        p_hi: PoreNetworkQuantity | None,
         w: float,
-    ) -> PoreNetworkProperty:
+    ) -> PoreNetworkQuantity:
         """
-        Resolves one property between two stored states, ``w`` being the normalized
+        Resolves one quantity between two stored states, ``w`` being the normalized
         distance from the earlier state to the later one.
 
-        ``p_hi`` is ``None`` when the later state does not carry the property, in which
+        ``p_hi`` is ``None`` when the later state does not carry the quantity, in which
         case the earlier one is held.
         """
         mode = p_lo.interpolation
@@ -945,7 +1019,7 @@ class PoreNetwork:
             return p_lo if w < 0.5 else p_hi
         if mode is not InterpolationType.LINEAR:
             raise ValueError(f"Unknown interpolation mode '{mode}'")
-        return PoreNetworkProperty(p_lo.name, mode).set_data(
+        return PoreNetworkQuantity(p_lo.name, mode).set_data(
             _lerp(p_lo.pore_values, p_hi.pore_values, w),
             _lerp(p_lo.throat_values, p_hi.throat_values, w),
         )
@@ -1436,7 +1510,7 @@ def _lerp(a: np.ndarray | None, b: np.ndarray | None, w: float) -> np.ndarray | 
     """
     Blends two value arrays, weighting ``b`` by ``w``.
 
-    ``None`` on either side means the property does not carry that kind of data, so
+    ``None`` on either side means the quantity does not carry that kind of data, so
     ``a`` is passed through unchanged. ``NaN`` is deliberately not special-cased: it
     marks a value the simulation did not define (e.g. the vapour pressure of a dry
     pore), and letting it propagate keeps the gap visible instead of papering over it

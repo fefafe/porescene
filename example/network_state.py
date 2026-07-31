@@ -3,7 +3,7 @@ from pathlib import Path
 
 from porescene import worker
 from porescene.color.palette import Colormap, Palette
-from porescene.config import PropertyConfiguration
+from porescene.config import QuantityConfiguration
 from porescene.model import PoreNetwork, StateVariableMap
 from porescene.scene import Scene
 from porescene.utility import CompassDirection, Orientation
@@ -51,8 +51,8 @@ pn = PoreNetwork.from_mat(
 sc = Scene(pn.extent)
 
 # settings for concentration visualizations
-sc.config_scene.add_property(
-    PropertyConfiguration(
+sc.config_scene.add_quantity(
+    QuantityConfiguration(
         "concentration",  # key that should match with the StateVariableMap
         Palette.load(Colormap.MATTER).all(),  # colormap
         heading="Concentration [mol/l]",  # colorbar label

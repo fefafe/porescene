@@ -6,7 +6,7 @@ from porescene.color.palette import Palette
 from porescene.config import (
     AxesConfiguration,
     ImageConfiguration,
-    PropertyConfiguration,
+    QuantityConfiguration,
     SceneConfiguration,
 )
 from porescene.utility import CompassDirection, Orientation
@@ -20,20 +20,20 @@ def axes():
 
 
 # =============================================================================
-# PropertyConfiguration
+# QuantityConfiguration
 
 
-def test_property_only_requires_a_name():
-    assert PropertyConfiguration("radius").name == "radius"
+def test_quantity_only_requires_a_name():
+    assert QuantityConfiguration("radius").name == "radius"
 
 
-def test_property_default_transform_is_the_identity():
-    assert PropertyConfiguration("radius").func_transform(7) == 7
+def test_quantity_default_transform_is_the_identity():
+    assert QuantityConfiguration("radius").func_transform(7) == 7
 
 
-def test_property_stores_the_given_settings():
+def test_quantity_stores_the_given_settings():
     colors = [Color("#f00"), Color("#00f")]
-    p = PropertyConfiguration(
+    p = QuantityConfiguration(
         "saturation",
         colors,
         heading="Saturation",
@@ -61,23 +61,23 @@ def test_property_stores_the_given_settings():
     assert p.fit is False
 
 
-def test_property_out_of_range_colors_default_to_none():
-    p = PropertyConfiguration("radius")
+def test_quantity_out_of_range_colors_default_to_none():
+    p = QuantityConfiguration("radius")
     assert p.color_nan is None
     assert p.color_below is None
     assert p.color_above is None
 
 
-def test_property_out_of_range_colors_are_stored():
+def test_quantity_out_of_range_colors_are_stored():
     nan, below, above = Color("#f00"), Color("#0f0"), Color("#00f")
-    p = PropertyConfiguration(
+    p = QuantityConfiguration(
         "radius", color_nan=nan, color_below=below, color_above=above
     )
     assert (p.color_nan, p.color_below, p.color_above) == (nan, below, above)
 
 
-def test_property_transform_is_applied_by_the_caller_not_stored_eagerly():
-    p = PropertyConfiguration("radius", func_transform=lambda v: v * 2)
+def test_quantity_transform_is_applied_by_the_caller_not_stored_eagerly():
+    p = QuantityConfiguration("radius", func_transform=lambda v: v * 2)
     assert p.func_transform(21) == 42
 
 
@@ -125,7 +125,7 @@ def test_scene_defaults():
 
 def test_scene_instances_do_not_share_mutable_defaults():
     a, b = SceneConfiguration(), SceneConfiguration()
-    a.add_property(PropertyConfiguration("radius"))
+    a.add_quantity(QuantityConfiguration("radius"))
     assert len(b) == 0
     assert a.versions_solid is not b.versions_solid
 
@@ -159,54 +159,54 @@ def test_scene_palette_is_replaceable():
 
 
 # -----------------------------------------------------------------------------
-# SceneConfiguration -- property container
+# SceneConfiguration -- quantity container
 
 
-def test_add_property_grows_the_configuration():
+def test_add_quantity_grows_the_configuration():
     sc = SceneConfiguration()
-    sc.add_property(PropertyConfiguration("radius"))
-    sc.add_property(PropertyConfiguration("saturation"))
+    sc.add_quantity(QuantityConfiguration("radius"))
+    sc.add_quantity(QuantityConfiguration("saturation"))
     assert len(sc) == 2
 
 
-def test_get_property_looks_up_by_name():
+def test_get_quantity_looks_up_by_name():
     sc = SceneConfiguration()
-    prop = PropertyConfiguration("radius")
-    sc.add_property(prop)
-    assert sc.get_property("radius") is prop
-    assert sc["radius"] is prop
+    quant = QuantityConfiguration("radius")
+    sc.add_quantity(quant)
+    assert sc.get_quantity("radius") is quant
+    assert sc["radius"] is quant
 
 
-def test_get_property_raises_for_an_unknown_name():
-    with pytest.raises(ValueError, match="Unknown property with name 'nope'"):
-        SceneConfiguration().get_property("nope")
+def test_get_quantity_raises_for_an_unknown_name():
+    with pytest.raises(ValueError, match="Unknown quantity with name 'nope'"):
+        SceneConfiguration().get_quantity("nope")
 
 
-def test_setitem_ignores_the_key_and_files_under_the_property_name():
+def test_setitem_ignores_the_key_and_files_under_the_quantity_name():
     sc = SceneConfiguration()
-    sc["ignored"] = PropertyConfiguration("radius")
+    sc["ignored"] = QuantityConfiguration("radius")
     assert sc["radius"].name == "radius"
-    with pytest.raises(ValueError, match="Unknown property"):
+    with pytest.raises(ValueError, match="Unknown quantity"):
         sc["ignored"]
 
 
-def test_iteration_yields_the_properties_in_insertion_order():
+def test_iteration_yields_the_quantities_in_insertion_order():
     sc = SceneConfiguration()
     for name in ("radius", "saturation", "temperature"):
-        sc.add_property(PropertyConfiguration(name))
+        sc.add_quantity(QuantityConfiguration(name))
     assert [p.name for p in sc] == ["radius", "saturation", "temperature"]
 
 
 def test_configuration_can_be_iterated_more_than_once():
     sc = SceneConfiguration()
-    sc.add_property(PropertyConfiguration("radius"))
+    sc.add_quantity(QuantityConfiguration("radius"))
     assert len(list(sc)) == len(list(sc)) == 1
 
 
 def test_concurrent_iterations_are_independent():
     sc = SceneConfiguration()
     for name in ("radius", "saturation"):
-        sc.add_property(PropertyConfiguration(name))
+        sc.add_quantity(QuantityConfiguration(name))
     assert len(list(zip(sc, sc, strict=True))) == len(sc)
 
 

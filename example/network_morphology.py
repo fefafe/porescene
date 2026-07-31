@@ -3,7 +3,7 @@ from pathlib import Path
 
 from porescene import worker
 from porescene.color.palette import Colormap, Palette
-from porescene.config import PropertyConfiguration
+from porescene.config import QuantityConfiguration
 from porescene.model import PoreNetwork
 from porescene.scene import Scene
 from porescene.utility import CompassDirection, Orientation
@@ -28,9 +28,9 @@ pn = PoreNetwork.from_mat(pth_data / "pnm.mat", map_vars["data_network"])
 # initialize a new scene
 sc = Scene(pn.extent)
 
-# initialize PNM property "radius"
-sc.config_scene.add_property(
-    PropertyConfiguration(
+# initialize PNM quantity "radius"
+sc.config_scene.add_quantity(
+    QuantityConfiguration(
         "radius",
         Palette.load(Colormap.EMBER).reversed(),
         heading="Diameter [µm]",
@@ -64,7 +64,7 @@ sc.create_solid(pth_data / "solid.ply")
 # disable the pore spheres so only the solid and throats remain
 sc.config_scene.enable_spheres = False
 
-# change the colormap for radius property
+# change the colormap for radius quantity
 sc.config_scene["radius"].colors = Palette.load(Colormap.SPEED).all()
 
 # render the scene and color the throats according to their radius

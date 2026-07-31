@@ -3,13 +3,13 @@ Network coordination number
 
 The *coordination number* of a pore is the number of throats that meet at it -- a
 purely topological measure of how well connected each pore is to its neighbours. Because
-it counts throats, it is a discrete, integer-valued property rather than a continuous one
-like the pore radius. PoreScene can map such a per-pore property onto the stick-and-ball
+it counts throats, it is a discrete, integer-valued quantity rather than a continuous one
+like the pore radius. PoreScene can map such a per-pore quantity onto the stick-and-ball
 geometry, coloring each sphere by its own value and compositing a matching colorbar, so
 the connectivity of the void space can be read straight off the render.
 
 This example loads a pore network from a MATLAB file, configures its
-``coordination_number`` property with a discrete color scheme, and builds the
+``coordination_number`` quantity with a discrete color scheme, and builds the
 stick-and-ball geometry. The throat cylinders are switched off so that the pore coloring
 stands out on its own, and the network is rendered with every pore colored by the number
 of throats connected to it.
@@ -44,7 +44,7 @@ Make sure to have ``porescene`` installed (see :doc:`../installation`). At first
    from porescene import worker
    from porescene.color.gradient import SegmentedGradient
    from porescene.color.palette import Colormap, Palette
-   from porescene.config import PropertyConfiguration
+   from porescene.config import QuantityConfiguration
    from porescene.model import PoreNetwork
    from porescene.scene import Scene
    from porescene.utility import CompassDirection, Orientation
@@ -56,8 +56,8 @@ geometry and render it colored by coordination number.
 :class:`~porescene.color.palette.Palette` and
 :class:`~porescene.color.palette.Colormap` supply the colors, and
 :class:`~porescene.color.gradient.SegmentedGradient` groups them into discrete bands
-instead of a smooth blend. :class:`~porescene.config.PropertyConfiguration` describes how
-the ``coordination_number`` property is colored and labelled -- with
+instead of a smooth blend. :class:`~porescene.config.QuantityConfiguration` describes how
+the ``coordination_number`` quantity is colored and labelled -- with
 :class:`~porescene.utility.Orientation` and :class:`~porescene.utility.CompassDirection`
 placing the colorbar. File paths and directories are handled throughout PoreScene with
 the built-in :mod:`pathlib` module, and :mod:`json` reads the variable mapping.
@@ -99,7 +99,7 @@ The loaded :class:`~porescene.model.PoreNetwork` carries the pore positions and 
 the throat radii, and the throat-to-pore connectivity that PoreScene needs to place the
 spheres and cylinders. The mapping also points at the pore and throat coordination
 numbers (``cn_p`` and ``cn_t`` in this file), so they are imported alongside the geometry
-and are exactly the property this example colors by.
+and are exactly the quantity this example colors by.
 
 
 4. Scene setup
@@ -128,10 +128,10 @@ clutter the coloring:
    # disable the throat cylinders so only the pore spheres remain
    sc.config_scene.enable_cylinders = False
 
-Next, the ``coordination_number`` property is registered on the scene. A
-:class:`~porescene.config.PropertyConfiguration` names the property -- the name
+Next, the ``coordination_number`` quantity is registered on the scene. A
+:class:`~porescene.config.QuantityConfiguration` names the quantity -- the name
 :func:`~porescene.worker.make_coordination_number` looks it up by later -- and gives it
-the colors to use. Unlike the continuous ``radius`` property of the
+the colors to use. Unlike the continuous ``radius`` quantity of the
 :doc:`network morphology <network_morphology>` example, the coordination number takes
 whole-number values, so a *qualitative* palette (the ten-color ``TAB10``) is paired with
 a :class:`~porescene.color.gradient.SegmentedGradient` to give each value band its own
@@ -139,9 +139,9 @@ flat color:
 
 .. code-block:: python
 
-   # initialize PNM property "coordination_number"
-   sc.config_scene.add_property(
-       PropertyConfiguration(
+   # initialize PNM quantity "coordination_number"
+   sc.config_scene.add_quantity(
+       QuantityConfiguration(
            "coordination_number",
            Palette.load(Colormap.TAB10).subset(10),
            gradient_class=SegmentedGradient,
@@ -160,7 +160,7 @@ neighbours. The remaining arguments shape the colorbar: ``heading`` sets its tit
 
 .. tip::
 
-   A discrete property such as the coordination number reads best with a qualitative
+   A discrete quantity such as the coordination number reads best with a qualitative
    colormap -- one whose colors are meant to be told apart rather than ordered. Any
    member of :class:`~porescene.color.palette.Colormap` can be dropped in here; the
    ``SET1``, ``SET2`` and ``SET3`` palettes are further qualitative options.
@@ -190,7 +190,7 @@ sphere per pore and one cylinder per throat. Calibrated axes are added around it
 :func:`~porescene.worker.make_coordination_number` does the coloring in one call: it fits
 the segmented gradient to the coordination-number range, colors the enabled layers
 accordingly, renders the scene, and composites the colorbar described by the
-``coordination_number`` property. Because the cylinders were disabled, only the pore
+``coordination_number`` quantity. Because the cylinders were disabled, only the pore
 spheres are drawn and colored. The result is written into ``pth_data``:
 
 .. code-block:: python

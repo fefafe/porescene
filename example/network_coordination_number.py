@@ -4,7 +4,7 @@ from pathlib import Path
 from porescene import worker
 from porescene.color.gradient import SegmentedGradient
 from porescene.color.palette import Colormap, Palette
-from porescene.config import PropertyConfiguration
+from porescene.config import QuantityConfiguration
 from porescene.model import PoreNetwork
 from porescene.scene import Scene
 from porescene.utility import CompassDirection, Orientation
@@ -32,9 +32,9 @@ sc = Scene(pn.extent)
 # disable the throat cylinders so only the pore spheres remain
 sc.config_scene.enable_cylinders = False
 
-# initialize PNM property "coordination_number"
-sc.config_scene.add_property(
-    PropertyConfiguration(
+# initialize PNM quantity "coordination_number"
+sc.config_scene.add_quantity(
+    QuantityConfiguration(
         "coordination_number",
         Palette.load(Colormap.TAB10).subset(10),
         gradient_class=SegmentedGradient,

@@ -12,7 +12,7 @@ from mathutils import Matrix, Vector  # type: ignore  # isort:skip
 
 from porescene.color import Color
 from porescene.color.gradient import DiscreteGradient, SegmentedGradient, SmoothGradient
-from porescene.config import PropertyConfiguration
+from porescene.config import QuantityConfiguration
 from porescene.image import img_add_colorbar
 from porescene.layout import (
     DiscreteGradientAnnotation,
@@ -20,9 +20,9 @@ from porescene.layout import (
     SegmentedGradientAnnotation,
     SmoothGradientAnnotation,
 )
-from porescene.model import PoreNetwork, PoreNetworkProperty
+from porescene.model import PoreNetwork, PoreNetworkQuantity
 from porescene.scene import Scene
-from porescene.utility import _get_bounds, svg2png
+from porescene.utility import colorbar_limits, colorbar_ticks, svg2png, tick_labels
 
 
 def build_structure(
@@ -348,7 +348,7 @@ def make_radius(
     pn : PoreNetwork
         The pore network providing the pore and throat radii.
     sc : Scene
-        The scene holding the already-built geometry and the ``radius`` property
+        The scene holding the already-built geometry and the ``radius`` quantity
         configuration.
 
     Returns
@@ -366,9 +366,9 @@ def make_radius(
     do_spheres = sc.config_scene.enable_spheres and sc.has_spheres
     do_cylinders = sc.config_scene.enable_cylinders and sc.has_cylinders
 
-    # create property instance
+    # create quantity instance
     conf = sc.config_scene["radius"]
-    prop = PoreNetworkProperty("radius")
+    quant = PoreNetworkQuantity("radius")
 
     # collect throat radiii
     if do_cylinders and pn.throat_radius is not None:
@@ -391,10 +391,10 @@ def make_radius(
     else:
         r_p = None
 
-    prop.set_data(r_p, r_t)
+    quant.set_data(r_p, r_t)
 
     # setup colorbar
-    mn, mx = _get_bounds(prop.min, prop.max, conf.precision, conf.factor)
+    mn, mx = colorbar_limits(quant.min, quant.max, conf.precision, conf.factor)
     grad = SmoothGradient(conf.colors, mn / conf.factor, mx / conf.factor, fit=True)
 
     # render given configuration
@@ -404,8 +404,8 @@ def make_radius(
         do_spheres,
         do_cylinders,
         False,
-        grad(prop.pore_values) if do_spheres else [],
-        grad(prop.throat_values) if do_cylinders else [],
+        grad(quant.pore_values) if do_spheres else [],
+        grad(quant.throat_values) if do_cylinders else [],
         [],
         "radius",
         "radius",
@@ -436,7 +436,7 @@ def make_coordination_number(dir_img: Path, pn: PoreNetwork, sc: Scene) -> Path:
     coordination number and composites a matching colorbar onto the image.
 
     A color gradient (the gradient class configured for the ``coordination_number``
-    property) is fitted to the coordination-number range, the sphere, cylinder, and
+    quantity) is fitted to the coordination-number range, the sphere, cylinder, and
     cluster layers are colored accordingly via :func:`make_img`, and a colorbar for the
     gradient is added. Each layer is only colored and shown when it is enabled in the
     scene configuration and the corresponding data is available.
@@ -449,7 +449,7 @@ def make_coordination_number(dir_img: Path, pn: PoreNetwork, sc: Scene) -> Path:
         The pore network providing the pore and throat coordination numbers.
     sc : Scene
         The scene holding the already-built geometry and the ``coordination_number``
-        property configuration.
+        quantity configuration.
 
     Returns
     -------
@@ -461,12 +461,12 @@ def make_coordination_number(dir_img: Path, pn: PoreNetwork, sc: Scene) -> Path:
     do_cylinders = sc.config_scene.enable_cylinders and sc.has_cylinders
     do_clusters = sc.config_scene.enable_clusters and sc.has_clusters
 
-    # create property instance
+    # create quantity instance
     conf = sc.config_scene["coordination_number"]
-    prop = PoreNetworkProperty("coordination_number")
+    quant = PoreNetworkQuantity("coordination_number")
 
-    prop.set_data(pn.pore_coordination_number, pn.throat_coordination_number)
-    mn, mx = _get_bounds(prop.min, prop.max, conf.precision, conf.factor)
+    quant.set_data(pn.pore_coordination_number, pn.throat_coordination_number)
+    mn, mx = colorbar_limits(quant.min, quant.max, conf.precision, conf.factor)
     grad = conf.gradient_class(conf.colors, mn / conf.factor, mx / conf.factor)
 
     pth_vis = make_img(
@@ -475,9 +475,9 @@ def make_coordination_number(dir_img: Path, pn: PoreNetwork, sc: Scene) -> Path:
         do_spheres,
         do_cylinders,
         do_clusters,
-        grad(prop.pore_values) if do_spheres else [],
-        grad(prop.throat_values) if do_cylinders else [],
-        grad(prop.pore_values) if do_clusters else [],
+        grad(quant.pore_values) if do_spheres else [],
+        grad(quant.throat_values) if do_cylinders else [],
+        grad(quant.pore_values) if do_clusters else [],
         "coordination-number",
         "coordination-number",
         "coordination-number",
@@ -509,7 +509,7 @@ def make_random(dir_img: Path, pn: PoreNetwork, sc: Scene) -> Path:
     Each layer is drawn with colors picked at random from the scene's palette, so that
     individual pores, throats, and clusters can be told apart visually. A layer is only
     colored and shown when it is enabled in the scene configuration *and* has actually
-    been built in the scene. Unlike the property-based renders, no colorbar is added,
+    been built in the scene. Unlike the quantity-based renders, no colorbar is added,
     since the random colors carry no scale.
 
     Parameters
@@ -563,7 +563,7 @@ def make_structure(
     Renders the pore network with all pores, throats, and clusters in a uniform gray.
 
     This is the plain structure view: every layer is drawn in a single neutral gray,
-    without any property-based coloring or colorbar, giving a clean overview of the
+    without any quantity-based coloring or colorbar, giving a clean overview of the
     network geometry. A layer is only shown when it is enabled in the scene
     configuration *and* has actually been built in the scene.
 
@@ -617,17 +617,17 @@ def make_state(
     no_frame: int | None = None,
 ) -> dict[str, Path]:
     """
-    Renders one state of a pore network, one image per state property.
+    Renders one state of a pore network, one image per state quantity.
 
     The state is selected either by its number or by a point in time. Selecting by
     number renders a stored state verbatim; selecting by time evaluates the network at
     that instant via :meth:`~porescene.model.PoreNetwork.state_at`, interpolating
     between the stored states where needed.
 
-    Each property of the state is drawn onto its own image and annotated with a
+    Each quantity of the state is drawn onto its own image and annotated with a
     matching colorbar. Whether the colorbar limits are shared across all states or
     derived from the state at hand follows
-    :attr:`~porescene.config.PropertyConfiguration.use_global_boundaries`.
+    :attr:`~porescene.config.QuantityConfiguration.use_global_boundaries`.
 
     Parameters
     ----------
@@ -645,7 +645,7 @@ def make_state(
         ``time_point``.
     time_point : float | None, optional
         Point on the network's :attr:`~porescene.model.PoreNetwork.time_axis` to render.
-        Times between two stored states are interpolated per property, times outside the
+        Times between two stored states are interpolated per quantity, times outside the
         stored range are clamped. Mutually exclusive with ``no_state``.
     no_frame : int | None, optional
         Position in a frame sequence, used to name the images, see :func:`make_img`.
@@ -654,7 +654,7 @@ def make_state(
     Returns
     -------
     dict[str, Path]
-        The rendered image per property name.
+        The rendered image per quantity name.
 
     Raises
     ------
@@ -682,20 +682,20 @@ def make_state(
     grad_dict = {}
     for conf in sc.config_scene:
         if conf.use_global_boundaries:
-            mn, mx = _get_bounds(conf.min, conf.max, conf.precision, conf.factor)
+            mn, mx = colorbar_limits(conf.min, conf.max, conf.precision, conf.factor)
             grad_dict[conf.name] = conf.gradient_class(
                 conf.colors, mn / conf.factor, mx / conf.factor
             )
 
     pth_imgs: dict[str, Path] = {}
-    for prop in state.properties:
-        conf = sc.config_scene[prop.name]
+    for quant in state.quantities:
+        conf = sc.config_scene[quant.name]
 
         if not conf.use_global_boundaries:
             if conf.min is None:
-                mn, _ = _get_bounds(
-                    prop.min,
-                    prop.max,
+                mn, _ = colorbar_limits(
+                    quant.min,
+                    quant.max,
                     conf.precision,
                     conf.factor,
                     conf.func_transform,
@@ -703,9 +703,9 @@ def make_state(
             else:
                 mn = conf.min
             if conf.max is None:
-                _, mx = _get_bounds(
-                    prop.min,
-                    prop.max,
+                _, mx = colorbar_limits(
+                    quant.min,
+                    quant.max,
                     conf.precision,
                     conf.factor,
                     conf.func_transform,
@@ -716,33 +716,33 @@ def make_state(
             grad = conf.gradient_class(conf.colors, mn / conf.factor, mx / conf.factor)
         else:
             grad = grad_dict[conf.name]
-            mn, mx = _get_bounds(conf.min, conf.max, conf.precision, conf.factor)
+            mn, mx = colorbar_limits(conf.min, conf.max, conf.precision, conf.factor)
         pth_vis = make_img(
             pth,
             sc,
             do_spheres,
             do_cylinders,
             do_clusters,
-            grad(conf.func_transform(prop.pore_values)) if do_spheres else [],
-            grad(conf.func_transform(prop.throat_values)) if do_cylinders else [],
-            grad(conf.func_transform(prop.pore_values)) if do_clusters else [],
-            prop.name,
-            prop.name,
-            prop.name,
+            grad(conf.func_transform(quant.pore_values)) if do_spheres else [],
+            grad(conf.func_transform(quant.throat_values)) if do_cylinders else [],
+            grad(conf.func_transform(quant.pore_values)) if do_clusters else [],
+            quant.name,
+            quant.name,
+            quant.name,
             no_state=state.no,
             no_frame=no_frame,
         )
 
         ovl_cb = make_gradient_overlay(
-            pth_vis.with_name("cb-" + prop.name + ".svg"),
-            sc.config_scene[prop.name],
+            pth_vis.with_name("cb-" + quant.name + ".svg"),
+            sc.config_scene[quant.name],
             mn,
             mx,
         )
         img_add_colorbar(
             pth_vis, ovl_cb.path.with_suffix(".png"), conf.align, conf.orientation
         )
-        pth_imgs[prop.name] = pth_vis
+        pth_imgs[quant.name] = pth_vis
     return pth_imgs
 
 
@@ -766,14 +766,14 @@ def make_frames(
     :func:`make_state`, so that playback speed follows the physical time of the results
     rather than the spacing of the stored states.
 
-    One frame sequence is produced per property, named so that sorting by file name
+    One frame sequence is produced per quantity, named so that sorting by file name
     yields the playback order. Feed a sequence straight to
     :func:`porescene.image.frames2mp4` or :func:`porescene.image.frames2gif`.
 
     .. attention::
 
         Rendering is by far the slowest part: a 12 second video at 30 fps means 360
-        renders per property. Check the schedule with
+        renders per quantity. Check the schedule with
         :meth:`~porescene.model.PoreNetwork.frame_times` before committing to it.
 
     Parameters
@@ -799,7 +799,7 @@ def make_frames(
     Returns
     -------
     dict[str, list[Path]]
-        The rendered frames per property name, in playback order.
+        The rendered frames per quantity name, in playback order.
 
     Examples
     --------
@@ -825,7 +825,7 @@ def make_frames(
 
 def make_gradient_overlay(
     pth: Path,
-    config: PropertyConfiguration,
+    config: QuantityConfiguration,
     mn: float,
     mx: float,
     /,
@@ -833,9 +833,9 @@ def make_gradient_overlay(
     **kwargs,
 ) -> Gradient:
     """
-    Renders the colorbar of a property as SVG and PNG.
+    Renders the colorbar of a quantity as SVG and PNG.
 
-    The gradient class configured for the property decides the kind of colorbar; its
+    The gradient class configured for the quantity decides the kind of colorbar; its
     colors, heading, subheading, text, alignment and orientation are taken from
     ``config``. Unless ``ticks`` are given, they are placed equidistantly between
     ``mn`` and ``mx`` -- one per color boundary for a segmented gradient, five
@@ -855,7 +855,7 @@ def make_gradient_overlay(
         Base path of the SVG file. The written file carries the fingerprint part in
         addition; the PNG sits next to it under the same stem.
     config
-        Configuration of the property the colorbar belongs to.
+        Configuration of the quantity the colorbar belongs to.
     mn, mx
         Lower and upper limit the ticks span.
     ticks
@@ -871,7 +871,7 @@ def make_gradient_overlay(
     Raises
     ------
     ValueError
-        If the property is configured with an unknown gradient class.
+        If the quantity is configured with an unknown gradient class.
     """
     if config.gradient_class is SmoothGradient:
         ovl = SmoothGradientAnnotation(pth)
@@ -886,28 +886,18 @@ def make_gradient_overlay(
             n_ticks = len(config.colors) + 1
         else:
             n_ticks = 5
-        ticks_num: list[float] = list(
-            np.round(np.linspace(mn, mx, n_ticks), config.precision + 2)
+        # two decimals beyond the configured precision keep a tick that falls between
+        # two rounding steps of the limits legible instead of collapsing it onto one
+        ticks = tick_labels(
+            colorbar_ticks(mn, mx, n_ticks, precision=config.precision + 2),
+            decimals=max(config.precision, 0) + 2,
         )
-        if config.precision <= 0:
-            ticks = [
-                f"{v:.0f}" if v.is_integer() else f"{v:.2f}".rstrip("0")
-                for v in ticks_num
-            ]
-        else:
-            ticks = [
-                (
-                    f"{v:.0f}"
-                    if v.is_integer()
-                    else f"{v:.{config.precision + 2}f}".rstrip("0")
-                )
-                for v in ticks_num
-            ]
     for arg in kwargs.items():
         if hasattr(ovl, arg[0]):
             setattr(ovl, arg[0], arg[1])
     ovl.gradient_colors = config.colors
-    ovl.ticks = ticks
+    # the annotation reverses the ticks in place for a vertical colorbar
+    ovl.ticks = list(ticks)
     ovl.heading = config.heading
     ovl.subheading = config.subheading
     ovl.text = config.text

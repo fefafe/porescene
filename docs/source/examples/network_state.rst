@@ -70,7 +70,7 @@ Make sure to have ``porescene`` installed (see :doc:`../installation`). At first
 
    from porescene import worker
    from porescene.color.palette import Colormap, Palette
-   from porescene.config import PropertyConfiguration
+   from porescene.config import QuantityConfiguration
    from porescene.model import PoreNetwork, StateVariableMap
    from porescene.scene import Scene
    from porescene.utility import CompassDirection, Orientation
@@ -80,7 +80,7 @@ of states, while :class:`~porescene.scene.Scene` sets up the rendering stage. Mo
 :mod:`~porescene.worker` provides the high-level helpers that build the stick-and-ball
 geometry and render every state. :class:`~porescene.model.StateVariableMap` tells the
 importer which ``.mat`` variables hold each state field, and
-:class:`~porescene.config.PropertyConfiguration` describes how the field is colored and
+:class:`~porescene.config.QuantityConfiguration` describes how the field is colored and
 labelled -- with :class:`~porescene.utility.Orientation` and
 :class:`~porescene.utility.CompassDirection` placing the colorbar.
 :class:`~porescene.color.palette.Palette` and :class:`~porescene.color.palette.Colormap`
@@ -123,7 +123,7 @@ network geometry is mapped through ``map_vars.json`` (see
        map_vars = json.load(f)
 
 The state fields need their own mapping. A :class:`~porescene.model.StateVariableMap` ties
-a property name -- the name the coloring is configured under later -- to the ``.mat``
+a quantity name -- the name the coloring is configured under later -- to the ``.mat``
 variables that store its per-pore (sphere) and per-throat (cylinder) values. Here the
 concentration is available for both, so both variables are set:
 
@@ -203,7 +203,7 @@ and calibrates the axes to the real dimensions of the sample (see :doc:`../conce
    still line up (see :doc:`../config`).
 
 The concentration field is registered on the scene with a
-:class:`~porescene.config.PropertyConfiguration`. Its first argument is the property name
+:class:`~porescene.config.QuantityConfiguration`. Its first argument is the quantity name
 and has to match the name given to the :class:`~porescene.model.StateVariableMap` above --
 that is how the coloring finds its data. The remaining arguments shape the colorbar and,
 most importantly for a series, its bounds:
@@ -211,8 +211,8 @@ most importantly for a series, its bounds:
 .. code-block:: python
 
    # settings for concentration visualizations
-   sc.config_scene.add_property(
-       PropertyConfiguration(
+   sc.config_scene.add_quantity(
+       QuantityConfiguration(
            "concentration",  # key that should match with the StateVariableMap
            Palette.load(Colormap.MATTER).all(),  # colormap
            heading="Concentration [mol/l]",  # colorbar label

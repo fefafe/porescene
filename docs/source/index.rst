@@ -4,7 +4,7 @@ PoreScene
 PoreScene is a `Blender <https://docs.blender.org/api/current/>`_-based scientific
 visualization toolkit for porous media. It renders tomographic images, generated and
 reconstructed pore networks, as well as volume tessellations as photorealistic 3D scenes
--- with pores, throats, Voronoi cells, and watershed clusters colored by properties such
+-- with pores, throats, Voronoi cells, and watershed clusters colored by quantities such
 as radius or coordination number using perceptually uniform colormaps, matching
 colorbars, and calibrated, on-scale axes.
 

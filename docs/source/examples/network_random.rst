@@ -1,7 +1,7 @@
 Network random coloring
 =======================
 
-Not every question about a pore network is about a scalar property. Sometimes the goal is
+Not every question about a pore network is about a scalar quantity. Sometimes the goal is
 simply to *tell the individual elements apart* -- to see where one pore ends and the next
 begins, or to follow a single throat through a dense tangle. PoreScene supports this with
 a random *identity* coloring: every pore and every throat is given a color drawn at
@@ -92,7 +92,7 @@ lives in ``map_vars.json`` and is loaded first:
 
 The loaded :class:`~porescene.model.PoreNetwork` carries the pore positions and radii,
 the throat radii, and the throat-to-pore connectivity that PoreScene needs to place the
-spheres and cylinders. The random coloring uses none of the property values -- only the
+spheres and cylinders. The random coloring uses none of the quantity values -- only the
 number of pores and throats -- so the imported data is used as-is.
 
 
@@ -138,7 +138,7 @@ colormap:
    sc.config_scene.palette = Palette.load(Colormap.ROMAO)
 
 :func:`~porescene.worker.make_random` then assigns each pore and each throat a color
-picked at random from that palette, renders the scene, and -- unlike the property-based
+picked at random from that palette, renders the scene, and -- unlike the quantity-based
 workers -- adds no colorbar, since the random colors carry no scale:
 
 .. code-block:: python
