@@ -25,6 +25,7 @@ from porescene.scene import Scene
 from porescene.utility import colorbar_limits, colorbar_ticks, svg2png, tick_labels
 
 SEPARATOR_FRAGMENTS = "+"
+SEPARATOR_PROPERTY = "-"
 
 
 class Render(NamedTuple):
@@ -315,19 +316,18 @@ def make_img(
         File path to the rendered image.
     """
     fname_fragments = []
-    sep = "-"
     if show_cylinders and sc.has_cylinders:
         sc.show_cylinders()
         sc.apply_colors("Cylinders", color_cylinders)
-        fname_fragments.append("cylinder" + sep + name_cylinders)
+        fname_fragments.append("cylinder" + SEPARATOR_PROPERTY + name_cylinders)
     if show_spheres and sc.has_spheres:
         sc.show_spheres()
         sc.apply_colors("Spheres", color_spheres)
-        fname_fragments.append("sphere" + sep + name_spheres)
+        fname_fragments.append("sphere" + SEPARATOR_PROPERTY + name_spheres)
     if show_clusters and sc.has_clusters:
         sc.show_clusters()
         sc.apply_colors("Clusters", color_clusters)
-        fname_fragments.append("cluster" + sep + name_clusters)
+        fname_fragments.append("cluster" + SEPARATOR_PROPERTY + name_clusters)
 
     if solid is not None:
         sc.create_solid(solid)
