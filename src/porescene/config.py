@@ -16,7 +16,7 @@ This module bundles the settings used throughout :mod:`porescene`:
 """
 
 import math
-from collections.abc import Callable, Iterator, Sequence
+from collections.abc import Callable, Iterable, Iterator, Sequence
 from importlib import resources
 from pathlib import Path
 from typing import Self
@@ -140,8 +140,8 @@ class QuantityConfiguration:
         return self._colors
 
     @colors.setter
-    def colors(self, arg: list[Color]):
-        self._colors = arg
+    def colors(self, arg: Sequence[Color]):
+        self._colors = list(arg)
 
     @property
     def factor(self) -> float:
@@ -332,8 +332,8 @@ class QuantityConfiguration:
         return self._text
 
     @text.setter
-    def text(self, arg: list[str]):
-        self._text = arg
+    def text(self, arg: Sequence[str]):
+        self._text = list(arg)
 
 
 class ImageConfiguration:
@@ -610,22 +610,22 @@ class SceneConfiguration:
         self._palette = arg
 
     @property
-    def versions_solid(self) -> list[Path]:
+    def versions_solid(self) -> set[str]:
         """Clipping versions of the solid structure to render."""
         return self._versions_solid
 
     @versions_solid.setter
-    def versions_solid(self, arg: list[Path]):
-        self._versions_solid = arg
+    def versions_solid(self, arg: Iterable[str]):
+        self._versions_solid = set(arg)
 
     @property
-    def versions_void(self) -> list[Path]:
+    def versions_void(self) -> set[str]:
         """Clipping versions of the void structure to render."""
         return self._versions_void
 
     @versions_void.setter
-    def versions_void(self, arg: list[Path]):
-        self._versions_void = arg
+    def versions_void(self, arg: Iterable[str]):
+        self._versions_void = set(arg)
 
 
 class AxesConfiguration:

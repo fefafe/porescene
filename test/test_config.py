@@ -47,7 +47,7 @@ def test_quantity_stores_the_given_settings():
         factor=1e6,
         fit=False,
     )
-    assert p.colors is colors
+    assert p.colors == colors
     assert p.heading == "Saturation"
     assert p.subheading == "per pore"
     assert p.text == ["a", "b"]
@@ -57,6 +57,19 @@ def test_quantity_stores_the_given_settings():
     assert (p.limit_lower, p.limit_upper) == (0.0, 1.0)
     assert p.factor == 1e6
     assert p.fit is False
+
+
+def test_quantity_stores_sequences_as_lists():
+    colors = [Color("#f00")]
+    p = QuantityConfiguration("saturation", colors, text=("a", "b"))
+
+    # any sequence is stored as the list the property reports, and as a copy, so the
+    # configuration cannot be changed through the object it was handed
+    assert isinstance(p.colors, list)
+    assert p.text == ["a", "b"] and isinstance(p.text, list)
+
+    colors.append(Color("#00f"))
+    assert len(p.colors) == 1
 
 
 def test_quantity_out_of_range_colors_default_to_none():

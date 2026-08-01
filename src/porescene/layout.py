@@ -3,6 +3,7 @@
 # Otto von Guericke University Magdeburg, Thermal Process Engineering
 
 import abc
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Self
 
@@ -559,8 +560,8 @@ class TitleAnnotation(BackgroundAnnotation):
         return self._text
 
     @text.setter
-    def text(self, arg: list[str]):
-        self._text = arg
+    def text(self, arg: Sequence[str]):
+        self._text = list(arg)
 
     @property
     def color_heading(self) -> Color:
@@ -1048,8 +1049,8 @@ class Gradient(TitleAnnotation, abc.ABC):
         return self._gradient_colors
 
     @gradient_colors.setter
-    def gradient_colors(self, arg: list[Color]):
-        self._gradient_colors = arg
+    def gradient_colors(self, arg: Sequence[Color]):
+        self._gradient_colors = list(arg)
 
     @property
     def gradient_height(self) -> float:
@@ -1175,8 +1176,8 @@ class Gradient(TitleAnnotation, abc.ABC):
         return self._ticks
 
     @ticks.setter
-    def ticks(self, arg: list[str]):
-        self._ticks = arg
+    def ticks(self, arg: Sequence[str]):
+        self._ticks = list(arg)
 
 
 class SmoothGradientAnnotation(Gradient):

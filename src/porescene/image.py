@@ -4,7 +4,7 @@
 
 import subprocess
 import tempfile
-from collections.abc import Iterator
+from collections.abc import Iterable
 from pathlib import Path
 
 import imageio_ffmpeg
@@ -175,7 +175,7 @@ def compose_colorbar(
 
 
 def compose_colorbar_frames(
-    pth_frames: Iterator[Path],
+    pth_frames: Iterable[Path],
     pth_cb: Path,
     align: CompassDirection = CompassDirection.SOUTH,
     orientation: Orientation = Orientation.HORIZONTAL,
@@ -208,7 +208,7 @@ def compose_colorbar_frames(
 
     Parameters
     ----------
-    pth_frames : Iterator[Path]
+    pth_frames : Iterable[Path]
         Ordered paths of the frame images.
     pth_cb : Path
         Path of the rendered colorbar image, see
@@ -303,7 +303,7 @@ def iterate_side_by_side(pthlist_left, pthlist_right, pth_merged):
         )
 
 
-def frames_trim(pth_frames: Iterator[Path]) -> list[Path]:
+def frames_trim(pth_frames: Iterable[Path]) -> list[Path]:
     """
     Trims a series of frames to their common bounding box, in place.
 
@@ -321,7 +321,7 @@ def frames_trim(pth_frames: Iterator[Path]) -> list[Path]:
 
     Parameters
     ----------
-    pth_frames : Iterator[Path]
+    pth_frames : Iterable[Path]
         Paths of the frame images. Order does not matter, since every frame is cropped
         by the same margins.
 
@@ -355,7 +355,7 @@ def frames_trim(pth_frames: Iterator[Path]) -> list[Path]:
 
 
 def frames2gif(
-    pth_frames: Iterator[Path],
+    pth_frames: Iterable[Path],
     pth_gif: Path,
     fps: int = 24,
     trim: bool = True,
@@ -370,7 +370,7 @@ def frames2gif(
 
     Parameters
     ----------
-    pth_frames : Iterator[Path]
+    pth_frames : Iterable[Path]
         Ordered paths of the frame images. The animation follows this order.
     pth_gif : Path
         Output path of the GIF file.
@@ -436,7 +436,7 @@ def frames2gif(
 
 
 def frames2mp4(
-    pth_frames: Iterator[Path],
+    pth_frames: Iterable[Path],
     pth_mp4: Path,
     fps: int = 24,
     background: tuple[int, int, int] = (255, 255, 255),
@@ -452,7 +452,7 @@ def frames2mp4(
 
     Parameters
     ----------
-    pth_frames : Iterator[Path]
+    pth_frames : Iterable[Path]
         Ordered paths of the frame images. The video follows this order.
     pth_mp4 : Path
         Output path of the MP4 file.
