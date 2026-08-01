@@ -299,8 +299,10 @@ scale.
    The rendered states are a ready-made frame sequence: passing the image paths (in
    order) to :func:`~porescene.image.frames2mp4` or :func:`~porescene.image.frames2gif`
    turns the series into a video, the same way the :doc:`solid animation
-   <animation_solid>` example does it. Pass the composites to carry the colorbar into
-   the video, or the bare renders to leave it out.
+   <animation_solid>` example does it. To carry the colorbar into the video, join it
+   onto the series with :func:`~porescene.image.compose_colorbar_frames` -- which trims
+   the renders against one another, so the colorbar keeps its size and place from frame
+   to frame -- and pass those composites; pass the bare renders to leave it out.
 
 
 Full script

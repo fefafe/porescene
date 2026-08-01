@@ -809,9 +809,14 @@ def make_frames(
 
     The frames are named so that sorting by file name yields the playback order. Feed
     them -- either the bare renders or the composites a colorbar was joined onto with
-    :func:`porescene.image.compose_colorbar` -- straight to
+    :func:`porescene.image.compose_colorbar_frames` -- straight to
     :func:`porescene.image.frames2mp4` or :func:`porescene.image.frames2gif`. Call this
     once per quantity to turn several of them into videos.
+
+    Compose the colorbar with :func:`porescene.image.compose_colorbar_frames` rather
+    than with :func:`porescene.image.compose_colorbar`: the series version trims the
+    frames against one another, which keeps the colorbar the same size and in the same
+    place throughout, while the single-image one crops every frame to its own content.
 
     .. attention::
 
