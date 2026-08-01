@@ -276,46 +276,6 @@ def compose_colorbar_frames(
     return pths_comp
 
 
-def img_add_axes(pth_vis: Path, pth_ax: Path) -> Path:
-    """
-    Combines a visualization image with the axes image.
-    """
-
-    if not pth_ax.exists():
-        return pth_vis
-
-    img_ax = PIL.Image.open(pth_ax)
-    img_vis = PIL.Image.open(pth_vis)
-
-    parts_fname = pth_vis.stem.split("_")
-    parts_fname.insert(-1, "axes")
-
-    pth_comp = pth_vis.with_stem("_".join(parts_fname))
-
-    img_comp = PIL.Image.new(img_vis.mode, img_vis.size, (0, 0, 0, 0))
-    img_comp.alpha_composite(img_ax, (0, 0))
-    img_comp.alpha_composite(img_vis, (0, 0))
-    img_comp.save(pth_comp, "PNG")
-
-    return pth_comp
-
-
-def img_pp(pth_img: Path) -> None:
-    """
-    Visualization image post-processing
-
-    Parameters
-    ----------
-    pth_img : Path
-        Filename of the visualization image to be trimmed and axes added.
-    """
-    img_trim(pth_img)
-    pth_img = img_add_axes(
-        pth_img, pth_img.with_stem("axes_" + pth_img.stem.split("_")[-1])
-    )
-    img_trim(pth_img)
-
-
 def img_side_by_side(pth_img_left: Path, pth_img_right: Path, pth_merged: Path):
 
     img_left = PIL.Image.open(pth_img_left)
