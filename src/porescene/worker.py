@@ -16,6 +16,7 @@ from porescene.layout import (
     DiscreteGradientAnnotation,
     SegmentedGradientAnnotation,
     SmoothGradientAnnotation,
+    SVGCanvas,
 )
 from porescene.model import PoreNetwork, PoreNetworkQuantity
 from porescene.scene import Scene
@@ -906,13 +907,14 @@ def make_colorbar(
     configuration as well. Unless ``ticks`` are given, they are placed equidistantly
     between the limits -- one per color boundary for a segmented gradient, five
     otherwise -- and labelled at the configured precision. Remaining ``kwargs`` are
-    applied to the underlying annotation where it has a matching attribute.
+    applied to the underlying annotation, or to the :class:`~porescene.layout.SVGCanvas`
+    it is drawn on, whichever has a matching attribute.
 
     The file is named after the quantity, as ``cb-<name>``, and its stem is extended by
     an ``id-<fingerprint>`` part identifying the rendered markup (see
-    :attr:`~porescene.layout.BackgroundAnnotation.id`), so that colorbars differing in
-    palette, limits, ticks or label do not overwrite each other. Read the location off
-    the returned path.
+    :attr:`~porescene.layout.SVGCanvas.id`), so that colorbars differing in palette,
+    limits, ticks or label do not overwrite each other. Read the location off the
+    returned path.
 
     Parameters
     ----------
@@ -950,11 +952,11 @@ def make_colorbar(
     pth = dir_img / ("cb" + SEPARATOR_PROPERTY + name + ".svg")
 
     if conf.gradient_class is SmoothGradient:
-        ovl = SmoothGradientAnnotation(pth)
+        ovl = SmoothGradientAnnotation()
     elif conf.gradient_class is SegmentedGradient:
-        ovl = SegmentedGradientAnnotation(pth)
+        ovl = SegmentedGradientAnnotation()
     elif conf.gradient_class is DiscreteGradient:
-        ovl = DiscreteGradientAnnotation(pth)
+        ovl = DiscreteGradientAnnotation()
     else:
         raise ValueError("Unknown gradient class")
     if len(ticks) == 0:
@@ -970,18 +972,24 @@ def make_colorbar(
             ),
             decimals=max(conf.precision, 0) + 2,
         )
-    for arg in kwargs.items():
-        if hasattr(ovl, arg[0]):
-            setattr(ovl, arg[0], arg[1])
+    canvas = SVGCanvas()
+
+    # an override lands on whichever of the two carries an attribute of that name, so
+    # that the colorbar and the sheet it is drawn on can both be adjusted from here
+    for key, value in kwargs.items():
+        if hasattr(ovl, key):
+            setattr(ovl, key, value)
+        elif hasattr(canvas, key):
+            setattr(canvas, key, value)
+
     ovl.gradient_colors = conf.colors
-    # the annotation reverses the ticks in place for a vertical colorbar
     ovl.ticks = list(ticks)
     ovl.heading = conf.heading
     ovl.subheading = conf.subheading
     ovl.text = conf.text
-    ovl.align = conf.align
     ovl.orientation = conf.orientation
     ovl.color_nan = conf.color_nan
-    ovl.save(stamp_id=True)
 
-    return svg2png(ovl.path)
+    pth = canvas.add(ovl, conf.align).save(pth, stamp_id=True)
+
+    return svg2png(pth)

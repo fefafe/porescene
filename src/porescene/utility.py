@@ -6,8 +6,9 @@ import base64
 import contextlib
 import hashlib
 import os
-from collections.abc import Generator, Mapping, Sequence
+from collections.abc import Generator, Iterable, Mapping, Sequence
 from enum import Enum
+from importlib import resources
 from math import ceil, floor, isclose, isfinite, log10
 from pathlib import Path
 from typing import Literal, overload
@@ -842,8 +843,50 @@ def make_id(*parts: object, length: int = 8) -> str:
     return base64.b32encode(digest.digest()).decode().lower()[:length]
 
 
+#: Pixels per inch a user unit of an SVG is defined against.
+#:
+#: The CSS reference pixel, which SVG 2 and every current renderer measure a length
+#: without a unit in. It is what ties the physical size of a figure to the coordinates
+#: it is drawn in, so a canvas sized in centimeters comes out at that size on paper.
+DPI_CSS = 96.0
+
+#: Centimeters per inch.
+CM_PER_INCH = 2.54
+
+#: Points per inch. A point is the unit a font size is given in.
+PT_PER_INCH = 72.0
+
+
+def cm2px(value: float) -> float:
+    """Converts a length in centimeters into SVG user units, see :data:`DPI_CSS`."""
+    return value * DPI_CSS / CM_PER_INCH
+
+
+def px2cm(value: float) -> float:
+    """Converts a length in SVG user units into centimeters, see :data:`DPI_CSS`."""
+    return value * CM_PER_INCH / DPI_CSS
+
+
+def pt2px(value: float) -> float:
+    """Converts a font size in points into SVG user units, see :data:`DPI_CSS`."""
+    return value * DPI_CSS / PT_PER_INCH
+
+
+def px2pt(value: float) -> float:
+    """Converts a font size in SVG user units into points, see :data:`DPI_CSS`."""
+    return value * PT_PER_INCH / DPI_CSS
+
+
 #: Marks the identifier part in the stem of a file named after its content.
 PREFIX_ID = "id-"
+
+#: Typeface bundled with the package, relative to its root.
+#:
+#: Shipping the font rather than reaching for an installed one is what keeps a figure
+#: looking the same on every machine: both the scene axes (see
+#: :attr:`~porescene.config.AxesConfiguration.font_family`) and the SVG annotations (see
+#: :func:`svg2png`) are drawn with it.
+PATH_FONT = "data/font/Inter-Regular.ttf"
 
 
 def filepath_add_id(pth: Path, identifier: str) -> Path:
@@ -894,7 +937,12 @@ def filepath_read_id(pth: Path) -> str | None:
     return None
 
 
-def svg2png(pth: Path, crop: bool = True) -> Path:
+def svg2png(
+    pth: Path,
+    crop: bool = True,
+    fonts: Iterable[Path] = (),
+    dpi: float = 600.0,
+) -> Path:
     """
     Convert a SVG file to PNG.
 
@@ -902,6 +950,20 @@ def svg2png(pth: Path, crop: bool = True) -> Path:
     so ``pip install`` pulls in everything and no external software is required.
     With ``crop=True`` the result is trimmed to its visible content by removing the
     surrounding transparent margin.
+
+    A file that states its size in a physical unit -- as a
+    :class:`~porescene.layout.SVGCanvas` does, in centimeters -- is rasterized at ``dpi``,
+    so that is the knob that decides how many pixels the result comes out at: 600 dpi
+    turns a 20 cm canvas into 4724 px. A file sized in pixels instead carries its own
+    resolution and is rendered as it stands, whatever ``dpi`` says.
+
+    The Inter typeface bundled with the package (see :data:`PATH_FONT`) is handed to the
+    renderer, on top of the fonts installed on the machine. The annotations of
+    :mod:`porescene.layout` ask for Inter first, so a figure comes out in the same
+    typeface wherever it is rendered rather than in whatever the machine happens to
+    substitute -- and the estimates the layout is arranged by (see
+    :data:`porescene.layout.FONT_FAMILY`) are calibrated to the metrics of that very
+    font. Pass ``fonts`` to render text in a typeface that is not installed either.
 
     Note that :mod:`resvg_py` only renders content inside the SVG viewport; anything
     drawn beyond the root ``<svg>`` ``width``/``height`` is clipped before the
@@ -913,13 +975,31 @@ def svg2png(pth: Path, crop: bool = True) -> Path:
         Path to the file to be converted.
     crop
         Trim the PNG to the bounding box of its non-transparent pixels.
+    fonts
+        Font files to load in addition to the bundled Inter and the ones installed on
+        the machine.
+    dpi
+        Resolution a size given in a physical unit is rasterized at, by default 600.
+        Has to be passed on to the renderer in any case: left to its own devices it
+        measures a physical size against nothing and rejects the file outright.
 
     Returns
     -------
     Path to the written PNG file.
     """
     pth_png = pth.with_suffix(".png")
-    pth_png.write_bytes(bytes(resvg_py.svg_to_bytes(svg_path=pth.as_posix())))
+
+    # the bundled font may sit inside a zipped package, where it has to be unpacked for
+    # the renderer to read it -- which `as_file` only guarantees within its block
+    ref = resources.files("porescene").joinpath(PATH_FONT)
+    with resources.as_file(ref) as pth_font:
+        png = resvg_py.svg_to_bytes(
+            svg_path=pth.as_posix(),
+            font_files=[pth_font.as_posix(), *(Path(f).as_posix() for f in fonts)],
+            dpi=dpi,
+        )
+
+    pth_png.write_bytes(bytes(png))
 
     if crop:
         with Image.open(pth_png) as img:

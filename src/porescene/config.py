@@ -27,6 +27,7 @@ from porescene.color import Color
 from porescene.color.gradient import Gradient, SmoothGradient
 from porescene.color.palette import Colormap, Palette
 from porescene.utility import (
+    PATH_FONT,
     CompassDirection,
     Orientation,
     UnitExponentMetric,
@@ -683,7 +684,7 @@ class AxesConfiguration:
         self.position_tick_y = None
         self.position_tick_z = None
 
-        ref = resources.files("porescene").joinpath("data/font/Inter-Regular.ttf")
+        ref = resources.files("porescene").joinpath(PATH_FONT)
         with resources.as_file(ref) as font_path:
             self.font_family = font_path
 
