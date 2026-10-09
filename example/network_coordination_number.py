@@ -1,10 +1,10 @@
 import json
 from pathlib import Path
 
-from porescene import worker
+from porescene import image, worker
 from porescene.color.gradient import SegmentedGradient
 from porescene.color.palette import Colormap, Palette
-from porescene.config import PropertyConfiguration
+from porescene.config import QuantityConfiguration
 from porescene.model import PoreNetwork
 from porescene.scene import Scene
 from porescene.utility import CompassDirection, Orientation
@@ -32,9 +32,9 @@ sc = Scene(pn.extent)
 # disable the throat cylinders so only the pore spheres remain
 sc.config_scene.enable_cylinders = False
 
-# initialize PNM property "coordination_number"
-sc.config_scene.add_property(
-    PropertyConfiguration(
+# initialize PNM quantity "coordination_number"
+sc.config_scene.add_quantity(
+    QuantityConfiguration(
         "coordination_number",
         Palette.load(Colormap.TAB10).subset(10),
         gradient_class=SegmentedGradient,
@@ -55,4 +55,9 @@ sc.create_axes()
 # Render pores colored by coordination number
 
 # render the scene and color the pores according to their coordination number
-pth_img = worker.make_coordination_number(pth_data, pn, sc)
+pth_vis = worker.make_coordination_number(pth_data, pn, sc)
+
+# render a colorbar on the same scale, and compose the two
+conf = sc.config_scene["coordination_number"]
+pth_cb = worker.make_colorbar(pth_data, pn, sc, "coordination_number")
+pth_img = image.compose_colorbar(pth_vis, pth_cb, conf.align, conf.orientation)

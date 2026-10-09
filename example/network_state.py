@@ -1,9 +1,9 @@
 import json
 from pathlib import Path
 
-from porescene import worker
+from porescene import image, worker
 from porescene.color.palette import Colormap, Palette
-from porescene.config import PropertyConfiguration
+from porescene.config import QuantityConfiguration
 from porescene.model import PoreNetwork, StateVariableMap
 from porescene.scene import Scene
 from porescene.utility import CompassDirection, Orientation
@@ -51,17 +51,17 @@ pn = PoreNetwork.from_mat(
 sc = Scene(pn.extent)
 
 # settings for concentration visualizations
-sc.config_scene.add_property(
-    PropertyConfiguration(
+sc.config_scene.add_quantity(
+    QuantityConfiguration(
         "concentration",  # key that should match with the StateVariableMap
         Palette.load(Colormap.MATTER).all(),  # colormap
         heading="Concentration [mol/l]",  # colorbar label
         orientation=Orientation.VERTICAL,  # colorbar orientation
         align=CompassDirection.WEST,  # colorbar position around the rendering
         precision=3,  # precision of colorbar ticks
-        use_global_boundaries=True,  # clamp colorbar imits to series minimum/maximum
-        min=0,
-        max=50,
+        # pinned colorbar limits, in place of the series minimum/maximum
+        limit_lower=0,
+        limit_upper=50,
     )
 )
 
@@ -77,4 +77,10 @@ sc.create_axes()
 
 # render every selected state, coloring the pore spheres by concentration
 for no_state in no_states:
-    worker.make_state(pth_frames, pn, sc, no_state=no_state)
+    # one image per configured quantity, each with its own colorbar composed onto it
+    for conf in sc.config_scene:
+        pth_vis = worker.make_state_quantity(
+            pth_frames, pn, sc, conf.name, no_state=no_state
+        )
+        pth_cb = worker.make_colorbar(pth_frames, pn, sc, conf.name)
+        image.compose_colorbar(pth_vis, pth_cb, conf.align, conf.orientation)

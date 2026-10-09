@@ -2,12 +2,12 @@ Network morphology
 ==================
 
 Beyond its topology, a pore network also carries the *morphology* of the void space:
-the size of every pore and every throat. PoreScene can map such a per-element property
+the size of every pore and every throat. PoreScene can map such a per-element quantity
 onto the stick-and-ball geometry, coloring each sphere and cylinder by its own value and
 compositing a matching colorbar, so the pore- and throat-size distribution can be read
 straight off the render.
 
-This example loads a pore network from a MATLAB file, configures its ``radius`` property
+This example loads a pore network from a MATLAB file, configures its ``radius`` quantity
 with a colormap, and builds the stick-and-ball geometry. It then renders the network
 twice: once with every pore and throat colored by radius, and once with the pores hidden
 and the solid phase added, so the throats can be seen running through the material they
@@ -39,9 +39,9 @@ Make sure to have ``porescene`` installed (see :doc:`../installation`). At first
    import json
    from pathlib import Path
 
-   from porescene import worker
+   from porescene import image, worker
    from porescene.color.palette import Colormap, Palette
-   from porescene.config import PropertyConfiguration
+   from porescene.config import QuantityConfiguration
    from porescene.model import PoreNetwork
    from porescene.scene import Scene
    from porescene.utility import CompassDirection, Orientation
@@ -51,7 +51,7 @@ Make sure to have ``porescene`` installed (see :doc:`../installation`). At first
 :mod:`~porescene.worker` provides the high-level helpers that build the stick-and-ball
 geometry and render it colored by radius. :class:`~porescene.color.palette.Palette` and
 :class:`~porescene.color.palette.Colormap` supply the gradient colors, and
-:class:`~porescene.config.PropertyConfiguration` describes how the ``radius`` property is
+:class:`~porescene.config.QuantityConfiguration` describes how the ``radius`` quantity is
 colored and labelled -- with :class:`~porescene.utility.Orientation` and
 :class:`~porescene.utility.CompassDirection` placing the colorbar. File paths and
 directories are handled throughout PoreScene with the built-in :mod:`pathlib` module, and
@@ -93,7 +93,7 @@ lives in ``map_vars.json`` and is loaded first:
 The loaded :class:`~porescene.model.PoreNetwork` carries the pore positions and radii,
 the throat radii, and the throat-to-pore connectivity that PoreScene needs to place the
 spheres and cylinders. Unlike the :doc:`network topology <network_topology>` example, the
-imported radii are kept as they are -- they are exactly the property this example colors
+imported radii are kept as they are -- they are exactly the quantity this example colors
 by.
 
 
@@ -114,17 +114,17 @@ and calibrates the axes to the real dimensions of the sample (see :doc:`../conce
    it from a PoreScene JSON file with
    :meth:`Scene.from_json() <porescene.scene.Scene.from_json>`.
 
-Next, the ``radius`` property is registered on the scene. A
-:class:`~porescene.config.PropertyConfiguration` names the property -- the name
+Next, the ``radius`` quantity is registered on the scene. A
+:class:`~porescene.config.QuantityConfiguration` names the quantity -- the name
 :func:`~porescene.worker.make_radius` looks it up by later -- and gives its gradient the
 colors to interpolate, here the ``EMBER`` colormap in reverse via
 :meth:`Palette.load(...).reversed() <porescene.color.palette.Palette.reversed>`:
 
 .. code-block:: python
 
-   # initialize PNM property "radius"
-   sc.config_scene.add_property(
-       PropertyConfiguration(
+   # initialize PNM quantity "radius"
+   sc.config_scene.add_quantity(
+       QuantityConfiguration(
            "radius",
            Palette.load(Colormap.EMBER).reversed(),
            heading="Diameter [µm]",
@@ -145,7 +145,7 @@ why the heading reads *Diameter [µm]*.
 .. tip::
 
    Any member of :class:`~porescene.color.palette.Colormap` can be dropped in here. For a
-   continuous property such as the radius, a perceptually uniform *sequential* colormap
+   continuous quantity such as the radius, a perceptually uniform *sequential* colormap
    keeps equal steps in value looking like equal steps in color, and its hue progression
    stays readable across the shaded spheres and cylinders. Reversing it with
    :meth:`~porescene.color.palette.Palette.reversed` simply flips which end of the range
@@ -166,19 +166,32 @@ sphere per pore and one cylinder per throat. Calibrated axes are added around it
 5. Render by radius
 ^^^^^^^^^^^^^^^^^^^
 
-:func:`~porescene.worker.make_radius` does the coloring in one call: it fits a smooth
-gradient to the combined pore- and throat-radius range, colors the sphere and cylinder
-layers accordingly, renders the scene, trims the image, and composites the colorbar
-described by the ``radius`` property. The result is written into ``pth_data``:
+:func:`~porescene.worker.make_radius` does the coloring: it fits a smooth gradient to the
+combined pore- and throat-radius range, colors the sphere and cylinder layers accordingly,
+and renders the scene into ``pth_data``. It draws no colorbar and returns the path of
+the bare image:
 
 .. code-block:: python
 
    # render the scene and color pores and throats according to their radius
-   pth_img = worker.make_radius(pth_data, pn, sc)
+   pth_vis = worker.make_radius(pth_data, pn, sc)
 
-This first render is the stick-and-ball view shown at the top of the page: every pore and
-throat carries its own color from the reversed ``EMBER`` gradient, next to the matching
-colorbar and the on-scale axes.
+The colorbar is a separate step: :func:`~porescene.worker.make_colorbar` works out the
+same limits the render was colored on -- from the same
+:func:`~porescene.worker.quantity_range` -- and
+:func:`~porescene.image.compose_colorbar` joins the two images. Keeping them apart means
+the same render can be given a colorbar in a different place, or none at all:
+
+.. code-block:: python
+
+   # render a colorbar on the same scale, and compose the two
+   conf = sc.config_scene["radius"]
+   pth_cb = worker.make_colorbar(pth_data, pn, sc, "radius")
+   pth_img = image.compose_colorbar(pth_vis, pth_cb, conf.align, conf.orientation)
+
+This first composite is the stick-and-ball view shown at the top of the page: every pore
+and throat carries its own color from the reversed ``EMBER`` gradient, next to the
+matching colorbar and the on-scale axes.
 
 
 6. Solid and throats only
@@ -189,7 +202,7 @@ phase, so the throats can be seen running through ^the pore space of the materia
 solid from the :doc:`solid structure <solid>` example is added, the sphere layer is
 switched off in the scene configuration, and the ``radius`` gradient is re-pointed at a
 different colormap by reassigning its
-:attr:`~porescene.config.PropertyConfiguration.colors`:
+:attr:`~porescene.config.QuantityConfiguration.colors`:
 
 .. code-block:: python
 
@@ -199,7 +212,7 @@ different colormap by reassigning its
    # disable the pore spheres so only the solid and throats remain
    sc.config_scene.enable_spheres = False
 
-   # change the colormap for radius property
+   # change the colormap for radius quantity
    sc.config_scene["radius"].colors = Palette.load(Colormap.SPEED).all()
 
 Because :func:`~porescene.worker.make_radius` shows and colors a layer only when it is
@@ -210,7 +223,11 @@ that view:
 .. code-block:: python
 
    # render the scene and color the throats according to their radius
-   pth_img = worker.make_radius(pth_data, pn, sc)
+   pth_vis = worker.make_radius(pth_data, pn, sc)
+
+   # the colorbar follows the new colormap, so it is rendered and composed again
+   pth_cb = worker.make_colorbar(pth_data, pn, sc, "radius")
+   pth_img = image.compose_colorbar(pth_vis, pth_cb, conf.align, conf.orientation)
 
 .. note::
 

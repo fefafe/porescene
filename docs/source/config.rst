@@ -3,7 +3,7 @@ Scene configuration
 
 Instead of hard-coding every render setting in Python, PoreScene reads the parts of a
 scene that you tend to stay constant between figures -- image resolution, axis calibration, and
-per-property styling -- from a single JSON file. Keeping these values in a plain text file
+per-quantity styling -- from a single JSON file. Keeping these values in a plain text file
 makes a figure reproducible and easy to adjust: change a number, re-run the script, and the
 same scene renders with the new setting.
 
@@ -41,7 +41,7 @@ Example configuration
 ---------------------
 
 The following ``porescene.json`` sets a 4096 × 4096 px image, calibrates the axes to
-micrometers, and declares a single ``diameter`` property. It is a good starting point to copy
+micrometers, and declares a single ``diameter`` quantity. It is a good starting point to copy
 and adapt:
 
 .. code-block:: json
@@ -225,9 +225,9 @@ keys accept either a single value (applied to all three axes) or a three-element
 ``properties``
 --------------
 
-Each entry in the ``properties`` list describes one scalar property of the pore network that
+Each entry in the ``properties`` list describes one scalar quantity of the pore network that
 can be mapped to color -- for example ``diameter``, ``radius``, or ``coordination_number`` --
-and mirrors the fields of :class:`~porescene.config.PropertyConfiguration`.
+and mirrors the fields of :class:`~porescene.config.QuantityConfiguration`.
 
 .. list-table::
    :header-rows: 1
@@ -238,7 +238,7 @@ and mirrors the fields of :class:`~porescene.config.PropertyConfiguration`.
      - Description
    * - ``id``
      - str
-     - Name of the property. Must match the property stored on the
+     - Name of the quantity. Must match the quantity stored on the
        :class:`~porescene.model.PoreNetwork`.
    * - ``heading``
      - str
@@ -246,7 +246,7 @@ and mirrors the fields of :class:`~porescene.config.PropertyConfiguration`.
        ``"Diameter [µm]"``.
    * - ``factor``
      - float
-     - Multiplier applied to the raw property values before they are displayed on the
+     - Multiplier applied to the raw quantity values before they are displayed on the
        colorbar, e.g. ``2e6`` to turn a radius in meters into a diameter in micrometers.
        This affects the overlay only, not the rendered geometry.
 
@@ -254,6 +254,6 @@ and mirrors the fields of :class:`~porescene.config.PropertyConfiguration`.
 
    The color mapping itself -- the palette or list of colors, the gradient type, alignment,
    and orientation -- is currently defined in Python by constructing a
-   :class:`~porescene.config.PropertyConfiguration` and adding it with
-   ``sc.config_scene.add_property(...)``. See the :doc:`examples <examples>` for complete,
-   runnable scripts that build and color a property overlay.
+   :class:`~porescene.config.QuantityConfiguration` and adding it with
+   ``sc.config_scene.add_quantity(...)``. See the :doc:`examples <examples>` for complete,
+   runnable scripts that build and color a quantity overlay.

@@ -2,11 +2,14 @@
 # Copyright (C) 2026 Felix Faber /
 # Otto von Guericke University Magdeburg, Thermal Process Engineering
 
+import base64
 import contextlib
+import hashlib
 import os
-from collections.abc import Callable, Generator, Mapping, Sequence
+from collections.abc import Generator, Iterable, Mapping, Sequence
 from enum import Enum
-from math import ceil, floor, isclose
+from importlib import resources
+from math import ceil, floor, isclose, isfinite, log10
 from pathlib import Path
 from typing import Literal, overload
 
@@ -575,58 +578,371 @@ def _rectangles2corners(
     return corners
 
 
-def _get_bounds(
+def count_decimals(values: Sequence[float], limit: int = 6) -> int:
+    """
+    Returns the smallest number of decimals, at most ``limit``, that writes every value
+    of ``values`` exactly.
+
+    A value counts as written exactly once rounding it no longer changes it, judged with
+    a relative tolerance so that the binary representation of a decimal step -- ``0.3``
+    arriving as ``0.30000000000000004`` -- does not claim digits of its own.
+    """
+    digits = 0
+    for value in values:
+        while digits < limit and not isclose(round(value, digits), value):
+            digits += 1
+
+    return digits
+
+
+def interval_round(span: float, num_ticks: int) -> float:
+    """
+    Returns the tick interval from the 1-2-5-10 series that splits ``span`` into roughly
+    ``num_ticks`` ticks, so they land on round values.
+
+    The exact spacing ``span / (num_ticks - 1)`` is rounded to the closest member of the
+    series, following Heckbert's *Nice Numbers for Graph Labels*. Sticking to that series
+    keeps the ticks whole numbers wherever the span allows it, which a finer series such
+    as 1-2-2.5-5-10 would not, so the labels read without the decimal that such a step
+    would drag onto every one of them.
+    """
+    if not isfinite(span) or span <= 0:
+        return 1.0
+
+    step = span / (num_ticks - 1)
+    magnitude = 10.0 ** floor(log10(step))
+    residual = step / magnitude
+
+    if residual < 1.5:
+        return magnitude
+    if residual < 3:
+        return 2 * magnitude
+    if residual < 7:
+        return 5 * magnitude
+
+    return 10 * magnitude
+
+
+def unit_metric(span: float) -> str:
+    """
+    Returns the name of the metric prefix that ``span``, in meters, reads best in, so a
+    displayed unit follows the size of the domain instead of being fixed.
+
+    The prefix is the one that scales ``span`` into ``[10, 10000)``, keeping the tick
+    values two to four digits long. Only the prefixes of the engineering series are
+    considered -- those of :class:`UnitExponentMetric` whose exponent is a multiple of
+    three, from ``QUECTO`` through ``BASE`` up to ``QUETTA`` -- since a length is commonly
+    given in those. Aiming above ``10`` rather than above ``1`` also keeps a tick interval
+    derived by :func:`interval_round` a whole number, so the tick labels come out free of
+    decimals.
+
+    Falls back to ``MICRO`` for a degenerate span, and is clamped to the outermost
+    prefixes for a span beyond their reach.
+    """
+    if not isfinite(span) or span <= 0:
+        return "MICRO"
+
+    units = {unit.value: unit.name for unit in UnitExponentMetric if unit.value % 3 == 0}
+
+    exponent = 3 * floor((log10(span) - 1) / 3)
+    exponent = min(max(exponent, min(units)), max(units))
+
+    return units[exponent]
+
+
+def colorbar_limits(
     mn: float,
     mx: float,
-    prec: int = 0,
-    factor: float = 1.0,
-    func_transform: Callable | None = None,
+    precision: int | None = None,
+    *,
+    num_ticks: int = 6,
 ) -> tuple[float, float]:
     """
-    Computes even boundaries for a gradient scale.
+    Computes the limits a colorbar axis spans, rounded outward to even values.
+
+    The data range a colorbar covers rarely ends on a value worth printing, so the limits
+    are widened until they do -- never narrowed, so that no value falls outside the
+    gradient. Both values are expected in the unit the colorbar is labelled in, which
+    :meth:`~porescene.config.QuantityConfiguration.value_display` converts data into;
+    :meth:`~porescene.config.QuantityConfiguration.resolve_limits` pairs the two and is
+    the usual way into this function.
 
     Parameters
     ----------
-    vals
-            Values to compute boundaries for.
-    prec
-            The place to round numbers.
-    factor
-            Number to scale the values up or down, to convert the unit.
-            An example would be `1e-6` to convert [μm] into [m].
+    mn, mx
+        Lowest and highest value the colorbar has to cover, in the displayed unit.
+    precision
+        Decimal place the limits are rounded to, in the sense of :func:`round`: ``2``
+        rounds to hundredths, ``-1`` to whole tens. When ``None`` (default), the place is
+        derived from the range itself -- the limits are rounded to a multiple of the tick
+        interval :func:`interval_round` picks for ``num_ticks`` ticks, which lands them on
+        round values whatever the magnitude of the data.
+    num_ticks
+        Number of ticks the derived interval aims for, ignored when ``precision`` is
+        given. Only sizes the rounding of the limits; the ticks themselves are placed by
+        :func:`colorbar_ticks`.
 
     Returns
     -------
-    bounds
-            Two-element tuple with lower and upper boundary.
+    tuple[float, float]
+        Lower and upper limit. The two are never equal: a range that collapses onto a
+        single value is widened by one rounding step, so the colorbar keeps a span to
+        draw.
+
+    Raises
+    ------
+    ValueError
+        If either limit is not finite -- a quantity holding nothing but ``NaN`` yields
+        such a range -- or if ``mx`` lies below ``mn``.
     """
-    if func_transform is not None:
-        mn = func_transform(mn)
-        mx = func_transform(mx)
-    mn *= factor
-    mx *= factor
-    lw = floor(mn * 10**prec)
-    up = ceil(mx * 10**prec)
-    if isclose(lw, up):
-        up += 1
-    lw /= 10**prec
-    up /= 10**prec
-    return (lw, up)
+    mn = float(mn)
+    mx = float(mx)
+
+    if not isfinite(mn) or not isfinite(mx):
+        raise ValueError(f"Colorbar limits must be finite, got ({mn}, {mx})")
+    if mx < mn:
+        raise ValueError(f"Upper limit ({mx}) lies below the lower one ({mn})")
+
+    if precision is not None:
+        scale = 10**precision
+        lower = floor(mn * scale)
+        upper = ceil(mx * scale)
+        if isclose(lower, upper):
+            upper += 1
+        return (lower / scale, upper / scale)
+
+    step = interval_round(mx - mn, num_ticks)
+    # a multiple of the step is written exactly by the decimals the step itself needs,
+    # so rounding to those keeps the limits free of binary representation noise
+    digits = max(0, -floor(log10(step))) + 1
+    lower = round(floor(mn / step) * step, digits)
+    upper = round(ceil(mx / step) * step, digits)
+    if isclose(lower, upper):
+        upper = round(upper + step, digits)
+
+    return (float(lower), float(upper))
 
 
-def _get_labels(model, config):
+def colorbar_ticks(
+    lower: float,
+    upper: float,
+    num_ticks: int = 5,
+    precision: int | None = None,
+) -> tuple[float, ...]:
+    """
+    Places the tick values of a colorbar axis between its limits.
+
+    The ticks are spread evenly and include both limits, since a colorbar is drawn as a
+    band between them -- the ends of that band are values in their own right, and the
+    ticks are placed along it by their position in the sequence, not by their value.
+    Feeding the ticks limits from :func:`colorbar_limits` is what lands them on round
+    values.
+
+    Parameters
+    ----------
+    lower, upper
+        Limits the ticks span, see :func:`colorbar_limits`.
+    num_ticks
+        Number of ticks, including the two on the limits, by default 5.
+    precision
+        Decimal place the tick values are rounded to, in the sense of :func:`round`. When
+        ``None`` (default), they are returned as they fall, which leaves the number of
+        decimals to :func:`tick_labels`.
+
+    Returns
+    -------
+    tuple[float, ...]
+        Tick values, ascending, starting on ``lower`` and ending on ``upper``.
+
+    Raises
+    ------
+    ValueError
+        If fewer than two ticks are asked for -- a colorbar carries one on either limit.
+    """
+    if num_ticks < 2:
+        raise ValueError(f"A colorbar carries at least 2 ticks, got {num_ticks}")
+
+    step = (upper - lower) / (num_ticks - 1)
+    # the last tick is set rather than stepped to, so it lands on the limit exactly
+    values = [lower + step * i for i in range(num_ticks - 1)] + [upper]
+
+    if precision is not None:
+        values = [round(value, precision) for value in values]
+
+    return tuple(float(value) for value in values)
+
+
+def tick_labels(values: Sequence[float], decimals: int | None = None) -> tuple[str, ...]:
+    """
+    Writes tick values as labels, dropping decimals that carry no information.
+
+    Trailing zeros are stripped per value, so a tick that happens to be whole reads as
+    ``"20"`` while its neighbour still reads as ``"17.5"``.
+
+    Parameters
+    ----------
+    values
+        Tick values to label, e.g. from :func:`colorbar_ticks`.
+    decimals
+        Number of decimals a label is written with before its trailing zeros are
+        stripped. When ``None`` (default), the smallest number that writes every value
+        of ``values`` exactly is used, see :func:`count_decimals`.
+
+    Returns
+    -------
+    tuple[str, ...]
+        One label per value, in the order the values came in.
+    """
+    if decimals is None:
+        decimals = count_decimals(values)
+
     labels = []
-    for i in range(3):
-        no = round(
-            model.size[i] * config.factor_scalebars[i], config.precision_scalebars[i]
-        )
-        if config.precision_scalebars[i] >= 0:
-            no = int(no)
-        labels.append(f"{no} {config.unit_scalebars[i]}")
+    for value in values:
+        text = f"{float(value):.{decimals}f}"
+        if "." in text:
+            text = text.rstrip("0").rstrip(".")
+        labels.append(text)
+
     return tuple(labels)
 
 
-def svg2png(pth: Path, crop: bool = True) -> Path:
+def make_id(*parts: object, length: int = 8) -> str:
+    """
+    Derives a short, stable identifier from the given values.
+
+    The values are digested into a fixed-length, alphanumeric token: identical values
+    always reproduce the same token, while a difference in any of them yields a
+    different one. The typical use is naming a generated file after the inputs it was
+    built from, so that variants come to rest side by side instead of overwriting each
+    other.
+
+    ``bytes`` are digested as they are, every other value through its string
+    representation. The parts are kept apart inside the digest, so that ``("ab", "c")``
+    and ``("a", "bc")`` do not collide.
+
+    Parameters
+    ----------
+    *parts
+        Values the identifier is derived from.
+    length
+        Number of characters of the identifier, by default 8. Every character carries
+        five bits, so the default spans 40 bits.
+
+    Returns
+    -------
+    str
+        Identifier made up of the characters ``a`` to ``z`` and ``2`` to ``7``. Being
+        single-case, it stays unambiguous on case-insensitive file systems.
+    """
+    digest = hashlib.blake2b(digest_size=ceil(length * 5 / 8))
+
+    for part in parts:
+        digest.update(part if isinstance(part, bytes) else str(part).encode())
+        digest.update(b"\x00")
+
+    return base64.b32encode(digest.digest()).decode().lower()[:length]
+
+
+#: Pixels per inch a user unit of an SVG is defined against.
+#:
+#: The CSS reference pixel, which SVG 2 and every current renderer measure a length
+#: without a unit in. It is what ties the physical size of a figure to the coordinates
+#: it is drawn in, so a canvas sized in centimeters comes out at that size on paper.
+DPI_CSS = 96.0
+
+#: Centimeters per inch.
+CM_PER_INCH = 2.54
+
+#: Points per inch. A point is the unit a font size is given in.
+PT_PER_INCH = 72.0
+
+
+def cm2px(value: float) -> float:
+    """Converts a length in centimeters into SVG user units, see :data:`DPI_CSS`."""
+    return value * DPI_CSS / CM_PER_INCH
+
+
+def px2cm(value: float) -> float:
+    """Converts a length in SVG user units into centimeters, see :data:`DPI_CSS`."""
+    return value * CM_PER_INCH / DPI_CSS
+
+
+def pt2px(value: float) -> float:
+    """Converts a font size in points into SVG user units, see :data:`DPI_CSS`."""
+    return value * DPI_CSS / PT_PER_INCH
+
+
+def px2pt(value: float) -> float:
+    """Converts a font size in SVG user units into points, see :data:`DPI_CSS`."""
+    return value * PT_PER_INCH / DPI_CSS
+
+
+#: Marks the identifier part in the stem of a file named after its content.
+PREFIX_ID = "id-"
+
+#: Typeface bundled with the package, relative to its root.
+#:
+#: Shipping the font rather than reaching for an installed one is what keeps a figure
+#: looking the same on every machine: both the scene axes (see
+#: :attr:`~porescene.config.AxesConfiguration.font_family`) and the SVG annotations (see
+#: :func:`svg2png`) are drawn with it.
+PATH_FONT = "data/font/Inter-Regular.ttf"
+
+
+def filepath_add_id(pth: Path, identifier: str) -> Path:
+    """
+    Names a file after the identifier of the content it holds.
+
+    The identifier is appended to the file's stem as a ``+id-<identifier>`` part, so
+    that contents that differ come to rest side by side instead of overwriting each
+    other. A stem that already carries such a part is restamped rather than extended,
+    which keeps the name from growing every time the file is rewritten.
+
+    Parameters
+    ----------
+    pth
+        Path to name after its content.
+    identifier
+        Identifier of the content, typically from :func:`make_id`.
+
+    Returns
+    -------
+    Path
+        The stamped path. The file itself is left untouched.
+    """
+    parts = [part for part in pth.stem.split("+") if not part.startswith(PREFIX_ID)]
+    parts.append(PREFIX_ID + identifier)
+
+    return pth.with_stem("+".join(parts))
+
+
+def filepath_read_id(pth: Path) -> str | None:
+    """
+    Reads back the identifier :func:`filepath_add_id` wrote into a file name.
+
+    Parameters
+    ----------
+    pth
+        Path to read the identifier off.
+
+    Returns
+    -------
+    str | None
+        The identifier, or ``None`` if the name carries none.
+    """
+    for part in reversed(pth.stem.split("+")):
+        if part.startswith(PREFIX_ID):
+            return part.removeprefix(PREFIX_ID)
+
+    return None
+
+
+def svg2png(
+    pth: Path,
+    crop: bool = True,
+    fonts: Iterable[Path] = (),
+    dpi: float = 600.0,
+) -> Path:
     """
     Convert a SVG file to PNG.
 
@@ -634,6 +950,20 @@ def svg2png(pth: Path, crop: bool = True) -> Path:
     so ``pip install`` pulls in everything and no external software is required.
     With ``crop=True`` the result is trimmed to its visible content by removing the
     surrounding transparent margin.
+
+    A file that states its size in a physical unit -- as a
+    :class:`~porescene.layout.SVGCanvas` does, in centimeters -- is rasterized at ``dpi``,
+    so that is the knob that decides how many pixels the result comes out at: 600 dpi
+    turns a 20 cm canvas into 4724 px. A file sized in pixels instead carries its own
+    resolution and is rendered as it stands, whatever ``dpi`` says.
+
+    The Inter typeface bundled with the package (see :data:`PATH_FONT`) is handed to the
+    renderer, on top of the fonts installed on the machine. The annotations of
+    :mod:`porescene.layout` ask for Inter first, so a figure comes out in the same
+    typeface wherever it is rendered rather than in whatever the machine happens to
+    substitute -- and the estimates the layout is arranged by (see
+    :data:`porescene.layout.FONT_FAMILY`) are calibrated to the metrics of that very
+    font. Pass ``fonts`` to render text in a typeface that is not installed either.
 
     Note that :mod:`resvg_py` only renders content inside the SVG viewport; anything
     drawn beyond the root ``<svg>`` ``width``/``height`` is clipped before the
@@ -645,13 +975,31 @@ def svg2png(pth: Path, crop: bool = True) -> Path:
         Path to the file to be converted.
     crop
         Trim the PNG to the bounding box of its non-transparent pixels.
+    fonts
+        Font files to load in addition to the bundled Inter and the ones installed on
+        the machine.
+    dpi
+        Resolution a size given in a physical unit is rasterized at, by default 600.
+        Has to be passed on to the renderer in any case: left to its own devices it
+        measures a physical size against nothing and rejects the file outright.
 
     Returns
     -------
     Path to the written PNG file.
     """
     pth_png = pth.with_suffix(".png")
-    pth_png.write_bytes(bytes(resvg_py.svg_to_bytes(svg_path=pth.as_posix())))
+
+    # the bundled font may sit inside a zipped package, where it has to be unpacked for
+    # the renderer to read it -- which `as_file` only guarantees within its block
+    ref = resources.files("porescene").joinpath(PATH_FONT)
+    with resources.as_file(ref) as pth_font:
+        png = resvg_py.svg_to_bytes(
+            svg_path=pth.as_posix(),
+            font_files=[pth_font.as_posix(), *(Path(f).as_posix() for f in fonts)],
+            dpi=dpi,
+        )
+
+    pth_png.write_bytes(bytes(png))
 
     if crop:
         with Image.open(pth_png) as img:

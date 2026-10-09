@@ -23,7 +23,7 @@ pth_img.mkdir(parents=True, exist_ok=True)
 seen = {p: p.stat().st_mtime for p in pth_frames.glob("*+colorbar-*.png")}
 runpy.run_path(str(pth_example))
 
-# move each freshly rendered composite -- one per state and property -- into the docs
+# move each freshly rendered composite -- one per state and quantity -- into the docs
 # static path, dropping the "+colorbar-<align>-<orientation>" suffix from its file name
 for p in pth_frames.glob("*+colorbar-*.png"):
     if seen.get(p) != p.stat().st_mtime:

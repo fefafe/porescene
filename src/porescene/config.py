@@ -8,15 +8,15 @@ Configuration objects that control how a :class:`PoreNetwork
 
 This module bundles the settings used throughout :mod:`porescene`:
 
-* :class:`PropertyConfiguration` -- visualization of a single property.
+* :class:`QuantityConfiguration` -- visualization of a single quantity.
 * :class:`ImageConfiguration` -- resolution of the rendered images.
 * :class:`VideoConfiguration` -- frame settings for rendered videos.
-* :class:`SceneConfiguration` -- overall scene, material and property settings.
+* :class:`SceneConfiguration` -- overall scene, material and quantity settings.
 * :class:`AxesConfiguration` -- coordinate axes, ticks and labels.
 """
 
 import math
-from collections.abc import Callable, Iterator, Sequence
+from collections.abc import Callable, Iterable, Iterator, Sequence
 from importlib import resources
 from pathlib import Path
 from typing import Self
@@ -27,16 +27,21 @@ from porescene.color import Color
 from porescene.color.gradient import Gradient, SmoothGradient
 from porescene.color.palette import Colormap, Palette
 from porescene.utility import (
+    PATH_FONT,
     CompassDirection,
     Orientation,
     UnitExponentMetric,
     UnitPrefixMetric,
+    colorbar_limits,
+    count_decimals,
+    interval_round,
+    unit_metric,
 )
 
 
-class PropertyConfiguration:
+class QuantityConfiguration:
     """
-    Settings for the visualization of a specific property of the system.
+    Settings for the visualization of a specific quantity of the system.
     """
 
     def __init__(
@@ -51,9 +56,8 @@ class PropertyConfiguration:
         align: CompassDirection = CompassDirection.NORTH,
         orientation: Orientation = Orientation.HORIZONTAL,
         precision: int = 0,
-        min: float | None = None,
-        max: float | None = None,
-        use_global_boundaries: bool = False,
+        limit_lower: float | None = None,
+        limit_upper: float | None = None,
         factor: float = 1.0,
         func_transform: Callable = lambda v: v,
         fit: bool = True,
@@ -70,9 +74,8 @@ class PropertyConfiguration:
         self.align = align
         self.orientation = orientation
         self.precision = precision
-        self.min = min
-        self.max = max
-        self.use_global_boundaries = use_global_boundaries
+        self.limit_lower = limit_lower
+        self.limit_upper = limit_upper
         self.factor = factor
         self.func_transform = func_transform
         self.fit = fit
@@ -131,19 +134,19 @@ class PropertyConfiguration:
     @property
     def colors(self) -> list[Color]:
         """
-        Colors of the gradient to visualize the property.
+        Colors of the gradient to visualize the quantity.
 
         See also :attr:`.Gradient.colors`.
         """
         return self._colors
 
     @colors.setter
-    def colors(self, arg: list[Color]):
-        self._colors = arg
+    def colors(self, arg: Sequence[Color]):
+        self._colors = list(arg)
 
     @property
     def factor(self) -> float:
-        """A factor to scale the values of a property on overlays. Does not
+        """A factor to scale the values of a quantity on overlays. Does not
         apply to anything rendering or model related.
         """
         return self._factor
@@ -154,7 +157,7 @@ class PropertyConfiguration:
 
     @property
     def func_transform(self) -> Callable:
-        """A transformation function to scale the values of a property on overlays. Does
+        """A transformation function to scale the values of a quantity on overlays. Does
         not apply to anything rendering or model related.
         """
         return self._func_transform
@@ -174,36 +177,111 @@ class PropertyConfiguration:
     def fit(self, arg: bool):
         self._fit = arg
 
+    def value_display(
+        self, values: np.ndarray | float | None
+    ) -> np.ndarray | float | None:
+        """
+        Converts stored values into the unit the figure shows them in.
+
+        The single place where the data of a quantity is rewritten for display:
+        :attr:`func_transform` is applied first, then :attr:`factor` scales the result.
+        Everything a viewer reads off a figure -- the colors of the pores and throats,
+        the limits of the colorbar and the values on its ticks -- goes through here, so
+        one and the same value cannot end up in two different units.
+
+        Parameters
+        ----------
+        values
+            Value or array of values in the unit the data is stored in. ``None`` passes
+            through, so a quantity that carries no pore or throat data stays empty
+            rather than turning into a value.
+
+        Returns
+        -------
+        np.ndarray | float | None
+            The values in the displayed unit.
+        """
+        if values is None:
+            return None
+
+        return self.func_transform(values) * self.factor
+
+    def resolve_limits(self, mn: float, mx: float) -> tuple[float, float]:
+        """
+        Resolves the limits the colorbar spans for a range of data.
+
+        By default both limits are computed from the data: the range is converted with
+        :meth:`value_display` and rounded outward to even values by
+        :func:`~porescene.utility.colorbar_limits`, following :attr:`precision`. Where
+        :attr:`limit_lower` or :attr:`limit_upper` is set, it replaces the computed
+        limit -- each side on its own, so a colorbar can be pinned at the bottom and
+        left to follow the data at the top.
+
+        A pinned limit is taken verbatim: it is already given in the displayed unit, so
+        it is neither scaled by :attr:`factor` nor rounded to :attr:`precision`, and a
+        colorbar asked to start at ``0`` starts at ``0``. With both sides pinned the
+        data is not looked at all.
+
+        Parameters
+        ----------
+        mn, mx
+            Lowest and highest value the colorbar has to cover, in the unit the data is
+            stored in -- typically
+            :meth:`~porescene.model.PoreNetwork.quantity_min` and
+            :meth:`~porescene.model.PoreNetwork.quantity_max` for limits shared by every
+            state of a network, or :attr:`~porescene.model.PoreNetworkQuantity.min` and
+            :attr:`~porescene.model.PoreNetworkQuantity.max` for a single one. Both are
+            ignored when :attr:`limit_lower` and :attr:`limit_upper` are set.
+
+        Returns
+        -------
+        tuple[float, float]
+            Lower and upper limit, in the displayed unit.
+        """
+        if self.limit_lower is not None and self.limit_upper is not None:
+            return (float(self.limit_lower), float(self.limit_upper))
+
+        lower, upper = colorbar_limits(
+            self.value_display(mn), self.value_display(mx), self.precision
+        )
+        if self.limit_lower is not None:
+            lower = float(self.limit_lower)
+        if self.limit_upper is not None:
+            upper = float(self.limit_upper)
+
+        return (lower, upper)
+
     @property
-    def use_global_boundaries(self) -> bool:
-        """Whether to use colorbar limits across all states or per state."""
-        return self._use_global_boundaries
+    def limit_lower(self) -> float | None:
+        """
+        Lower limit of the colorbar, in the displayed unit.
 
-    @use_global_boundaries.setter
-    def use_global_boundaries(self, arg: bool):
-        self._use_global_boundaries = arg
+        ``None`` (default) reads the limit off the data instead, see
+        :meth:`resolve_limits`.
+        """
+        return self._limit_lower
 
-    @property
-    def max(self) -> float | None:
-        """Maximum of the property."""
-        return self._max
-
-    @max.setter
-    def max(self, arg: float | None):
-        self._max = arg
+    @limit_lower.setter
+    def limit_lower(self, arg: float | None):
+        self._limit_lower = arg
 
     @property
-    def min(self) -> float | None:
-        """Minimum of the property."""
-        return self._min
+    def limit_upper(self) -> float | None:
+        """
+        Upper limit of the colorbar, in the displayed unit.
 
-    @min.setter
-    def min(self, arg: float | None):
-        self._min = arg
+        ``None`` (default) reads the limit off the data instead, see
+        :meth:`resolve_limits`.
+        """
+        return self._limit_upper
+
+    @limit_upper.setter
+    def limit_upper(self, arg: float | None):
+        self._limit_upper = arg
 
     @property
     def name(self) -> str:
-        """Name of the property."""
+        """Name of the quantity."""
         return self._name
 
     @name.setter
@@ -255,8 +333,8 @@ class PropertyConfiguration:
         return self._text
 
     @text.setter
-    def text(self, arg: list[str]):
-        self._text = arg
+    def text(self, arg: Sequence[str]):
+        self._text = list(arg)
 
 
 class ImageConfiguration:
@@ -379,7 +457,7 @@ class SceneConfiguration:
             versions_solid = {"COMPLETE", "BOTTOM", "LEFT", "RIGHT"}
         if palette is None:
             palette = Palette.load(Colormap.BATLOW)
-        self._properties = []
+        self._quantities = []
         self.enable_spheres = enable_spheres
         self.enable_cylinders = enable_cylinders
         self.enable_clusters = enable_clusters
@@ -395,34 +473,34 @@ class SceneConfiguration:
         self.versions_solid = versions_solid
         self.versions_void = versions_void
 
-    def __iter__(self) -> Iterator[PropertyConfiguration]:
-        """Returns a fresh iterator over the configured properties."""
-        return iter(self._properties)
+    def __iter__(self) -> Iterator[QuantityConfiguration]:
+        """Returns a fresh iterator over the configured quantities."""
+        return iter(self._quantities)
 
     def __len__(self) -> int:
-        """Returns the number of configured properties."""
-        return len(self._properties)
+        """Returns the number of configured quantities."""
+        return len(self._quantities)
 
-    def __setitem__(self, _, prop: PropertyConfiguration):
-        """Adds a :class:`PropertyConfiguration`, see :meth:`add_property`."""
-        return self.add_property(prop)
+    def __setitem__(self, _, quant: QuantityConfiguration):
+        """Adds a :class:`QuantityConfiguration`, see :meth:`add_quantity`."""
+        return self.add_quantity(quant)
 
-    def __getitem__(self, name: str) -> PropertyConfiguration:
-        """Returns the :class:`PropertyConfiguration` for given name."""
-        return self.get_property(name)
+    def __getitem__(self, name: str) -> QuantityConfiguration:
+        """Returns the :class:`QuantityConfiguration` for given name."""
+        return self.get_quantity(name)
 
-    def add_property(self, prop: PropertyConfiguration):
+    def add_quantity(self, quant: QuantityConfiguration):
         """
-        Add the :class:`PropertyConfiguration` for a property of the pnm.
+        Add the :class:`QuantityConfiguration` for a quantity of the pnm.
         """
-        self._properties.append(prop)
+        self._quantities.append(quant)
 
-    def get_property(self, name: str) -> PropertyConfiguration:
-        """Returns the :class:`PropertyConfiguration` for given name."""
-        for prop in self._properties:
-            if prop.name == name:
-                return prop
-        raise ValueError(f"Unknown property with name '{name}'")
+    def get_quantity(self, name: str) -> QuantityConfiguration:
+        """Returns the :class:`QuantityConfiguration` for given name."""
+        for quant in self._quantities:
+            if quant.name == name:
+                return quant
+        raise ValueError(f"Unknown quantity with name '{name}'")
 
     @property
     def enable_axes(self) -> bool:
@@ -533,22 +611,22 @@ class SceneConfiguration:
         self._palette = arg
 
     @property
-    def versions_solid(self) -> list[Path]:
+    def versions_solid(self) -> set[str]:
         """Clipping versions of the solid structure to render."""
         return self._versions_solid
 
     @versions_solid.setter
-    def versions_solid(self, arg: list[Path]):
-        self._versions_solid = arg
+    def versions_solid(self, arg: Iterable[str]):
+        self._versions_solid = set(arg)
 
     @property
-    def versions_void(self) -> list[Path]:
+    def versions_void(self) -> set[str]:
         """Clipping versions of the void structure to render."""
         return self._versions_void
 
     @versions_void.setter
-    def versions_void(self, arg: list[Path]):
-        self._versions_void = arg
+    def versions_void(self, arg: Iterable[str]):
+        self._versions_void = set(arg)
 
 
 class AxesConfiguration:
@@ -586,7 +664,7 @@ class AxesConfiguration:
         self._tick_interval = tick_interval
 
         if unit_display is None:
-            unit_display = self._unit_metric(float(max(self._extent)))
+            unit_display = unit_metric(float(max(self._extent)))
 
         self._unit_display = unit_display
 
@@ -606,85 +684,11 @@ class AxesConfiguration:
         self.position_tick_y = None
         self.position_tick_z = None
 
-        ref = resources.files("porescene").joinpath("data/font/Inter-Regular.ttf")
+        ref = resources.files("porescene").joinpath(PATH_FONT)
         with resources.as_file(ref) as font_path:
             self.font_family = font_path
 
         self._calibrate()
-
-    @staticmethod
-    def _decimals(ticks: Sequence[float], limit: int = 6) -> int:
-        """
-        Returns the smallest number of decimals, at most ``limit``, that writes every
-        value of ``ticks`` exactly.
-
-        A value counts as written exactly once rounding it no longer changes it, judged
-        with a relative tolerance so that the binary representation of a decimal step --
-        ``0.3`` arriving as ``0.30000000000000004`` -- does not claim digits of its own.
-        """
-        digits = 0
-        for tick in ticks:
-            while digits < limit and not math.isclose(round(tick, digits), tick):
-                digits += 1
-
-        return digits
-
-    @staticmethod
-    def _unit_metric(span: float) -> str:
-        """
-        Returns the name of the metric prefix that ``span``, in meters, reads best in,
-        so the displayed unit follows the size of the domain instead of being fixed.
-
-        The prefix is the one that scales ``span`` into ``[10, 10000)``, keeping the
-        tick values two to four digits long. Only the prefixes of the engineering
-        series are considered -- those of :class:`~porescene.utility.UnitExponentMetric`
-        whose exponent is a multiple of three, from ``QUECTO`` through ``BASE`` up to
-        ``QUETTA`` -- since a length is commonly given in those. Aiming above ``10``
-        rather than above ``1`` also keeps the derived :attr:`tick_interval` a whole
-        number, so the tick labels come out free of decimals.
-
-        Falls back to ``MICRO`` for a degenerate span, and is clamped to the outermost
-        prefixes for a span beyond their reach.
-        """
-        if not math.isfinite(span) or span <= 0:
-            return "MICRO"
-
-        units = {
-            unit.value: unit.name for unit in UnitExponentMetric if unit.value % 3 == 0
-        }
-
-        exponent = 3 * math.floor((math.log10(span) - 1) / 3)
-        exponent = min(max(exponent, min(units)), max(units))
-
-        return units[exponent]
-
-    @staticmethod
-    def _interval_round(span: float, num_ticks: int) -> float:
-        """
-        Returns the tick interval from the 1-2-5-10 series that splits ``span`` into
-        roughly ``num_ticks`` ticks, so they land on round values.
-
-        The exact spacing ``span / (num_ticks - 1)`` is rounded to the closest member
-        of the series, following Heckbert's *Nice Numbers for Graph Labels*. Sticking
-        to that series keeps the ticks whole numbers in the displayed unit, which a
-        finer series such as 1-2-2.5-5-10 would not, so the labels read without the
-        decimal that such a step would drag onto every one of them.
-        """
-        if not math.isfinite(span) or span <= 0:
-            return 1.0
-
-        step = span / (num_ticks - 1)
-        magnitude = 10 ** math.floor(math.log10(step))
-        residual = step / magnitude
-
-        if residual < 1.5:
-            return magnitude
-        if residual < 3:
-            return 2 * magnitude
-        if residual < 7:
-            return 5 * magnitude
-
-        return 10 * magnitude
 
     def _calibrate(self) -> None:
         """
@@ -712,7 +716,7 @@ class AxesConfiguration:
         # a single interval across all axes keeps the ticks of the scene to scale,
         # so it is sized by the longest axis and the shorter ones carry fewer ticks
         if self._tick_interval is None:
-            self._interval = self._interval_round(float(max(tick_end)), self.num_ticks)
+            self._interval = interval_round(float(max(tick_end)), self.num_ticks)
         else:
             self._interval = float(self._tick_interval)
 
@@ -834,9 +838,9 @@ class AxesConfiguration:
             return self._precision
 
         return (
-            self._decimals(self.ticks_x),
-            self._decimals(self.ticks_y),
-            self._decimals(self.ticks_z),
+            count_decimals(self.ticks_x),
+            count_decimals(self.ticks_y),
+            count_decimals(self.ticks_z),
         )
 
     @precision.setter
@@ -1185,8 +1189,8 @@ class AxesConfiguration:
 
 
 default_config = SceneConfiguration()
-# default_config.add_property(
-#     PropertyConfiguration(
+# default_config.add_quantity(
+#     QuantityConfiguration(
 #         "coordination_number",
 #         [
 #             fefacolors.lightblue,
@@ -1197,8 +1201,8 @@ default_config = SceneConfiguration()
 #         # gradient_class=DiscreteGradient,
 #     )
 # )
-# default_config.add_property(
-#     PropertyConfiguration(
+# default_config.add_quantity(
+#     QuantityConfiguration(
 #         "radius",
 #         FeFaPalette().all(),
 #         heading="Radius [μm]",
@@ -1207,8 +1211,8 @@ default_config = SceneConfiguration()
 #         precision=-1,
 #     )
 # )
-# default_config.add_property(
-#     PropertyConfiguration(
+# default_config.add_quantity(
+#     QuantityConfiguration(
 #         "saturation",
 #         [
 #             fefacolors.yellow,
@@ -1219,8 +1223,8 @@ default_config = SceneConfiguration()
 #         frames_solid="LEFT",
 #     )
 # )
-# default_config.add_property(
-#     PropertyConfiguration(
+# default_config.add_quantity(
+#     QuantityConfiguration(
 #         "temperature",
 #         [
 #             fefacolors.darkblue,
@@ -1231,8 +1235,8 @@ default_config = SceneConfiguration()
 #         frames_solid="RIGHT",
 #     )
 # )
-# default_config.add_property(
-#     PropertyConfiguration(
+# default_config.add_quantity(
+#     QuantityConfiguration(
 #         "vapor_pressure",
 #         [
 #             fefacolors.darkgreen,

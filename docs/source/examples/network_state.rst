@@ -68,9 +68,9 @@ Make sure to have ``porescene`` installed (see :doc:`../installation`). At first
 
    import numpy as np
 
-   from porescene import worker
+   from porescene import image, worker
    from porescene.color.palette import Colormap, Palette
-   from porescene.config import PropertyConfiguration
+   from porescene.config import QuantityConfiguration
    from porescene.model import PoreNetwork, StateVariableMap
    from porescene.scene import Scene
    from porescene.utility import CompassDirection, Orientation
@@ -80,7 +80,7 @@ of states, while :class:`~porescene.scene.Scene` sets up the rendering stage. Mo
 :mod:`~porescene.worker` provides the high-level helpers that build the stick-and-ball
 geometry and render every state. :class:`~porescene.model.StateVariableMap` tells the
 importer which ``.mat`` variables hold each state field, and
-:class:`~porescene.config.PropertyConfiguration` describes how the field is colored and
+:class:`~porescene.config.QuantityConfiguration` describes how the field is colored and
 labelled -- with :class:`~porescene.utility.Orientation` and
 :class:`~porescene.utility.CompassDirection` placing the colorbar.
 :class:`~porescene.color.palette.Palette` and :class:`~porescene.color.palette.Colormap`
@@ -123,7 +123,7 @@ network geometry is mapped through ``map_vars.json`` (see
        map_vars = json.load(f)
 
 The state fields need their own mapping. A :class:`~porescene.model.StateVariableMap` ties
-a property name -- the name the coloring is configured under later -- to the ``.mat``
+a quantity name -- the name the coloring is configured under later -- to the ``.mat``
 variables that store its per-pore (sphere) and per-throat (cylinder) values. Here the
 concentration is available for both, so both variables are set:
 
@@ -203,7 +203,7 @@ and calibrates the axes to the real dimensions of the sample (see :doc:`../conce
    still line up (see :doc:`../config`).
 
 The concentration field is registered on the scene with a
-:class:`~porescene.config.PropertyConfiguration`. Its first argument is the property name
+:class:`~porescene.config.QuantityConfiguration`. Its first argument is the quantity name
 and has to match the name given to the :class:`~porescene.model.StateVariableMap` above --
 that is how the coloring finds its data. The remaining arguments shape the colorbar and,
 most importantly for a series, its bounds:
@@ -211,34 +211,35 @@ most importantly for a series, its bounds:
 .. code-block:: python
 
    # settings for concentration visualizations
-   sc.config_scene.add_property(
-       PropertyConfiguration(
+   sc.config_scene.add_quantity(
+       QuantityConfiguration(
            "concentration",  # key that should match with the StateVariableMap
            Palette.load(Colormap.MATTER).all(),  # colormap
            heading="Concentration [mol/l]",  # colorbar label
            orientation=Orientation.VERTICAL,  # colorbar orientation
            align=CompassDirection.WEST,  # colorbar position around the rendering
            precision=3,  # precision of colorbar ticks
-           use_global_boundaries=True,
-           min=0,
-           max=50,
+           # pinned colorbar limits, in place of the series minimum/maximum
+           limit_lower=0,
+           limit_upper=50,
        )
    )
 
 :meth:`Palette.load(Colormap.MATTER).all() <porescene.color.palette.Palette.all>` hands
 the full ``MATTER`` colormap to a smooth gradient, ``heading`` sets the colorbar title, and
 ``orientation`` together with ``align`` stands it vertically on the west (left) side.
-``use_global_boundaries=True`` combined with ``min`` and ``max`` fixes the color scale at
-``[0, 50] mol/l`` for *all* states, so every frame gets the same colorbar and equal
-concentrations map to equal colors from step to step.
+``limit_lower`` and ``limit_upper`` fix the color scale at ``[0, 50] mol/l``, so every frame gets the same
+colorbar and equal concentrations map to equal colors from step to step.
 
 .. tip::
 
-   Set ``use_global_boundaries=True`` (with an explicit ``min`` and ``max``) whenever the
-   states of a series should be *comparable*. Leave it off for a field whose range is
-   unknown or changes drastically, and each state auto-fits the gradient to its own value
-   range instead -- which makes a single frame easy to read, but the frames no longer
-   comparable to one another.
+   Both bounds are optional. Left out, they are computed from the data -- and from the
+   *whole series*, not from the state at hand, so the frames stay comparable either way
+   (see :meth:`~porescene.config.QuantityConfiguration.resolve_limits`). Pin them when the scale
+   should be a round, reportable range rather than whatever the simulation happened to
+   produce, or when several figures have to share one scale. Each side stands on its own:
+   an explicit ``limit_lower=0`` with the top left to follow the data is a common
+   choice.
 
 :func:`~porescene.worker.build_structure` then builds the stick-and-ball geometry, and
 calibrated axes are added around it:
@@ -259,14 +260,32 @@ step before.
 5. Render each state
 ^^^^^^^^^^^^^^^^^^^^
 
-:func:`~porescene.worker.make_state` walks every loaded state and, for each state, every
-configured field. It fits the gradient (here once, from the global bounds), colors the
-enabled layers, renders the scene, and composites the matching colorbar:
+:func:`~porescene.worker.make_state_quantity` renders one field of one state: it fits
+the gradient (here once, from the pinned limits), colors the enabled layers, and returns
+the path of the image. A state carrying several fields is drawn by calling it once per
+field -- here the loop runs over the scene configuration itself, which iterates over the
+:class:`~porescene.config.QuantityConfiguration` of every quantity added to it:
 
 .. code-block:: python
 
-   # render every state, coloring the pore spheres and throat cylinders by concentration
-   sc, pth_img = worker.make_state(pth_frames, pn, sc)
+   # render every selected state, coloring the pore spheres by concentration
+   for no_state in no_states:
+       for conf in sc.config_scene:
+           pth_vis = worker.make_state_quantity(
+               pth_frames, pn, sc, conf.name, no_state=no_state
+           )
+
+Composing the finished image is a separate step: :func:`~porescene.worker.make_colorbar`
+draws the colorbar on the scale the render was colored on, and
+:func:`~porescene.image.compose_colorbar` joins the two. The alignment and orientation
+it is placed at come straight off the ``conf`` the loop hands out, so no second lookup
+is needed. Since the limits are pinned here, every state ends up on one and the same
+color scale:
+
+.. code-block:: python
+
+           pth_cb = worker.make_colorbar(pth_frames, pn, sc, conf.name)
+           image.compose_colorbar(pth_vis, pth_cb, conf.align, conf.orientation)
 
 Each render is named after the layers it shows, the field they are colored by, and the
 state index, so the frames of the series end up next to each other in ``pth_frames`` as
@@ -277,10 +296,13 @@ scale.
 
 .. tip::
 
-   The rendered states are a ready-made frame sequence: passing them (in order) to
-   :func:`~porescene.image.frames2mp4` or :func:`~porescene.image.frames2gif` turns the
-   series into a video, the same way the :doc:`solid animation <animation_solid>` example
-   does it.
+   The rendered states are a ready-made frame sequence: passing the image paths (in
+   order) to :func:`~porescene.image.frames2mp4` or :func:`~porescene.image.frames2gif`
+   turns the series into a video, the same way the :doc:`solid animation
+   <animation_solid>` example does it. To carry the colorbar into the video, join it
+   onto the series with :func:`~porescene.image.compose_colorbar_frames` -- which trims
+   the renders against one another, so the colorbar keeps its size and place from frame
+   to frame -- and pass those composites; pass the bare renders to leave it out.
 
 
 Full script

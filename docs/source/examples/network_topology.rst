@@ -171,7 +171,7 @@ yielding ``cylinder-green+sphere-orange+axes.png``:
 .. tip::
 
    Any per-pore and per-throat color list works here, so the same call can render a
-   property-based coloring instead of a uniform one. The dedicated workers
+   quantity-based coloring instead of a uniform one. The dedicated workers
    :func:`~porescene.worker.make_radius` and
    :func:`~porescene.worker.make_coordination_number` build such lists for you -- see the
    :doc:`network morphology <network_morphology>` and
