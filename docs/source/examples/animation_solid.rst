@@ -60,16 +60,29 @@ file paths and directories are handled throughout PoreScene with the built-in
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
 An animation produces a lot of intermediate files (each frame is saved as a single PNG
-file), so besides the path to read the PLY file from (``pth_data``), a seperate directory
-``pth_frames`` is specified to store the rendered frames:
+file), so besides the directory to read the PLY file from (``pth_data``) and the
+directory receiving the video (``pth_out``), a separate subdirectory ``pth_frames`` is
+specified to store the rendered frames:
 
 .. code-block:: python
 
-    # data directory
-    pth_data = Path.cwd() / "data"
+    # repository root, so the example runs from any working directory
+    pth_root = Path(__file__).resolve().parents[1]
+
+    # input data directory
+    pth_data = pth_root / "data"
+
+    # output directory, named after this example
+    pth_out = pth_root / "tmp" / "example" / Path(__file__).stem
 
     # frames directory
-    pth_frames = pth_data / "frames"
+    pth_frames = pth_out / "frames"
+    pth_frames.mkdir(parents=True, exist_ok=True)
+
+The paths are resolved from the location of the script itself, so the example runs from
+any working directory. ``pth_data`` holds the input files -- the solid mesh -- and is only
+ever read from, while everything the example writes goes to ``pth_out``, a folder named
+after the script: ``tmp/example/animation_solid/``.
 
 Next, the physical size of the sample is specified, which is necessary to construct the
 scene (``extent`` is the physical size of the volume in **meters** -- here 100 µm along
@@ -121,11 +134,12 @@ For turntable videos, a :class:`Scene` is initialized once, and desired
    # add axes around the scene
    sc.create_axes()
 
-   # add a solid object to the scene
+   # add the solid object exported by the solid example to the scene
    sc.create_solid(pth_data / "solid.ply")
 
-For this example, only the mesh and scalebars are added into the scene. The mesh comes
-from the PLY file written in the :doc:`solid structure <solid>` tutorial.
+For this example, only the mesh and scalebars are added into the scene. The mesh is the
+PLY file exported in the :doc:`solid structure <solid>` tutorial; a copy of it is part of
+the input data, so this example does not depend on that one having been run first.
 
 4. Rendering
 ^^^^^^^^^^^^
@@ -178,7 +192,7 @@ animation was planned for:
 
    image.frames2mp4(
        sorted(pth_frames.glob("solid+axes_*.png")),
-       pth_data / "solid+axes.mp4",
+       pth_out / "solid+axes.mp4",
        fps=fps,
        trim=True,
    )

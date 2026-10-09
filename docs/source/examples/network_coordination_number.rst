@@ -66,16 +66,25 @@ the built-in :mod:`pathlib` module, and :mod:`json` reads the variable mapping.
 2. Set utility variables
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-After that, the directory holding the input data and receiving the rendered image is
-specified:
+After that, the directory holding the input data and the directory receiving the
+rendered image are specified:
 
 .. code-block:: python
 
-   # data directory
-   pth_data = Path.cwd() / "data"
+   # repository root, so the example runs from any working directory
+   pth_root = Path(__file__).resolve().parents[1]
 
-``pth_data`` holds the input files -- the pore network -- and also receives the rendered
-image together with its colorbar.
+   # input data directory
+   pth_data = pth_root / "data"
+
+   # output directory, named after this example
+   pth_out = pth_root / "tmp" / "example" / Path(__file__).stem
+   pth_out.mkdir(parents=True, exist_ok=True)
+
+Both paths are resolved from the location of the script itself, so the example runs from
+any working directory. ``pth_data`` holds the input files -- the pore network -- and is
+only ever read from, while everything the example writes goes to ``pth_out``, a folder
+named after the script: ``tmp/example/network_coordination_number/``.
 
 
 3. Load the pore network
@@ -189,14 +198,14 @@ sphere per pore and one cylinder per throat. Calibrated axes are added around it
 
 :func:`~porescene.worker.make_coordination_number` does the coloring: it fits the
 segmented gradient to the coordination-number range, colors the enabled layers
-accordingly, and renders the scene into ``pth_data``. Because the cylinders were
+accordingly, and renders the scene into ``pth_out``. Because the cylinders were
 disabled, only the pore spheres are drawn and colored. It draws no colorbar and returns
 the path of the bare image:
 
 .. code-block:: python
 
    # render the scene and color the pores according to their coordination number
-   pth_vis = worker.make_coordination_number(pth_data, pn, sc)
+   pth_vis = worker.make_coordination_number(pth_out, pn, sc)
 
 Rendering the scene and composing the finished image are separate steps, so the colorbar
 is drawn by :func:`~porescene.worker.make_colorbar` -- which works out the same limits
@@ -207,7 +216,7 @@ the render was colored on -- and joined to it with
 
    # render a colorbar on the same scale, and compose the two
    conf = sc.config_scene["coordination_number"]
-   pth_cb = worker.make_colorbar(pth_data, pn, sc, "coordination_number")
+   pth_cb = worker.make_colorbar(pth_out, pn, sc, "coordination_number")
    pth_img = image.compose_colorbar(pth_vis, pth_cb, conf.align, conf.orientation)
 
 The render is named after the layer it shows -- the pore spheres, colored by

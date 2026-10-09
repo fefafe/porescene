@@ -12,8 +12,15 @@ from porescene.utility import CompassDirection, Orientation
 # =============================================================================
 # Import Parameters
 
-# data directory
-pth_data = Path.cwd() / "data"
+# repository root, so the example runs from any working directory
+pth_root = Path(__file__).resolve().parents[1]
+
+# input data directory
+pth_data = pth_root / "data"
+
+# output directory, named after this example
+pth_out = pth_root / "tmp" / "example" / Path(__file__).stem
+pth_out.mkdir(parents=True, exist_ok=True)
 
 
 # =============================================================================
@@ -55,9 +62,9 @@ sc.create_axes()
 # Render pores colored by coordination number
 
 # render the scene and color the pores according to their coordination number
-pth_vis = worker.make_coordination_number(pth_data, pn, sc)
+pth_vis = worker.make_coordination_number(pth_out, pn, sc)
 
 # render a colorbar on the same scale, and compose the two
 conf = sc.config_scene["coordination_number"]
-pth_cb = worker.make_colorbar(pth_data, pn, sc, "coordination_number")
+pth_cb = worker.make_colorbar(pth_out, pn, sc, "coordination_number")
 pth_img = image.compose_colorbar(pth_vis, pth_cb, conf.align, conf.orientation)

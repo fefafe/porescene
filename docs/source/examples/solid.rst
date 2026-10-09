@@ -50,12 +50,25 @@ PoreScene with the built-in :mod:`pathlib` module.
 2. Set utility variables
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-After that, a directory for saving the mesh file and the rendered images is specified:
+After that, the directory holding the input data and the directory receiving the mesh
+file and the rendered image are specified:
 
 .. code-block:: python
 
-   # data subdirectory
-   pth_data = Path.cwd() / "data"
+   # repository root, so the example runs from any working directory
+   pth_root = Path(__file__).resolve().parents[1]
+
+   # input data directory
+   pth_data = pth_root / "data"
+
+   # output directory, named after this example
+   pth_out = pth_root / "tmp" / "example" / Path(__file__).stem
+   pth_out.mkdir(parents=True, exist_ok=True)
+
+Both paths are resolved from the location of the script itself, so the example runs from
+any working directory. ``pth_data`` holds the input files -- the binarized volume image --
+and is only ever read from, while everything the example writes goes to ``pth_out``, a
+folder named after the script: ``tmp/example/solid/``.
 
 Next, some required information about the volume image is saved:
 
@@ -95,7 +108,11 @@ case you already have a geometric object file of your solid.
    mesh = utility.volume2mesh(img_bin, L_vxl, name="solid")
 
    # export the mesh in binary PLY format
-   io.mesh2ply(pth_data / "solid.ply", mesh)
+   io.mesh2ply(pth_out / "solid.ply", mesh)
+
+The exported mesh is reused by the :doc:`rotating solid <animation_solid>` and
+:doc:`network morphology <network_morphology>` examples. They read a copy of it from
+``data/solid.ply``, so they run without this example having been run first.
 
 .. tip::
 
@@ -125,14 +142,14 @@ the previously generated mesh of the solid and axes around it:
    sc.create_axes()
 
    # add a solid object to the scene
-   sc.create_solid(pth_data / "solid.ply")
+   sc.create_solid(pth_out / "solid.ply")
 
    # render the scene
-   pth_img = sc.render(pth_data / "solid+axes.png")
+   pth_img = sc.render(pth_out / "solid+axes.png")
 
 
 With the final line, Blender renders the scene and saves the image as
-``solid+axes.png`` in the given data directory.
+``solid+axes.png`` in the output directory, next to the mesh.
 
 
 Full script

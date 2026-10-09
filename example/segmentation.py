@@ -9,8 +9,15 @@ from porescene.scene import Scene
 # =============================================================================
 # Parameters
 
-# data subdirectory
-pth_data = Path.cwd() / "data"
+# repository root, so the example runs from any working directory
+pth_root = Path(__file__).resolve().parents[1]
+
+# input data directory
+pth_data = pth_root / "data"
+
+# output directory, named after this example
+pth_out = pth_root / "tmp" / "example" / Path(__file__).stem
+pth_out.mkdir(parents=True, exist_ok=True)
 
 # [m] edge length of a single voxel
 L_vxl = 1e-6
@@ -37,7 +44,7 @@ labels = labels[labels != 0]
 meshes = utility.volume2mesh(img_seg, L_vxl, labels, per_label=True, name="label")
 
 # export all clusters as separate objects in a single OBJ file
-io.mesh2obj(pth_data / "segmentation-void.obj", meshes)
+io.mesh2obj(pth_out / "segmentation-void.obj", meshes)
 
 
 # =============================================================================
@@ -50,10 +57,10 @@ sc = Scene(extent)
 sc.create_axes()
 
 # add the void clusters to the scene
-sc.create_clusters(pth_data / "segmentation-void.obj")
+sc.create_clusters(pth_out / "segmentation-void.obj")
 
 # color each cluster with a random color drawn from a colormap
 sc.apply_colors("Clusters", Palette.load(Colormap.TURBO).random(len(labels)))
 
 # render the scene
-pth_img = sc.render(pth_data / "cluster-random+axes.png")
+pth_img = sc.render(pth_out / "cluster-random+axes.png")

@@ -61,16 +61,25 @@ directories are handled throughout PoreScene with the built-in :mod:`pathlib` mo
 2. Set utility variables
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-After that, the directory holding the input data and receiving the rendered images is
-specified:
+After that, the directory holding the input data and the directory receiving the
+rendered images are specified:
 
 .. code-block:: python
 
-   # data directory
-   pth_data = Path.cwd() / "data"
+   # repository root, so the example runs from any working directory
+   pth_root = Path(__file__).resolve().parents[1]
 
-``pth_data`` holds the input files -- the pore network and the solid mesh -- and also
-receives the rendered images together with their colorbars.
+   # input data directory
+   pth_data = pth_root / "data"
+
+   # output directory, named after this example
+   pth_out = pth_root / "tmp" / "example" / Path(__file__).stem
+   pth_out.mkdir(parents=True, exist_ok=True)
+
+Both paths are resolved from the location of the script itself, so the example runs from
+any working directory. ``pth_data`` holds the input files -- the pore network and the
+solid mesh -- and is only ever read from, while everything the example writes goes to
+``pth_out``, a folder named after the script: ``tmp/example/network_morphology/``.
 
 
 3. Load the pore network
@@ -168,13 +177,13 @@ sphere per pore and one cylinder per throat. Calibrated axes are added around it
 
 :func:`~porescene.worker.make_radius` does the coloring: it fits a smooth gradient to the
 combined pore- and throat-radius range, colors the sphere and cylinder layers accordingly,
-and renders the scene into ``pth_data``. It draws no colorbar and returns the path of
+and renders the scene into ``pth_out``. It draws no colorbar and returns the path of
 the bare image:
 
 .. code-block:: python
 
    # render the scene and color pores and throats according to their radius
-   pth_vis = worker.make_radius(pth_data, pn, sc)
+   pth_vis = worker.make_radius(pth_out, pn, sc)
 
 The colorbar is a separate step: :func:`~porescene.worker.make_colorbar` works out the
 same limits the render was colored on -- from the same
@@ -186,7 +195,7 @@ the same render can be given a colorbar in a different place, or none at all:
 
    # render a colorbar on the same scale, and compose the two
    conf = sc.config_scene["radius"]
-   pth_cb = worker.make_colorbar(pth_data, pn, sc, "radius")
+   pth_cb = worker.make_colorbar(pth_out, pn, sc, "radius")
    pth_img = image.compose_colorbar(pth_vis, pth_cb, conf.align, conf.orientation)
 
 This first composite is the stick-and-ball view shown at the top of the page: every pore
@@ -206,7 +215,7 @@ different colormap by reassigning its
 
 .. code-block:: python
 
-   # add a solid object to the scene
+   # add the solid object exported by the solid example to the scene
    sc.create_solid(pth_data / "solid.ply")
 
    # disable the pore spheres so only the solid and throats remain
@@ -223,10 +232,10 @@ that view:
 .. code-block:: python
 
    # render the scene and color the throats according to their radius
-   pth_vis = worker.make_radius(pth_data, pn, sc)
+   pth_vis = worker.make_radius(pth_out, pn, sc)
 
    # the colorbar follows the new colormap, so it is rendered and composed again
-   pth_cb = worker.make_colorbar(pth_data, pn, sc, "radius")
+   pth_cb = worker.make_colorbar(pth_out, pn, sc, "radius")
    pth_img = image.compose_colorbar(pth_vis, pth_cb, conf.align, conf.orientation)
 
 .. note::

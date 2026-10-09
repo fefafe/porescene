@@ -61,16 +61,25 @@ from. File paths and directories are handled throughout PoreScene with the built
 2. Set utility variables
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-After that, the directory holding the input data and receiving the rendered images is
-specified:
+After that, the directory holding the input data and the directory receiving the
+rendered images are specified:
 
 .. code-block:: python
 
-   # data directory
-   pth_data = Path.cwd() / "data"
+   # repository root, so the example runs from any working directory
+   pth_root = Path(__file__).resolve().parents[1]
 
-``pth_data`` holds the input files -- the pore network -- and also receives the rendered
-images.
+   # input data directory
+   pth_data = pth_root / "data"
+
+   # output directory, named after this example
+   pth_out = pth_root / "tmp" / "example" / Path(__file__).stem
+   pth_out.mkdir(parents=True, exist_ok=True)
+
+Both paths are resolved from the location of the script itself, so the example runs from
+any working directory. ``pth_data`` holds the input files -- the pore network -- and is
+only ever read from, while everything the example writes goes to ``pth_out``, a folder
+named after the script: ``tmp/example/network_random/``.
 
 
 3. Load the pore network
@@ -144,7 +153,7 @@ workers -- adds no colorbar, since the random colors carry no scale:
 .. code-block:: python
 
    # render the network with one random color per pore and throat
-   pth_img = worker.make_random(pth_data, pn, sc)
+   pth_img = worker.make_random(pth_out, pn, sc)
 
 Because :func:`~porescene.worker.make_random` names its output after the layers it draws
 (``cylinder-random+sphere-random+axes.png``), the second render below would overwrite
@@ -181,7 +190,7 @@ takes; the geometry does not need rebuilding:
    sc.config_scene.palette = Palette.load(Colormap.SET1)
 
    # render the network again with one random color per pore and throat
-   pth_img = worker.make_random(pth_data, pn, sc)
+   pth_img = worker.make_random(pth_out, pn, sc)
 
    # rename the render after the palette used
    pth_img.replace(pth_img.with_stem("random-qualitative"))

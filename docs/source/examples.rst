@@ -3,6 +3,10 @@ Examples
 
 Annotated scripts showing how to build and render scenes with PoreScene.
 
+Every example reads its input from the repository's ``data/`` folder and writes everything
+it produces -- meshes, renders, colorbars, videos -- to ``tmp/example/<script name>/``, so
+running an example never changes the input data.
+
 Static visualizations
 ---------------------
 

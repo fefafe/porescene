@@ -249,7 +249,7 @@ def compose_colorbar_frames(
         pths = worker.make_frames(pth_frames, pn, sc, "saturation", fps=30, duration=12)
         pth_cb = worker.make_colorbar(pth_frames, pn, sc, "saturation")
         pths = image.compose_colorbar_frames(pths, pth_cb, conf.align, conf.orientation)
-        image.frames2mp4(pths, pth_data / "saturation.mp4", fps=30)
+        image.frames2mp4(pths, pth_out / "saturation.mp4", fps=30)
     """
     frames = list(pth_frames)
     if not frames:

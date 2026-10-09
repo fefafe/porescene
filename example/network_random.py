@@ -9,8 +9,15 @@ from porescene.scene import Scene
 # =============================================================================
 # Import Parameters
 
-# data directory
-pth_data = Path.cwd() / "data"
+# repository root, so the example runs from any working directory
+pth_root = Path(__file__).resolve().parents[1]
+
+# input data directory
+pth_data = pth_root / "data"
+
+# output directory, named after this example
+pth_out = pth_root / "tmp" / "example" / Path(__file__).stem
+pth_out.mkdir(parents=True, exist_ok=True)
 
 
 # =============================================================================
@@ -40,7 +47,7 @@ sc.create_axes()
 sc.config_scene.palette = Palette.load(Colormap.ROMAO)
 
 # render the network with one random color per pore and throat
-pth_img = worker.make_random(pth_data, pn, sc)
+pth_img = worker.make_random(pth_out, pn, sc)
 
 # rename the render after the palette used, so the next one does not overwrite it
 pth_img.replace(pth_img.with_stem("random-continuous"))
@@ -53,7 +60,7 @@ pth_img.replace(pth_img.with_stem("random-continuous"))
 sc.config_scene.palette = Palette.load(Colormap.SET1)
 
 # render the network again with one random color per pore and throat
-pth_img = worker.make_random(pth_data, pn, sc)
+pth_img = worker.make_random(pth_out, pn, sc)
 
 # rename the render after the palette used
 pth_img.replace(pth_img.with_stem("random-qualitative"))

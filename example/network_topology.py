@@ -11,8 +11,15 @@ from porescene.scene import Scene
 # =============================================================================
 # Import Parameters
 
-# data directory
-pth_data = Path.cwd() / "data"
+# repository root, so the example runs from any working directory
+pth_root = Path(__file__).resolve().parents[1]
+
+# input data directory
+pth_data = pth_root / "data"
+
+# output directory, named after this example
+pth_out = pth_root / "tmp" / "example" / Path(__file__).stem
+pth_out.mkdir(parents=True, exist_ok=True)
 
 
 # =============================================================================
@@ -44,7 +51,7 @@ color_throats = [fefa.darkgreen for _ in range(pn.throat_count())]
 
 # render the scene with uniform pore and throat colors
 worker.make_img(
-    pth_data,
+    pth_out,
     sc,
     color_spheres=color_pores,
     color_cylinders=color_throats,

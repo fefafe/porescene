@@ -8,8 +8,15 @@ from porescene.scene import Scene
 # =============================================================================
 # Parameters
 
-# data subdirectory
-pth_data = Path.cwd() / "data"
+# repository root, so the example runs from any working directory
+pth_root = Path(__file__).resolve().parents[1]
+
+# input data directory
+pth_data = pth_root / "data"
+
+# output directory, named after this example
+pth_out = pth_root / "tmp" / "example" / Path(__file__).stem
+pth_out.mkdir(parents=True, exist_ok=True)
 
 # [m] edge length of a single voxel
 L_vxl = 1e-6
@@ -32,7 +39,7 @@ img_bin = img_bin.reshape(res_img)
 mesh = utility.volume2mesh(img_bin, L_vxl, name="solid")
 
 # export the mesh in binary PLY format
-io.mesh2ply(pth_data / "solid.ply", mesh)
+io.mesh2ply(pth_out / "solid.ply", mesh)
 
 
 # =============================================================================
@@ -45,7 +52,7 @@ sc = Scene(extent)
 sc.create_axes()
 
 # add a solid object to the scene
-sc.create_solid(pth_data / "solid.ply")
+sc.create_solid(pth_out / "solid.ply")
 
 # render the scene
-pth_img = sc.render(pth_data / "solid+axes.png")
+pth_img = sc.render(pth_out / "solid+axes.png")

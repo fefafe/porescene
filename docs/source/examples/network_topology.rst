@@ -58,13 +58,25 @@ reads the variable mapping.
 2. Set utility variables
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-After that, the directory holding the input data and receiving the rendered image is
-specified:
+After that, the directory holding the input data and the directory receiving the
+rendered image are specified:
 
 .. code-block:: python
 
-   # data directory
-   pth_data = Path.cwd() / "data"
+   # repository root, so the example runs from any working directory
+   pth_root = Path(__file__).resolve().parents[1]
+
+   # input data directory
+   pth_data = pth_root / "data"
+
+   # output directory, named after this example
+   pth_out = pth_root / "tmp" / "example" / Path(__file__).stem
+   pth_out.mkdir(parents=True, exist_ok=True)
+
+Both paths are resolved from the location of the script itself, so the example runs from
+any working directory. ``pth_data`` holds the input files -- the pore network -- and is
+only ever read from, while everything the example writes goes to ``pth_out``, a folder
+named after the script: ``tmp/example/network_topology/``.
 
 
 3. Load the pore network
@@ -151,7 +163,7 @@ green for all throats:
    color_throats = [fefa.darkgreen for _ in range(pn.throat_count())]
 
 :func:`~porescene.worker.make_img` shows the requested layers, applies the given colors,
-renders the scene, and writes the resulting PNG into the data directory. Only layers that
+renders the scene, and writes the resulting PNG into the output directory. Only layers that
 were actually built are drawn, so the unused cluster layer is skipped automatically. The
 ``name_spheres`` and ``name_cylinders`` labels are embedded in the output file name,
 yielding ``cylinder-green+sphere-orange+axes.png``:
@@ -160,7 +172,7 @@ yielding ``cylinder-green+sphere-orange+axes.png``:
 
    # render the scene with uniform pore and throat colors
    worker.make_img(
-       pth_data,
+       pth_out,
        sc,
        color_spheres=color_pores,
        color_cylinders=color_throats,

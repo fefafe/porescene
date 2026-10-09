@@ -866,7 +866,7 @@ def make_frames(
 
         for svm in vars_state:
             pths = worker.make_frames(pth_frames, pn, sc, svm.name, fps=30, duration=12)
-            image.frames2mp4(pths, pth_data / f"{svm.name}.mp4", fps=30)
+            image.frames2mp4(pths, pth_out / f"{svm.name}.mp4", fps=30)
     """
     times = pn.frame_times(
         fps, duration=duration, speed=speed, t_start=t_start, t_end=t_end

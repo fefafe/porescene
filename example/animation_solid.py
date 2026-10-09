@@ -8,11 +8,18 @@ from porescene.scene import Scene
 # =============================================================================
 # Import Parameters
 
-# data directory
-pth_data = Path.cwd() / "data"
+# repository root, so the example runs from any working directory
+pth_root = Path(__file__).resolve().parents[1]
+
+# input data directory
+pth_data = pth_root / "data"
+
+# output directory, named after this example
+pth_out = pth_root / "tmp" / "example" / Path(__file__).stem
 
 # frames directory
-pth_frames = pth_data / "frames"
+pth_frames = pth_out / "frames"
+pth_frames.mkdir(parents=True, exist_ok=True)
 
 # [m] domain size
 extent = np.array((100e-06, 100e-06, 100e-06))
@@ -35,7 +42,7 @@ sc = Scene(extent)
 # add axes around the scene
 sc.create_axes()
 
-# add a solid object to the scene
+# add the solid object exported by the solid example to the scene
 sc.create_solid(pth_data / "solid.ply")
 
 for no_frame in range(frames_total):
@@ -48,7 +55,7 @@ for no_frame in range(frames_total):
 # compose frames into mp4 video
 image.frames2mp4(
     sorted(pth_frames.glob("solid+axes_*.png")),
-    pth_data / "solid+axes.mp4",
+    pth_out / "solid+axes.mp4",
     fps=fps,
     trim=True,
 )

@@ -97,16 +97,22 @@ images are specified:
 
 .. code-block:: python
 
-   # data directory
-   pth_data = Path.cwd() / "data"
+   # repository root, so the example runs from any working directory
+   pth_root = Path(__file__).resolve().parents[1]
 
-   # frames directory
-   pth_frames = pth_data / "frames"
+   # input data directory
+   pth_data = pth_root / "data"
 
-``pth_data`` holds the input files -- the pore network and its states -- while
-``pth_frames`` collects the rendered states together with their colorbars. Keeping the
-frames in their own subdirectory pays off as soon as a series grows: one file per state
-piles up quickly, and they stay separated from the input data.
+   # output directory, named after this example
+   pth_out = pth_root / "tmp" / "example" / Path(__file__).stem
+   pth_out.mkdir(parents=True, exist_ok=True)
+
+Both paths are resolved from the location of the script itself, so the example runs from
+any working directory. ``pth_data`` holds the input files -- the pore network and its
+states -- and is only ever read from, while everything the example writes goes to
+``pth_out``, a folder named after the script: ``tmp/example/network_state/``. A series
+grows quickly -- one image per state and quantity, plus the colorbars -- and the dedicated
+output directory keeps all of it in one place, apart from the input data.
 
 
 3. Load the pore network and its states
@@ -272,7 +278,7 @@ field -- here the loop runs over the scene configuration itself, which iterates 
    for no_state in no_states:
        for conf in sc.config_scene:
            pth_vis = worker.make_state_quantity(
-               pth_frames, pn, sc, conf.name, no_state=no_state
+               pth_out, pn, sc, conf.name, no_state=no_state
            )
 
 Composing the finished image is a separate step: :func:`~porescene.worker.make_colorbar`
@@ -284,11 +290,11 @@ color scale:
 
 .. code-block:: python
 
-           pth_cb = worker.make_colorbar(pth_frames, pn, sc, conf.name)
+           pth_cb = worker.make_colorbar(pth_out, pn, sc, conf.name)
            image.compose_colorbar(pth_vis, pth_cb, conf.align, conf.orientation)
 
 Each render is named after the layers it shows, the field they are colored by, and the
-state index, so the frames of the series end up next to each other in ``pth_frames`` as
+state index, so the frames of the series end up next to each other in ``pth_out`` as
 ``cylinder-concentration+sphere-concentration+axes+state-0.png``,
 ``...+state-500.png``, and so on -- the sequence shown in the carousel at the top of this
 page, where the concentration front moves through the network on one and the same color

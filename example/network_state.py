@@ -11,11 +11,15 @@ from porescene.utility import CompassDirection, Orientation
 # =============================================================================
 # Import Parameters
 
-# data directory
-pth_data = Path.cwd() / "data"
+# repository root, so the example runs from any working directory
+pth_root = Path(__file__).resolve().parents[1]
 
-# frames directory
-pth_frames = pth_data / "frames"
+# input data directory
+pth_data = pth_root / "data"
+
+# output directory, named after this example
+pth_out = pth_root / "tmp" / "example" / Path(__file__).stem
+pth_out.mkdir(parents=True, exist_ok=True)
 
 
 # =============================================================================
@@ -80,7 +84,7 @@ for no_state in no_states:
     # one image per configured quantity, each with its own colorbar composed onto it
     for conf in sc.config_scene:
         pth_vis = worker.make_state_quantity(
-            pth_frames, pn, sc, conf.name, no_state=no_state
+            pth_out, pn, sc, conf.name, no_state=no_state
         )
-        pth_cb = worker.make_colorbar(pth_frames, pn, sc, conf.name)
+        pth_cb = worker.make_colorbar(pth_out, pn, sc, conf.name)
         image.compose_colorbar(pth_vis, pth_cb, conf.align, conf.orientation)

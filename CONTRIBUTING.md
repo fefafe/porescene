@@ -33,3 +33,10 @@ Open an issue on [GitHub](https://github.com/fefafe/porescene/issues) and includ
 3. Make your changes and keep them focused on a single topic.
 4. Run the tests with `pytest` and make sure the pre-commit hooks pass.
 5. Open a pull request describing what you changed and why.
+
+## Examples
+
+Scripts in `example/` read their input only from `data/` and write all output to
+`tmp/example/<script name>/`, which git ignores. `data/` holds nothing but the datasets
+the examples take as input. A new example should start from the paths block of an
+existing one.

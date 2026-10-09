@@ -11,8 +11,15 @@ from porescene.utility import CompassDirection, Orientation
 # =============================================================================
 # Import Parameters
 
-# data directory
-pth_data = Path.cwd() / "data"
+# repository root, so the example runs from any working directory
+pth_root = Path(__file__).resolve().parents[1]
+
+# input data directory
+pth_data = pth_root / "data"
+
+# output directory, named after this example
+pth_out = pth_root / "tmp" / "example" / Path(__file__).stem
+pth_out.mkdir(parents=True, exist_ok=True)
 
 
 # =============================================================================
@@ -52,18 +59,18 @@ sc.create_axes()
 # Render pores and throats colored by radius
 
 # render the scene and color pores and throats according to their radius
-pth_vis = worker.make_radius(pth_data, pn, sc)
+pth_vis = worker.make_radius(pth_out, pn, sc)
 
 # render a colorbar on the same scale, and compose the two
 conf = sc.config_scene["radius"]
-pth_cb = worker.make_colorbar(pth_data, pn, sc, "radius")
+pth_cb = worker.make_colorbar(pth_out, pn, sc, "radius")
 pth_img = image.compose_colorbar(pth_vis, pth_cb, conf.align, conf.orientation)
 
 
 # =============================================================================
 # Render the solid with throats only
 
-# add a solid object to the scene
+# add the solid object exported by the solid example to the scene
 sc.create_solid(pth_data / "solid.ply")
 
 # disable the pore spheres so only the solid and throats remain
@@ -73,8 +80,8 @@ sc.config_scene.enable_spheres = False
 sc.config_scene["radius"].colors = Palette.load(Colormap.SPEED).all()
 
 # render the scene and color the throats according to their radius
-pth_vis = worker.make_radius(pth_data, pn, sc)
+pth_vis = worker.make_radius(pth_out, pn, sc)
 
 # the colorbar follows the new colormap, so it is rendered and composed again
-pth_cb = worker.make_colorbar(pth_data, pn, sc, "radius")
+pth_cb = worker.make_colorbar(pth_out, pn, sc, "radius")
 pth_img = image.compose_colorbar(pth_vis, pth_cb, conf.align, conf.orientation)
