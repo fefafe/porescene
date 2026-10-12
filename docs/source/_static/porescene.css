@@ -292,7 +292,8 @@ figure.ps-figure {
 figure.ps-figure img,
 figure.ps-figure video.ps-video {
     display: block;
-    width: calc(100% - 3rem);
+    box-sizing: border-box;
+    width: 100%;
     aspect-ratio: 3 / 2;
     object-fit: contain;
     margin: 0;
