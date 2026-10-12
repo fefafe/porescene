@@ -4,7 +4,6 @@
 
 import json
 import math
-import random
 import warnings
 from pathlib import Path
 from typing import NamedTuple, Self, cast
@@ -24,6 +23,7 @@ from porescene.config import (
     RenderConfiguration,
     SceneConfiguration,
 )
+from porescene.material import MaterialSpec, color_inputs, lookup
 from porescene.utility import RenderDevice, _get_spinner, suppress_stdout
 
 
@@ -246,7 +246,7 @@ class Scene:
         sx, sy, sz = self.shift
         ax, ay, az = self.aspect
 
-        mat_axis = self.get_material("AXES", "axes")
+        mat_axis = self.get_material("AXES")
         font = bpy.data.fonts.load(str(cfg.font_family), check_existing=True)
         col = bpy.data.collections.new("Axes")
 
@@ -577,10 +577,10 @@ class Scene:
         vtx_cv: list[np.ndarray],
         p_selection: np.ndarray | None = None,
         merge_dist: float = 0,
-        style="CELL_DEFAULT",
+        material: str | MaterialSpec = "CELL",
     ) -> Self:
         col = bpy.data.collections.get("Cells")
-        mat = self.get_material(style, "default")
+        mat = self.get_material(material)
         if p_selection is None:
             p_selection = np.array(range(len(vtx_cv)))
         if not col:
@@ -630,9 +630,16 @@ class Scene:
             obj.data.materials[0].name = obj.name
         return self
 
-    def create_clusters(self, pth: Path, style: str = "CLUSTER_DEFAULT") -> Self:
+    def create_clusters(
+        self, pth: Path, material: str | MaterialSpec | None = None
+    ) -> Self:
         """
         Adds pore clusters to the scene.
+
+        They are rendered with ``material``, a material or the name of a registered one
+        (see :mod:`porescene.material`), by default
+        :attr:`SceneConfiguration.material_clusters
+        <porescene.config.SceneConfiguration.material_clusters>`.
         """
 
         def handler(n: str):
@@ -646,9 +653,10 @@ class Scene:
             p.add_task("load", total=None)
             _import_object(pth)
 
-        mat = self.get_material(style, "clusters")
-        if not any(n.type == "ATTRIBUTE" for n in mat.node_tree.nodes):
-            self._apply_object_color(mat)
+        if material is None:
+            material = self.config_scene.material_clusters
+        mat = self.get_material(material).copy()
+        self._apply_attribute_color(mat, "GEOMETRY", "cluster_color")
 
         col = bpy.data.collections.new("Clusters")
         col_default = bpy.data.collections.get("Collection")
@@ -682,10 +690,15 @@ class Scene:
         pos: np.ndarray,
         r: np.ndarray,
         name: str = "Cylinders",
-        style: str = "STRUCTURE_DEFAULT",
+        material: str | MaterialSpec | None = None,
     ) -> Self:
         """
         Places a cylinder for each throat in the scene.
+
+        They are rendered with ``material``, a material or the name of a registered one
+        (see :mod:`porescene.material`), by default
+        :attr:`SceneConfiguration.material_cylinders
+        <porescene.config.SceneConfiguration.material_cylinders>`.
         """
         pos1 = pos[:, 0:3] * self.scale
         pos2 = pos[:, 3:6] * self.scale
@@ -720,18 +733,21 @@ class Scene:
 
         self._layers.objects.link(obj)
 
-        obj_template = self._get_cylinder_template(style)
+        if material is None:
+            material = self.config_scene.material_cylinders
+        obj_template = self._get_cylinder_template(material)
         mod = obj.modifiers.new("CylinderInstances", type="NODES")
         mod.node_group = self._get_node_group(obj_template)
 
         self.has_cylinders = True
         return self
 
-    def _get_cylinder_template(self, style: str) -> bpy.types.Object:
+    def _get_cylinder_template(self, material: str | MaterialSpec) -> bpy.types.Object:
         """
         Returns a unit cylinder (radius=1, depth=1).
         """
-        name = f"Cylinder_{style}"
+        spec = lookup(material)
+        name = f"Cylinder_{spec.name}"
         obj_tmpl = bpy.data.objects.get(name)
         if obj_tmpl is not None:
             return obj_tmpl
@@ -746,9 +762,9 @@ class Scene:
             "use_smooth", [True] * len(obj_tmpl.data.polygons)
         )
 
-        mat = self.get_material(style, "default").copy()
+        mat = self.get_material(spec).copy()
         obj_tmpl.data.materials.append(mat)
-        self._apply_instance_color(mat)
+        self._apply_attribute_color(mat, "INSTANCER", "color")
 
         templates_col = bpy.data.collections.get("Templates")
         if not templates_col:
@@ -762,31 +778,24 @@ class Scene:
 
         return obj_tmpl
 
-    def _apply_instance_color(self, mat: bpy.types.Material) -> None:
+    def _apply_attribute_color(
+        self, mat: bpy.types.Material, attribute_type: str, attribute_name: str
+    ) -> None:
         """
-        Connects material base color to instance attribute.
+        Colors ``mat`` per item, by the color attribute ``attribute_name``.
+
+        Instanced spheres and cylinders read the attribute from the point they are
+        instanced on (``attribute_type="INSTANCER"``), whereas clusters, which are real
+        objects, carry it on their own mesh (``"GEOMETRY"``). Where the color enters
+        the material is decided by :func:`~porescene.material.color_inputs`.
         """
         tree = mat.node_tree
-        principled = next(n for n in tree.nodes if n.type == "BSDF_PRINCIPLED")
+        sockets = color_inputs(mat)
         attr_node = tree.nodes.new("ShaderNodeAttribute")
-        attr_node.attribute_type = "INSTANCER"
-        attr_node.attribute_name = "color"
-        tree.links.new(attr_node.outputs["Color"], principled.inputs["Base Color"])
-
-    def _apply_object_color(self, mat: bpy.types.Material) -> None:
-        """
-        Connects material base color to the per-object "color" mesh attribute.
-
-        Object counterpart of :meth:`_apply_instance_color`: used for real
-        objects (e.g. clusters) that carry their own "color" attribute rather
-        than being instanced through geometry nodes.
-        """
-        tree = mat.node_tree
-        principled = next(n for n in tree.nodes if n.type == "BSDF_PRINCIPLED")
-        attr_node = tree.nodes.new("ShaderNodeAttribute")
-        attr_node.attribute_type = "GEOMETRY"
-        attr_node.attribute_name = "cluster_color"
-        tree.links.new(attr_node.outputs["Color"], principled.inputs["Base Color"])
+        attr_node.attribute_type = attribute_type
+        attr_node.attribute_name = attribute_name
+        for socket in sockets:
+            tree.links.new(attr_node.outputs["Color"], socket)
 
     def _get_node_group(self, template: bpy.types.Object) -> bpy.types.NodeTree:
         """
@@ -1057,9 +1066,19 @@ class Scene:
                     desired.y = sbb - desired.y
                 obj.location = Vector(obj.location) + (desired - center_after)
 
-    def create_solid(self, pth: Path, style: str = "SOLID_DEFAULT", name: str = "solid"):
+    def create_solid(
+        self,
+        pth: Path,
+        material: str | MaterialSpec | None = None,
+        name: str = "solid",
+    ):
         """
         Adds the solid into the scene.
+
+        It is rendered with ``material``, a material or the name of a registered one
+        (see :mod:`porescene.material`), by default
+        :attr:`SceneConfiguration.material_solid
+        <porescene.config.SceneConfiguration.material_solid>`.
         """
         with _get_spinner(f"[cyan]Loading object: {pth.name}") as p:
             p.add_task("load", total=None)
@@ -1073,8 +1092,10 @@ class Scene:
         obj.rotation_euler = (math.radians(0), 0, math.radians(0))
         obj.scale = (self.scale, self.scale, self.scale)
         obj.location = self.shift
+        if material is None:
+            material = self.config_scene.material_solid
         mesh.materials.clear()
-        mesh.materials.append(self.get_material(style, "solid"))
+        mesh.materials.append(self.get_material(material))
         self.has_solid = True
 
         return self
@@ -1084,10 +1105,15 @@ class Scene:
         pos: np.ndarray,
         r: np.ndarray,
         name: str = "Spheres",
-        style: str = "STRUCTURE_DEFAULT",
+        material: str | MaterialSpec | None = None,
     ) -> Self:
         """
         Places a sphere for each pore in the scene.
+
+        They are rendered with ``material``, a material or the name of a registered one
+        (see :mod:`porescene.material`), by default
+        :attr:`SceneConfiguration.material_spheres
+        <porescene.config.SceneConfiguration.material_spheres>`.
         """
         loc = pos * self.scale + self.shift
         r = r * self.scale
@@ -1108,7 +1134,9 @@ class Scene:
 
         self._layers.objects.link(obj)
 
-        template = self._get_sphere_template(style)
+        if material is None:
+            material = self.config_scene.material_spheres
+        template = self._get_sphere_template(material)
 
         mod = obj.modifiers.new("SphereInstances", type="NODES")
         mod.node_group = self._get_node_group(template)
@@ -1116,11 +1144,12 @@ class Scene:
         self.has_spheres = True
         return self
 
-    def _get_sphere_template(self, style: str) -> bpy.types.Object:
+    def _get_sphere_template(self, material: str | MaterialSpec) -> bpy.types.Object:
         """
         Returns a unit sphere (radius=1)
         """
-        name = f"Sphere_{style}"
+        spec = lookup(material)
+        name = f"Sphere_{spec.name}"
         obj_tmpl = bpy.data.objects.get(name)
         if obj_tmpl is not None:
             return obj_tmpl
@@ -1137,9 +1166,9 @@ class Scene:
             "use_smooth", [True] * len(obj_tmpl.data.polygons)
         )
 
-        mat = self.get_material(style, "default").copy()
+        mat = self.get_material(spec).copy()
         obj_tmpl.data.materials.append(mat)
-        self._apply_instance_color(mat)
+        self._apply_attribute_color(mat, "INSTANCER", "color")
 
         templates_col = bpy.data.collections.get("Templates")
         if not templates_col:
@@ -1153,9 +1182,19 @@ class Scene:
 
         return obj_tmpl
 
-    def create_void(self, pth: Path, style: str = "ICE", name: str = "void") -> Self:
+    def create_void(
+        self,
+        pth: Path,
+        material: str | MaterialSpec | None = None,
+        name: str = "void",
+    ) -> Self:
         """
         Adds a 3D object of the void space to the scene.
+
+        It is rendered with ``material``, a material or the name of a registered one
+        (see :mod:`porescene.material`), by default
+        :attr:`SceneConfiguration.material_void
+        <porescene.config.SceneConfiguration.material_void>`.
         """
         with _get_spinner(f"[cyan]Loading object: {pth.name}") as p:
             p.add_task("load", total=None)
@@ -1169,154 +1208,26 @@ class Scene:
         obj.rotation_euler = (0, 0, 0)
         obj.scale = (self.scale, self.scale, self.scale)
         obj.location = self.shift
+        if material is None:
+            material = self.config_scene.material_void
         mesh.materials.clear()
-        mesh.materials.append(self.get_material(style, name))
+        mesh.materials.append(self.get_material(material))
         self.has_void = True
         return self
 
-    def get_material(self, style: str, name: str):
+    def get_material(self, material: str | MaterialSpec) -> bpy.types.Material:
         """
-        Creates a new material instance for the given style.
+        Returns the Blender material for ``material``, a material or the name of a
+        registered one (see :mod:`porescene.material`).
+
+        The material is built the first time its name is asked for; later calls
+        return that same material.
         """
-        mat = bpy.data.materials.get(name)
-        if mat:
-            return mat
-        else:
-            mat = bpy.data.materials.new(name)
-            mat.use_nodes = True
-            nodes = mat.node_tree.nodes
-            output = nodes.get("Material Output")
-            links = mat.node_tree.links
-            n_pr = nodes.get("Principled BSDF")
-            n_pr.subsurface_method = "BURLEY"
-            links.new(n_pr.outputs["BSDF"], output.inputs["Surface"])
-
-            if style in ["STRUCTURE_DEFAULT", "CLUSTER_DEFAULT"]:
-                n_pr.inputs["Base Color"].default_value = Color("#58646E").lnrgba
-                n_pr.inputs["Metallic"].default_value = 0.4
-                n_pr.inputs["Roughness"].default_value = 0.5
-                n_pr.inputs["Subsurface Weight"].default_value = 0.1
-                n_pr.inputs["Specular IOR Level"].default_value = 0.1
-                n_pr.inputs["Sheen Weight"].default_value = 0.1
-                n_pr.inputs["Sheen Roughness"].default_value = 0
-            elif style == "VOID_FROZEN":
-                # links.clear()
-                # node_mix = nodes.new("ShaderNodeMixShader")
-                # node_mix.inputs[0].default_value = 0.5
-                # links.new(node_mix.outputs[0], output.inputs[0])
-                # node_trans = nodes.new("ShaderNodeBsdfTransparent")
-                # links.new(node_trans.outputs[0], node_mix.inputs[1])
-                # links.new(node_princ.outputs[0], node_mix.inputs[2])
-                n_pr.inputs["Base Color"].default_value = Color("#0E86C7").lnrgba
-                n_pr.inputs["Metallic"].default_value = 0.4
-                n_pr.inputs["Roughness"].default_value = 0.5
-                n_pr.inputs["Specular IOR Level"].default_value = 0.1
-                n_pr.inputs["Sheen Weight"].default_value = 0.1
-                n_pr.inputs["Sheen Roughness"].default_value = 0
-            elif style == "VOID_DRY":
-                links.clear()
-                node_mix = nodes.new("ShaderNodeMixShader")
-                node_mix.inputs["Fac"].default_value = 0.25
-                links.new(node_mix.outputs[0], output.inputs["Surface"])
-                node_trans = nodes.new("ShaderNodeBsdfTransparent")
-                links.new(node_trans.outputs["BSDF"], node_mix.inputs[1])
-                links.new(n_pr.outputs["BSDF"], node_mix.inputs[2])
-                n_pr.inputs["Base Color"].default_value = Color("#E5BE0F").lnrgba
-                n_pr.inputs["Metallic"].default_value = 0.4
-                n_pr.inputs["Roughness"].default_value = 0.5
-                n_pr.inputs["Specular IOR Level"].default_value = 0.1
-                n_pr.inputs["Sheen Weight"].default_value = 0.1
-                n_pr.inputs["Sheen Roughness"].default_value = 0
-            elif style == "CELL_DEFAULT":
-                n_bevel = nodes.new("ShaderNodeBevel")
-                links.new(n_bevel.outputs["Normal"], n_pr.inputs["Normal"])
-                n_bevel.inputs["Radius"].default_value = 0.025 * 2
-                n_pr.inputs["Base Color"].default_value = Color("#947C5E").lnrgba
-                n_pr.inputs["Metallic"].default_value = 0.2
-                n_pr.inputs["Roughness"].default_value = 0.8
-                n_pr.inputs["Alpha"].default_value = 0.8
-            elif style == "CELL_TRANSPARENT":
-                links.clear()
-                node_mix = nodes.new("ShaderNodeMixShader")
-                node_mix.inputs["Fac"].default_value = 0.5
-                links.new(node_mix.outputs[0], output.inputs["Surface"])
-                node_trans = nodes.new("ShaderNodeBsdfTransparent")
-                links.new(node_trans.outputs["BSDF"], node_mix.inputs[1])
-                links.new(n_pr.outputs["BSDF"], node_mix.inputs[2])
-                n_bevel = nodes.new("ShaderNodeBevel")
-                links.new(n_bevel.outputs["Normal"], n_pr.inputs["Normal"])
-                n_bevel.inputs["Radius"].default_value = 0.025 * 5
-                n_pr.inputs["Base Color"].default_value = Color("#947C5E").lnrgba
-                n_pr.inputs["Metallic"].default_value = 0.2
-                n_pr.inputs["Roughness"].default_value = 0.8
-                n_pr.inputs["Alpha"].default_value = 0.8
-            elif style == "SOLID_DEFAULT":
-                # bevel node
-                n_bevel = nodes.new("ShaderNodeBevel")
-                n_bevel.inputs["Radius"].default_value = 0.02
-
-                # ambient occlusion node
-                n_ao = nodes.new("ShaderNodeAmbientOcclusion")
-                n_ao.only_local = True
-                n_ao.inputs["Distance"].default_value = 0.5
-
-                # AO mixing node
-                n_ao_mix = nodes.new("ShaderNodeMixRGB")
-                n_ao_mix.blend_type = "MULTIPLY"
-                n_ao_mix.inputs["Factor"].default_value = 0.3
-                n_ao_mix.inputs["Color1"].default_value = Color("#C6A87A").lnrgba
-
-                # principal node
-                n_pr.inputs["Metallic"].default_value = 0
-                n_pr.inputs["Roughness"].default_value = 0.5
-                n_pr.inputs["Specular IOR Level"].default_value = 0.5
-                n_pr.inputs["Sheen Weight"].default_value = 0.1
-                n_pr.inputs["Sheen Roughness"].default_value = 0.3
-                n_pr.inputs["Subsurface Weight"].default_value = 0.12
-                n_pr.inputs["Subsurface Scale"].default_value = 0.15
-
-                links.new(n_bevel.outputs["Normal"], n_pr.inputs["Normal"])
-                links.new(n_ao.outputs["Color"], n_ao_mix.inputs["Color2"])
-                links.new(n_ao_mix.outputs["Color"], n_pr.inputs["Base Color"])
-
-            elif style == "SOLID_TRANSPARENT":
-                links.clear()
-                node_mix = nodes.new("ShaderNodeMixShader")
-                node_mix.inputs["Fac"].default_value = 0.25
-                links.new(node_mix.outputs[0], output.inputs["Surface"])
-                node_trans = nodes.new("ShaderNodeBsdfTransparent")
-                links.new(node_trans.outputs["BSDF"], node_mix.inputs[1])
-                links.new(n_pr.outputs["BSDF"], node_mix.inputs[2])
-                n_pr.inputs["Base Color"].default_value = Color("#947C5E").lnrgba
-                n_pr.inputs["Metallic"].default_value = 0
-                n_pr.inputs["Roughness"].default_value = 1
-                n_pr.inputs["Specular IOR Level"].default_value = 0.5
-            elif style == "BACTERIA_GREEN":
-                n_pr.inputs["Base Color"].default_value = Color("#3F901A").lnrgba
-                n_pr.inputs["Metallic"].default_value = 0.2
-                n_pr.inputs["Roughness"].default_value = 1
-                n_pr.inputs["Specular IOR Level"].default_value = 0
-            elif style.startswith("ICE"):
-                if "ICE_TILED" == style:
-                    color = random.choice(
-                        ["#7891e3", "#92b2e8", "#95c5e8", "#b7d2e7", "#d6edff"]
-                    )
-                    n_pr.inputs["Base Color"].default_value = Color(color).lnrgba
-                else:
-                    n_pr.inputs["Base Color"].default_value = Color("#85A2E6").lnrgba
-                n_pr.inputs["Metallic"].default_value = 0
-                n_pr.inputs["Roughness"].default_value = 1
-                n_pr.inputs["Subsurface Weight"].default_value = 0.1
-                n_pr.inputs["Specular IOR Level"].default_value = 1
-                n_pr.inputs["Sheen Weight"].default_value = 0
-                n_pr.inputs["Sheen Roughness"].default_value = 1
-            elif style == "AXES":
-                n_pr.inputs["Base Color"].default_value = Color("#0001").lnrgba
-                n_pr.inputs["Metallic"].default_value = 0
-                n_pr.inputs["Roughness"].default_value = 1
-                n_pr.inputs["Specular IOR Level"].default_value = 0
-
-            return mat
+        spec = lookup(material)
+        mat = bpy.data.materials.get(spec.name)
+        if mat is None:
+            mat = spec.build()
+        return mat
 
     def hide_axes(self) -> Self:
         """

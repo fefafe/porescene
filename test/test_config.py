@@ -10,6 +10,7 @@ from porescene.config import (
     RenderConfiguration,
     SceneConfiguration,
 )
+from porescene.material import Material, lookup
 from porescene.utility import CompassDirection, Orientation, RenderDevice
 
 EXTENT = np.array((200e-06, 400e-06, 500e-06))
@@ -290,19 +291,37 @@ def test_scene_toggles_are_coerced_to_bool():
     assert sc.enable_void is True
 
 
-@pytest.mark.parametrize(
-    "material",
-    ["material_spheres", "material_cylinders", "material_clusters", "material_solid"],
-)
+MATERIALS = [
+    "material_spheres",
+    "material_cylinders",
+    "material_clusters",
+    "material_solid",
+    "material_void",
+]
+
+
+@pytest.mark.parametrize("material", MATERIALS)
 def test_scene_material_names_are_upper_cased(material):
     sc = SceneConfiguration(**{material: "plastic_rough"})
     assert getattr(sc, material) == "PLASTIC_ROUGH"
 
 
-def test_scene_void_material_is_coerced_to_str():
+@pytest.mark.parametrize("material", MATERIALS)
+def test_scene_default_materials_are_registered(material):
+    lookup(getattr(SceneConfiguration(), material))
+
+
+@pytest.mark.parametrize("material", MATERIALS)
+def test_scene_material_accepts_material_object(material):
+    custom = Material("CUSTOM", base_color="#3F901A")
     sc = SceneConfiguration()
-    sc.material_void = "ice"
-    assert sc.material_void == "ICE"
+    setattr(sc, material, custom)
+    assert getattr(sc, material) is custom
+
+
+def test_scene_material_rejects_other_types():
+    with pytest.raises(TypeError):
+        SceneConfiguration(material_solid=42)
 
 
 def test_scene_palette_is_replaceable():

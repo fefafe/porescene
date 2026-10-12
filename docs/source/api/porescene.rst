@@ -19,6 +19,7 @@ Submodules
    porescene.image
    porescene.io
    porescene.layout
+   porescene.material
    porescene.model
    porescene.scene
    porescene.utility

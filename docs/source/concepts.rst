@@ -140,3 +140,91 @@ solid -- and only the elements you add are present in the final render.
    The higher-level workers in :mod:`porescene.worker` build on exactly these
    methods: they assemble the required geometry (such as throat end points) and
    then call the matching ``create_*`` methods for you.
+
+
+Materials
+---------
+
+Every scene component is rendered with a *material* from :mod:`porescene.material`.
+PoreScene registers the following ones under their name:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 70
+
+   * - Name
+     - Used for
+   * - ``STRUCTURE``
+     - pore spheres, throat cylinders and pore clusters (default)
+   * - ``SOLID``
+     - the solid (default), with rounded edges and ambient occlusion
+   * - ``SOLID_TRANSPARENT``
+     - a mostly transparent solid that reveals the structures inside it
+   * - ``VOID``
+     - the void space (default)
+   * - ``CELL`` / ``CELL_TRANSPARENT``
+     - tessellation cells
+   * - ``AXES``
+     - axis lines, ticks and labels
+
+A ``create_*`` method takes the material as its ``material`` argument, either by name
+(case-insensitive) or as a material object. Without it, the material comes from the
+scene configuration, so the workers in :mod:`porescene.worker` pick it up as well:
+
+.. code-block:: python
+
+   sc.create_solid(pth_data / "solid.ply", material="solid_transparent")
+
+   # or for every solid added from here on, including by the workers
+   sc.config_scene.material_solid = "SOLID_TRANSPARENT"
+
+Defining your own material
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+A :class:`~porescene.material.Material` describes a surface by the main inputs of
+Blender's Principled BSDF, plus optional bevel, ambient occlusion and transparency.
+Pass it to a ``create_*`` method directly, or register it to refer to it by name:
+
+.. code-block:: python
+
+   from dataclasses import replace
+
+   from porescene.material import SOLID, Material, register
+
+   register(Material("BACTERIA_GREEN", base_color="#3F901A", metallic=0.2, roughness=1, specular=0))
+   register(
+       Material(
+           "VOID_DRY",
+           base_color="#E5BE0F",
+           metallic=0.4,
+           specular=0.1,
+           sheen=0.1,
+           sheen_roughness=0,
+           opacity=0.25,
+       )
+   )
+
+   # a variant of a built-in material
+   register(replace(SOLID, name="SOLID_GREY", base_color="#808080"))
+
+   sc.create_spheres(pn.pore_position, pn.pore_radius, material="bacteria_green")
+
+For shaders beyond that, design the material in Blender's node editor, save it in a
+``.blend`` file and load it with :class:`~porescene.material.BlendMaterial`:
+
+.. code-block:: python
+
+   from porescene.material import BlendMaterial
+
+   register(BlendMaterial("WOOD", pth_data / "shaders.blend"))
+
+Any other object with a ``name`` and a ``build()`` method that returns a Blender
+material works as well, see :class:`~porescene.material.MaterialSpec`.
+
+.. note::
+
+   Spheres, cylinders and clusters are colored per item, for example by a quantity.
+   These colors replace the ``Base Color`` of the material's Principled BSDF. In a
+   material from a ``.blend`` file, a node named ``PoreScene Color``
+   (:data:`~porescene.material.COLOR_NODE`) marks where the colors should enter
+   instead.

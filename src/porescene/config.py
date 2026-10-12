@@ -27,6 +27,7 @@ import numpy as np
 from porescene.color import Color
 from porescene.color.gradient import Gradient, SmoothGradient
 from porescene.color.palette import Colormap, Palette
+from porescene.material import MaterialSpec
 from porescene.utility import (
     PATH_FONT,
     CompassDirection,
@@ -641,6 +642,15 @@ class VideoConfiguration:
         self._frames_speed = arg
 
 
+def _material_or_name(arg: str | MaterialSpec) -> str | MaterialSpec:
+    """Upper-cases the name of a material, and passes a material through unchanged."""
+    if isinstance(arg, str):
+        return arg.upper()
+    if not isinstance(arg, MaterialSpec):
+        raise TypeError(f"Expected a material or its name, got {type(arg).__name__}")
+    return arg
+
+
 class SceneConfiguration:
     """
     Settings for the visualization of a :class:`PoreNetwork
@@ -657,11 +667,11 @@ class SceneConfiguration:
         enable_void: bool = False,
         versions_solid=None,
         versions_void=None,
-        material_spheres: str = "PLASTIC_ROUGH",
-        material_cylinders: str = "PLASTIC_ROUGH",
-        material_clusters: str = "PLASTIC_ROUGH",
-        material_solid: str = "SOLID_DEFAULT",
-        material_void: str = "ICE",
+        material_spheres: str | MaterialSpec = "STRUCTURE",
+        material_cylinders: str | MaterialSpec = "STRUCTURE",
+        material_clusters: str | MaterialSpec = "STRUCTURE",
+        material_solid: str | MaterialSpec = "SOLID",
+        material_void: str | MaterialSpec = "VOID",
         palette: Palette = None,
     ):
         if versions_void is None:
@@ -770,49 +780,52 @@ class SceneConfiguration:
         self._enable_void = arg
 
     @property
-    def material_spheres(self) -> str:
-        """Returns the material type to render the pores with."""
-        return self._material_spheres.upper()
+    def material_spheres(self) -> str | MaterialSpec:
+        """
+        Material the pores are rendered with, either a material or the (upper-cased)
+        name of a registered one, see :mod:`porescene.material`.
+        """
+        return self._material_spheres
 
     @material_spheres.setter
-    def material_spheres(self, arg):
-        self._material_spheres = arg
+    def material_spheres(self, arg: str | MaterialSpec):
+        self._material_spheres = _material_or_name(arg)
 
     @property
-    def material_solid(self) -> str:
-        """Returns the material type to render the solid with."""
-        return self._material_solid.upper()
+    def material_solid(self) -> str | MaterialSpec:
+        """Material the solid is rendered with, see :attr:`material_spheres`."""
+        return self._material_solid
 
     @material_solid.setter
-    def material_solid(self, arg):
-        self._material_solid = arg
+    def material_solid(self, arg: str | MaterialSpec):
+        self._material_solid = _material_or_name(arg)
 
     @property
-    def material_cylinders(self) -> str:
-        """Returns the material type to render the throats with."""
-        return self._material_cylinders.upper()
+    def material_cylinders(self) -> str | MaterialSpec:
+        """Material the throats are rendered with, see :attr:`material_spheres`."""
+        return self._material_cylinders
 
     @material_cylinders.setter
-    def material_cylinders(self, arg):
-        self._material_cylinders = arg
+    def material_cylinders(self, arg: str | MaterialSpec):
+        self._material_cylinders = _material_or_name(arg)
 
     @property
-    def material_clusters(self) -> str:
-        """Returns the material type to render the clusters with."""
-        return self._material_clusters.upper()
+    def material_clusters(self) -> str | MaterialSpec:
+        """Material the clusters are rendered with, see :attr:`material_spheres`."""
+        return self._material_clusters
 
     @material_clusters.setter
-    def material_clusters(self, arg):
-        self._material_clusters = arg
+    def material_clusters(self, arg: str | MaterialSpec):
+        self._material_clusters = _material_or_name(arg)
 
     @property
-    def material_void(self) -> str:
-        """Returns the material type to render the void with."""
-        return self._material_void.upper()
+    def material_void(self) -> str | MaterialSpec:
+        """Material the void is rendered with, see :attr:`material_spheres`."""
+        return self._material_void
 
     @material_void.setter
-    def material_void(self, arg: str):
-        self._material_void = str(arg)
+    def material_void(self, arg: str | MaterialSpec):
+        self._material_void = _material_or_name(arg)
 
     @property
     def palette(self) -> Palette:
