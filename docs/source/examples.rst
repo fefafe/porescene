@@ -115,9 +115,17 @@ Annotations
          <p class="ps-tile-desc">Draw a colorbar from a range of values alone, without a scene, and save it to SVG and PNG at its own size for composing figures elsewhere.</p>
        </div>
      </a>
+     <a class="ps-tile" href="examples/annotation.html">
+       <img class="ps-tile-image" src="_static/image/example/figure-drying.png" alt="Drying pore network with its pores colored by state, a title, the simulation step and a legend arranged around it" loading="lazy">
+       <div class="ps-example-caption">
+         <h3 class="ps-tile-title">Annotated figure</h3>
+         <p class="ps-tile-desc">Draw colorbars, a legend, a title and a timestamp, and compose them around the render of a drying pore network into a finished figure.</p>
+       </div>
+     </a>
    </div>
 
 .. toctree::
    :hidden:
 
    examples/colorbar
+   examples/annotation
