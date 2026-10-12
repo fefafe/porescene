@@ -1,7 +1,8 @@
 Examples
 ========
 
-Annotated scripts showing how to build and render scenes with PoreScene.
+Annotated scripts showing how to build and render scenes with PoreScene, and how to draw
+the annotations that go with them.
 
 Every example reads its input from the repository's ``data/`` folder and writes everything
 it produces -- meshes, renders, colorbars, videos -- to ``tmp/example/<script name>/``, so
@@ -99,3 +100,24 @@ Animations
    :hidden:
 
    examples/animation_solid
+
+
+Annotations
+-----------
+
+.. raw:: html
+
+   <div class="ps-tiles col-2">
+     <a class="ps-tile" href="examples/colorbar.html">
+       <img class="ps-tile-image" src="_static/image/example/cb-diameter+horizontal.png" alt="Horizontal colorbar from 0 to 40 µm in the batlow colormap" loading="lazy">
+       <div class="ps-example-caption">
+         <h3 class="ps-tile-title">Standalone colorbar</h3>
+         <p class="ps-tile-desc">Draw a colorbar from a range of values alone, without a scene, and save it to SVG and PNG at its own size for composing figures elsewhere.</p>
+       </div>
+     </a>
+   </div>
+
+.. toctree::
+   :hidden:
+
+   examples/colorbar
