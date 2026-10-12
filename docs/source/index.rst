@@ -237,6 +237,6 @@ Funding
    <div class="ps-tiles">
      <div class="ps-tile non-clickable">
        <p class="ps-tile-title">CRC 287 Bulk-Reaction</p>
-       <p class="ps-tile-subtitle">This work was funded by the Deutsche Forschungsgemeinschaft (DFG, German Research Foundation) – Project-ID 422037413 – TRR 287 "<a href="https://bulk-reaction.de/" target="_blank" rel="noopener noreferrer">Bulk-Reaction</a>".</p>
+       <p class="ps-tile-subtitle">This work was funded by the Deutsche Forschungsgemeinschaft (DFG, German Research Foundation) – Project-ID 422037413 – <a href="https://bulk-reaction.de/" target="_blank" rel="noopener noreferrer">TRR 287 Bulk-Reaction</a>.</p>
      </div>
    </div>
