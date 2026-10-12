@@ -89,6 +89,39 @@ class Orientation(Enum):
     HORIZONTAL = "H"
 
 
+class RenderDevice(Enum):
+    """
+    Device that Cycles renders on.
+
+    ``AUTO``
+        Use the first GPU backend that has a device on this machine, trying ``OPTIX``,
+        ``CUDA``, ``HIP``, ``ONEAPI`` and ``METAL`` in this order, and fall back to the
+        CPU with a warning if none has. This is the default, and the only choice that
+        works unchanged on every machine.
+    ``CPU``
+        Render on the CPU, even if a GPU is available.
+    ``OPTIX``, ``CUDA``
+        NVIDIA GPUs. OptiX needs an RTX card and is usually the faster of the two.
+    ``HIP``
+        AMD GPUs.
+    ``ONEAPI``
+        Intel GPUs.
+    ``METAL``
+        Apple GPUs, macOS only.
+
+    Naming a GPU backend explicitly fails when it has no device, rather than quietly
+    rendering on something else.
+    """
+
+    AUTO = "AUTO"
+    CPU = "CPU"
+    OPTIX = "OPTIX"
+    CUDA = "CUDA"
+    HIP = "HIP"
+    ONEAPI = "ONEAPI"
+    METAL = "METAL"
+
+
 class MultiplicationSymbol(Enum):
     CROSS = "×"
     DOT = "·"

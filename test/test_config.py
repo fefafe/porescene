@@ -7,9 +7,10 @@ from porescene.config import (
     AxesConfiguration,
     ImageConfiguration,
     QuantityConfiguration,
+    RenderConfiguration,
     SceneConfiguration,
 )
-from porescene.utility import CompassDirection, Orientation
+from porescene.utility import CompassDirection, Orientation, RenderDevice
 
 EXTENT = np.array((200e-06, 400e-06, 500e-06))
 
@@ -189,6 +190,76 @@ def test_image_from_dict_ignores_unknown_keys():
     im = ImageConfiguration.from_dict({"width": 800, "depth": 3, "bogus": "x"})
     assert im.resolution == [800, im.height]
     assert not hasattr(im, "depth")
+
+
+# =============================================================================
+# RenderConfiguration
+
+
+def test_render_defaults_pick_the_device_and_keep_colors_unchanged():
+    rc = RenderConfiguration()
+    assert rc.device is RenderDevice.AUTO
+    assert rc.view_transform == "Standard"
+    assert rc.exposure == 0.0
+    assert rc.enable_denoising is True
+
+
+def test_render_device_accepts_a_member_name_in_any_case():
+    rc = RenderConfiguration()
+    rc.device = "optix"
+    assert rc.device is RenderDevice.OPTIX
+
+
+def test_render_device_rejects_an_unknown_name():
+    with pytest.raises(ValueError, match="Unknown render device 'VULKAN'"):
+        RenderConfiguration().device = "VULKAN"
+
+
+@pytest.mark.parametrize(
+    ("key", "value"),
+    [
+        ("samples", 0),
+        ("samples_min", -1),
+        ("noise_threshold", 0),
+        ("noise_threshold", -0.1),
+    ],
+)
+def test_render_rejects_sample_settings_out_of_range(key, value):
+    with pytest.raises(ValueError):
+        setattr(RenderConfiguration(), key, value)
+
+
+def test_render_noise_threshold_none_turns_adaptive_sampling_off():
+    rc = RenderConfiguration()
+    rc.noise_threshold = None
+    assert rc.noise_threshold is None
+
+
+def test_render_from_dict_reads_every_key():
+    data = {
+        "device": "CPU",
+        "samples": 64,
+        "samples_min": 8,
+        "noise_threshold": 0.05,
+        "enable_denoising": False,
+        "seed": 7,
+        "bounces_transmission": 4,
+        "bounces_transparent": 16,
+        "view_transform": "AgX",
+        "exposure": 1.5,
+    }
+    rc = RenderConfiguration.from_dict(data)
+    assert rc.device is RenderDevice.CPU
+    for key, value in data.items():
+        if key != "device":
+            assert getattr(rc, key) == value
+
+
+def test_render_from_dict_keeps_defaults_and_ignores_unknown_keys():
+    rc = RenderConfiguration.from_dict({"samples": 16, "bogus": 1})
+    assert rc.samples == 16
+    assert rc.device is RenderDevice.AUTO
+    assert not hasattr(rc, "bogus")
 
 
 # =============================================================================

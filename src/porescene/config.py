@@ -10,6 +10,7 @@ This module bundles the settings used throughout :mod:`porescene`:
 
 * :class:`QuantityConfiguration` -- visualization of a single quantity.
 * :class:`ImageConfiguration` -- resolution of the rendered images.
+* :class:`RenderConfiguration` -- render device, quality and color management.
 * :class:`VideoConfiguration` -- frame settings for rendered videos.
 * :class:`SceneConfiguration` -- overall scene, material and quantity settings.
 * :class:`AxesConfiguration` -- coordinate axes, ticks and labels.
@@ -30,6 +31,7 @@ from porescene.utility import (
     PATH_FONT,
     CompassDirection,
     Orientation,
+    RenderDevice,
     UnitExponentMetric,
     UnitPrefixMetric,
     colorbar_limits,
@@ -393,6 +395,217 @@ class ImageConfiguration:
     def aspect_ratio(self) -> float:
         """Image aspect ratio."""
         return self._width / self.height
+
+
+class RenderConfiguration:
+    """
+    Settings for Blender's *Cycles* render engine: the device a scene is rendered on,
+    how much effort goes into each pixel, and how the result is turned into colors.
+
+    The defaults are meant for figures in a publication. For a quick look at whether a
+    script does what it should, lower :attr:`samples` to ``16`` or so and keep
+    :attr:`enable_denoising` on.
+    """
+
+    def __init__(self) -> None:
+        self.device = RenderDevice.AUTO
+        self.samples = 1024
+        self.samples_min = 32
+        self.noise_threshold = 0.01
+        self.enable_denoising = True
+        self.seed = 0
+        self.bounces_transmission = 12
+        self.bounces_transparent = 64
+        self.view_transform = "Standard"
+        self.exposure = 0.0
+
+    @classmethod
+    def from_dict(cls, data: dict) -> Self:
+        """
+        Creates a :class:`RenderConfiguration` from a dictionary.
+
+        Every key is optional; unknown keys are ignored.
+        """
+        ins = cls()
+
+        keys_valid = [
+            "device",
+            "samples",
+            "samples_min",
+            "noise_threshold",
+            "enable_denoising",
+            "seed",
+            "bounces_transmission",
+            "bounces_transparent",
+            "view_transform",
+            "exposure",
+        ]
+
+        for key, value in data.items():
+            if key in keys_valid:
+                setattr(ins, key, value)
+
+        return ins
+
+    @property
+    def device(self) -> RenderDevice:
+        """
+        Device the scene is rendered on, see :class:`~porescene.utility.RenderDevice`.
+        Also accepts the name of a member, such as ``"CPU"``.
+        """
+        return self._device
+
+    @device.setter
+    def device(self, arg: RenderDevice | str):
+        if isinstance(arg, str):
+            try:
+                arg = RenderDevice[arg.upper()]
+            except KeyError:
+                names = ", ".join(d.name for d in RenderDevice)
+                raise ValueError(
+                    f"Unknown render device '{arg}', expected one of {names}"
+                ) from None
+        self._device = arg
+
+    @property
+    def samples(self) -> int:
+        """
+        Largest number of samples taken per pixel.
+
+        With :attr:`noise_threshold` set, most pixels stop well before this; it then
+        only caps the pixels that are hardest to resolve.
+        """
+        return self._samples
+
+    @samples.setter
+    def samples(self, arg: int):
+        if arg < 1:
+            raise ValueError(f"samples must be at least 1, got {arg}")
+        self._samples = int(arg)
+
+    @property
+    def samples_min(self) -> int:
+        """
+        Number of samples every pixel takes before :attr:`noise_threshold` may stop it.
+
+        Guards against pixels that look converged after a few samples only because
+        those happened to miss a small feature, such as a thin throat.
+        """
+        return self._samples_min
+
+    @samples_min.setter
+    def samples_min(self, arg: int):
+        if arg < 0:
+            raise ValueError(f"samples_min must not be negative, got {arg}")
+        self._samples_min = int(arg)
+
+    @property
+    def noise_threshold(self) -> float | None:
+        """
+        Noise level at which a pixel stops taking samples (adaptive sampling).
+
+        Lower values give cleaner images at a higher cost; ``0.01`` is visually clean
+        once denoised. ``None`` turns adaptive sampling off, so every pixel takes
+        :attr:`samples` samples.
+        """
+        return self._noise_threshold
+
+    @noise_threshold.setter
+    def noise_threshold(self, arg: float | None):
+        if arg is not None and arg <= 0:
+            raise ValueError(f"noise_threshold must be positive or None, got {arg}")
+        self._noise_threshold = arg
+
+    @property
+    def enable_denoising(self) -> bool:
+        """
+        Whether the render is denoised with Intel's OpenImageDenoise.
+
+        The denoiser is guided by the albedo and normal of the surfaces, so it keeps
+        the boundary between two differently colored pores sharp instead of blending
+        their colors.
+        """
+        return self._enable_denoising
+
+    @enable_denoising.setter
+    def enable_denoising(self, arg: bool):
+        self._enable_denoising = bool(arg)
+
+    @property
+    def seed(self) -> int:
+        """
+        Seed of the random numbers Cycles samples with.
+
+        The same seed, samples and device render the same image again, and the
+        frames of an animation share one noise pattern instead of flickering.
+        """
+        return self._seed
+
+    @seed.setter
+    def seed(self, arg: int):
+        self._seed = int(arg)
+
+    @property
+    def bounces_transmission(self) -> int:
+        """Maximum number of times a light path passes through a refracting surface."""
+        return self._bounces_transmission
+
+    @bounces_transmission.setter
+    def bounces_transmission(self, arg: int):
+        self._bounces_transmission = int(arg)
+
+    @property
+    def bounces_transparent(self) -> int:
+        """
+        Maximum number of transparent surfaces a light path passes through.
+
+        A path that runs out of bounces renders black, so this has to cover the
+        deepest stack of transparent surfaces in view, such as a transparent solid
+        seen through many of its pores.
+        """
+        return self._bounces_transparent
+
+    @bounces_transparent.setter
+    def bounces_transparent(self, arg: int):
+        self._bounces_transparent = int(arg)
+
+    @property
+    def view_transform(self) -> str:
+        """
+        Blender view transform that turns the rendered light into display colors.
+
+        ``"Standard"`` (default) is the plain sRGB curve: the base color of a surface
+        that receives unit irradiance comes out unchanged, and shading only darkens a
+        color without shifting its hue, so the colors in the render are the ones on the
+        colorbar. Blender's own default, ``"AgX"``, compresses highlights the way film
+        does, which suits photorealism but pulls bright colors toward white and shifts
+        their hue by up to about 10 degrees.
+
+        The light rig of :class:`~porescene.scene.Scene` is calibrated for
+        ``"Standard"``. To render with ``"AgX"`` at a comparable brightness, raise
+        :attr:`exposure` to about ``1.6``.
+        """
+        return self._view_transform
+
+    @view_transform.setter
+    def view_transform(self, arg: str):
+        self._view_transform = arg
+
+    @property
+    def exposure(self) -> float:
+        """
+        Exposure in stops, applied before :attr:`view_transform`. Each stop doubles or
+        halves the brightness of the render.
+
+        At ``0`` (default), the most brightly lit surfaces show their base color just
+        below full brightness. Raising it makes the image brighter, but with the
+        ``"Standard"`` view transform the brightest colors then clip and lose their hue.
+        """
+        return self._exposure
+
+    @exposure.setter
+    def exposure(self, arg: float):
+        self._exposure = float(arg)
 
 
 class VideoConfiguration:

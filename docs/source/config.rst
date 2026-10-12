@@ -2,8 +2,8 @@ Scene configuration
 ===================
 
 Instead of hard-coding every render setting in Python, PoreScene reads the parts of a
-scene that you tend to stay constant between figures -- image resolution, axis calibration, and
-per-quantity styling -- from a single JSON file. Keeping these values in a plain text file
+scene that tend to stay constant between figures -- image resolution, render quality,
+axis calibration, and per-quantity styling -- from a single JSON file. Keeping these values in a plain text file
 makes a figure reproducible and easy to adjust: change a number, re-run the script, and the
 same scene renders with the new setting.
 
@@ -99,6 +99,100 @@ Controls the resolution of the rendered image, mapping onto
      - int
      - ``4096``
      - Image height in pixels.
+
+
+``render``
+----------
+
+Controls how Blender's *Cycles* engine renders the scene, mapping onto
+:class:`~porescene.config.RenderConfiguration`: the device, the effort spent per pixel, and
+how the rendered light is turned into colors. The defaults are meant for figures in a
+publication; to check quickly whether a script does what it should, set ``samples`` to
+``16`` and lower the ``image`` size.
+
+.. code-block:: json
+
+   {
+       "render": {
+           "device": "AUTO",
+           "samples": 1024,
+           "noise_threshold": 0.01
+       }
+   }
+
+.. list-table::
+   :header-rows: 1
+   :widths: 22 16 14 48
+
+   * - Key
+     - Type
+     - Default
+     - Description
+   * - ``device``
+     - str
+     - ``"AUTO"``
+     - Device to render on, one of the names of :class:`~porescene.utility.RenderDevice`.
+       ``"AUTO"`` uses the first GPU backend with a device on this machine -- ``OPTIX``,
+       ``CUDA``, ``HIP``, ``ONEAPI``, ``METAL`` in this order -- and falls back to the
+       CPU with a warning. ``"CPU"`` forces the CPU. Naming a GPU backend fails if it has
+       no device, so keep ``"AUTO"`` in a configuration shared between machines.
+   * - ``samples``
+     - int
+     - ``1024``
+     - Largest number of samples per pixel. With ``noise_threshold`` set, most pixels
+       stop well before.
+   * - ``samples_min``
+     - int
+     - ``32``
+     - Samples every pixel takes before ``noise_threshold`` may stop it, so that small
+       features such as thin throats aren't missed.
+   * - ``noise_threshold``
+     - float or null
+     - ``0.01``
+     - Noise level at which a pixel stops sampling (adaptive sampling). Lower is cleaner
+       and slower. ``null`` turns adaptive sampling off.
+   * - ``enable_denoising``
+     - bool
+     - ``true``
+     - Denoise the render with OpenImageDenoise. The denoiser is guided by the surface
+       colors and normals, so boundaries between differently colored pores stay sharp.
+   * - ``seed``
+     - int
+     - ``0``
+     - Seed of the sampling noise. The same seed, samples and device reproduce an image,
+       and the frames of an animation share one noise pattern instead of flickering.
+   * - ``bounces_transmission``
+     - int
+     - ``12``
+     - Maximum number of refractions along a light path.
+   * - ``bounces_transparent``
+     - int
+     - ``64``
+     - Maximum number of transparent surfaces a light path passes through. A path that
+       runs out renders black, so raise it if a transparent solid shows dark patches.
+   * - ``view_transform``
+     - str
+     - ``"Standard"``
+     - Blender view transform from rendered light to display colors. ``"Standard"`` keeps
+       the colors on the colorbar: shading darkens a color but doesn't shift its hue.
+       ``"AgX"``, Blender's own default, compresses highlights like film, which pulls
+       bright colors toward white and shifts their hue by up to about 10°.
+   * - ``exposure``
+     - float
+     - ``0``
+     - Brightness adjustment in stops, applied before ``view_transform``. At ``0`` the
+       most brightly lit surfaces show their base color. Positive values brighten the
+       image, but with ``"Standard"`` they clip the brightest colors. Use about ``1.6``
+       together with ``"AgX"``.
+
+.. note::
+
+   A colorbar can only be trusted if the colors in the render are the ones it shows. The
+   light rig of PoreScene is calibrated for ``"Standard"`` at an ``exposure`` of ``0``: a
+   surface facing the lights renders in its base color, and every other surface in
+   a darker shade of the same hue. With ``"AgX"``, the same surface comes out up to 15
+   units of CIEDE2000 color difference away from its colorbar color, where about 2 is
+   already visible side by side.
 
 
 ``axes``

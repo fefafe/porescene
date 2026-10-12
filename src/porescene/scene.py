@@ -5,6 +5,7 @@
 import json
 import math
 import random
+import warnings
 from pathlib import Path
 from typing import NamedTuple, Self, cast
 
@@ -17,8 +18,13 @@ from rich import progress
 
 from porescene import image
 from porescene.color import Color
-from porescene.config import AxesConfiguration, ImageConfiguration, SceneConfiguration
-from porescene.utility import _get_spinner, suppress_stdout
+from porescene.config import (
+    AxesConfiguration,
+    ImageConfiguration,
+    RenderConfiguration,
+    SceneConfiguration,
+)
+from porescene.utility import RenderDevice, _get_spinner, suppress_stdout
 
 
 def _radians(x: float, y: float, z: float) -> tuple[float, float, float]:
@@ -60,15 +66,27 @@ class Scene:
     # 0.53-0.82 apart in irradiance at every camera azimuth, instead of coming
     # out equally lit and merging into one flat silhouette. The rim
     # works from behind and above and only grazes the silhouette edges.
+    #
+    # The energies are calibrated for the "Standard" view transform (see
+    # RenderConfiguration.view_transform): together with the world light of
+    # _WORLD_STRENGTH, the most brightly lit surface receives an irradiance of 0.98,
+    # so it shows its base color almost exactly and no diffuse surface clips.
     _LIGHT_RIG = (
-        ("Key_Light", 6.0, 12, 70, 40),
-        ("Fill_Light", 3.0, 35, -40, 30),
-        ("Rim_Light", 3.0, 10, -150, 50),
+        ("Key_Light", 2.0, 12, 70, 40),
+        ("Fill_Light", 1.0, 35, -40, 30),
+        ("Rim_Light", 1.0, 10, -150, 50),
     )
+
+    # Strength of the uniform white world light, which brightens the shadows.
+    _WORLD_STRENGTH = 0.12
 
     # Camera azimuth in degrees that :meth:`create_axes` lays the axes out for. Any
     # azimuth in [45, 90) gives the same layout, so this one sits safely inside.
     _AZIMUTH_AXES = 67.5
+
+    # GPU backends in the order RenderDevice.AUTO tries them: OptiX before CUDA, as
+    # it is faster on the NVIDIA cards that support both
+    _BACKENDS_GPU = ("OPTIX", "CUDA", "HIP", "ONEAPI", "METAL")
 
     def __init__(self, extent: np.ndarray) -> None:
         """
@@ -78,6 +96,7 @@ class Scene:
         """
         self.config_axes = AxesConfiguration(extent)
         self.config_image = ImageConfiguration()
+        self.config_render = RenderConfiguration()
         self.config_scene = SceneConfiguration()
         self.size_bounding_box = 10
         self.n_segments = 48
@@ -113,17 +132,10 @@ class Scene:
         self._layers = bpy.data.collections.new("Layers")
         bpy.context.scene.collection.children.link(self._layers)
 
-        # cycles configuration
+        # cycles configuration. Settings a user may want to change live in
+        # config_render and are applied by render(); the ones below are what the rest
+        # of the pipeline relies on, such as the alpha channel that img_trim crops by.
         bpy.context.scene.render.engine = "CYCLES"
-
-        prefs = bpy.context.preferences.addons["cycles"].preferences
-        prefs.compute_device_type = "OPTIX"  # falls back to CUDA if no RTX-capable device
-        with suppress_stdout():
-            prefs.get_devices()
-        for device in prefs.devices:
-            device.use = device.type in {"OPTIX", "CUDA"}
-
-        bpy.context.scene.cycles.device = "GPU"
 
         bpy.context.scene.render.resolution_percentage = 100
         bpy.context.scene.render.film_transparent = True
@@ -131,16 +143,15 @@ class Scene:
         bpy.context.scene.render.image_settings.color_mode = "RGBA"
         bpy.context.scene.render.image_settings.color_depth = "16"
 
-        bpy.context.scene.cycles.samples = 1024
-        bpy.context.scene.cycles.use_adaptive_sampling = True
-        bpy.context.scene.cycles.adaptive_threshold = 0.01
-        bpy.context.scene.cycles.adaptive_min_samples = 32
-
-        bpy.context.scene.cycles.use_denoising = True
+        # the albedo and normal passes guide the denoiser along the edges of surfaces
+        # and color boundaries, so it doesn't blend the colors of neighboring pores
         bpy.context.scene.cycles.denoiser = "OPENIMAGEDENOISE"
+        bpy.context.scene.cycles.denoising_input_passes = "RGB_ALBEDO_NORMAL"
+        bpy.context.scene.cycles.denoising_prefilter = "ACCURATE"
+        bpy.context.scene.cycles.use_animated_seed = False
 
-        bpy.context.scene.cycles.transmission_bounces = 12
-        bpy.context.scene.cycles.transparent_max_bounces = 64
+        # the render device applied last, as (requested device, backend used)
+        self._device: tuple[RenderDevice, str] | None = None
 
         self.scale = self.size_bounding_box / max(extent)
         self.shift = (self.size_bounding_box - extent * self.scale) / 2
@@ -158,9 +169,9 @@ class Scene:
             Physical extent of the domain along x, y and z, used to derive the
             scene's :attr:`scale`, :attr:`shift` and :attr:`aspect`.
         pth_config : Path
-            Path to the PoreScene JSON configuration file. Its optional ``"axes"``
-            and ``"image"`` sections populate :attr:`config_axes` and
-            :attr:`config_image`, respectively.
+            Path to the PoreScene JSON configuration file. Its optional ``"axes"``,
+            ``"image"`` and ``"render"`` sections populate :attr:`config_axes`,
+            :attr:`config_image` and :attr:`config_render`, respectively.
 
         Returns
         -------
@@ -177,6 +188,8 @@ class Scene:
             ins.config_axes = AxesConfiguration.from_dict(extent, config["axes"])
         if "image" in config:
             ins.config_image = ImageConfiguration.from_dict(config["image"])
+        if "render" in config:
+            ins.config_render = RenderConfiguration.from_dict(config["render"])
 
         return ins
 
@@ -896,7 +909,7 @@ class Scene:
         bg = world.node_tree.nodes.get("Background")
         if bg:
             bg.inputs["Color"].default_value = (1.0, 1.0, 1.0, 1.0)
-            bg.inputs["Strength"].default_value = 0.35
+            bg.inputs["Strength"].default_value = self._WORLD_STRENGTH
 
         self.has_lights = True
         return self
@@ -1403,8 +1416,8 @@ class Scene:
         Renders the current scene to an image file.
 
         The render uses Blender's *Cycles* engine at the width and height taken from
-        the scene's image configuration (``config_image``) and writes the result to
-        ``pth_render``.
+        :attr:`config_image`, with the device, quality and color settings taken from
+        :attr:`config_render`, and writes the result to ``pth_render``.
 
         Parameters
         ----------
@@ -1423,6 +1436,7 @@ class Scene:
         bpy.context.scene.render.resolution_x = self.config_image.width
         bpy.context.scene.render.resolution_y = self.config_image.height
         bpy.context.scene.render.filepath = str(pth_render)
+        self._apply_config_render()
 
         with _get_spinner(f"[green]Rendering: {pth_render.name}") as p:
             p.add_task("render", total=None)
@@ -1432,6 +1446,92 @@ class Scene:
             image.img_trim(pth_render)
 
         return pth_render
+
+    def _apply_config_render(self) -> None:
+        """
+        Hands the settings of :attr:`config_render` to Cycles.
+
+        The device is only set up again when the requested one changes, as looking
+        for devices takes a moment and every render of an animation passes through
+        here.
+        """
+        cfg = self.config_render
+        cycles = bpy.context.scene.cycles
+
+        if self._device is None or self._device[0] is not cfg.device:
+            self._device = (cfg.device, self._setup_device(cfg.device))
+
+        cycles.samples = cfg.samples
+        cycles.use_adaptive_sampling = cfg.noise_threshold is not None
+        if cfg.noise_threshold is not None:
+            cycles.adaptive_threshold = cfg.noise_threshold
+        cycles.adaptive_min_samples = cfg.samples_min
+        cycles.use_denoising = cfg.enable_denoising
+        cycles.denoising_use_gpu = self._device[1] != "CPU"
+        cycles.seed = cfg.seed
+        cycles.transmission_bounces = cfg.bounces_transmission
+        cycles.transparent_max_bounces = cfg.bounces_transparent
+
+        view = bpy.context.scene.view_settings
+        view.view_transform = cfg.view_transform
+        view.look = "None"
+        view.exposure = cfg.exposure
+        view.gamma = 1.0
+
+    def _setup_device(self, device: RenderDevice) -> str:
+        """
+        Points Cycles at ``device`` and enables every GPU of the chosen backend.
+
+        Returns the backend that is used, or ``"CPU"``. See
+        :class:`~porescene.utility.RenderDevice` for how ``AUTO`` picks one.
+
+        Raises
+        ------
+        RuntimeError
+            If ``device`` names a GPU backend that has no device on this machine.
+        """
+        scene = bpy.context.scene
+        if device is RenderDevice.CPU:
+            scene.cycles.device = "CPU"
+            return "CPU"
+
+        prefs = bpy.context.preferences.addons["cycles"].preferences
+        if device is RenderDevice.AUTO:
+            backends = self._BACKENDS_GPU
+        else:
+            backends = (device.value,)
+
+        for backend in backends:
+            # a backend missing from this build of Blender, such as Metal on Windows,
+            # has no devices, while one Cycles doesn't know at all raises
+            try:
+                with suppress_stdout():
+                    devices = prefs.get_devices_for_type(backend)
+            except ValueError:
+                continue
+            if not any(d.type == backend for d in devices):
+                continue
+
+            prefs.compute_device_type = backend
+            for d in prefs.devices:
+                d.use = d.type == backend
+            scene.cycles.device = "GPU"
+            return backend
+
+        if device is not RenderDevice.AUTO:
+            raise RuntimeError(
+                f"Cycles found no {device.value} device on this machine. Set "
+                f"config_render.device to AUTO to use whatever is available."
+            )
+
+        warnings.warn(
+            "Cycles found no GPU on this machine, so the scene is rendered on the "
+            "CPU, which is considerably slower. Lower config_render.samples or the "
+            "image size for quick renders.",
+            stacklevel=4,
+        )
+        scene.cycles.device = "CPU"
+        return "CPU"
 
     def rotate_azimuth(self, ang_rot: float) -> Self:
         """
@@ -1569,6 +1669,19 @@ class Scene:
     @config_image.setter
     def config_image(self, arg: ImageConfiguration):
         self._config_image = arg
+
+    @property
+    def config_render(self) -> RenderConfiguration:
+        """
+        Configuration controlling how Cycles renders the scene: the device, the number
+        of samples, denoising and the color management. Read on every :meth:`render`,
+        so changes take effect with the next image.
+        """
+        return self._config_render
+
+    @config_render.setter
+    def config_render(self, arg: RenderConfiguration):
+        self._config_render = arg
 
     @property
     def config_scene(self) -> SceneConfiguration:
