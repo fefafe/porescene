@@ -66,6 +66,10 @@ class Scene:
         ("Rim_Light", 3.0, 10, -150, 50),
     )
 
+    # Camera azimuth in degrees that :meth:`create_axes` lays the axes out for. Any
+    # azimuth in [45, 90) gives the same layout, so this one sits safely inside.
+    _AZIMUTH_AXES = 67.5
+
     def __init__(self, extent: np.ndarray) -> None:
         """
         Creates an empty :class:`Scene`, wiping Blender's default scene contents and
@@ -368,6 +372,10 @@ class Scene:
         # add collection into context
         bpy.context.scene.collection.children.link(col)
         self.has_axes = True
+
+        # the axes are built for a fixed camera azimuth, so they are moved to where the
+        # camera actually is
+        self._move_axes(self._AZIMUTH_AXES, self._ang_azimuth)
         return self
 
     def _clearance_ticks(self, dim: int) -> float:
@@ -539,12 +547,15 @@ class Scene:
         # actually is instead of assuming it starts centered on a corner
         center = self.size_bounding_box / 2
         x, y, _ = bpy.data.objects["Camera"].location
+        ang_before = self._ang_azimuth
         self._ang_azimuth = math.degrees(math.atan2(y - center, x - center))
 
-        # the lightning rig is aligned with the camera, so a later view change has to
-        # bring the lamps along
+        # the lightning rig and the axes are aligned with the camera, so a later view
+        # change has to bring them along
         if self.has_lights:
             self._aim_lights()
+        if self.has_axes:
+            self._move_axes(ang_before, self._ang_azimuth)
         return self
 
     def create_cells(
@@ -890,22 +901,148 @@ class Scene:
         self.has_lights = True
         return self
 
-    def _orbit(self, obj, angle: float) -> None:
+    def _orbit(self, obj, angle: float, pivot: Vector | None = None) -> None:
         """
-        Rotates an object's location and yaw around the scene's vertical
-        (Z) axis, through the scene's center, by ``angle`` radians.
+        Rotates an object's location and yaw around a vertical (Z) axis by ``angle``
+        radians. The axis passes through ``pivot``, by default the scene's center.
         """
         center = self.size_bounding_box / 2
+        cx, cy = (center, center) if pivot is None else (pivot.x, pivot.y)
         cos_a, sin_a = math.cos(angle), math.sin(angle)
         x, y, z = obj.location
-        x, y = x - center, y - center
+        x, y = x - cx, y - cy
         obj.location = (
-            x * cos_a - y * sin_a + center,
-            x * sin_a + y * cos_a + center,
+            x * cos_a - y * sin_a + cx,
+            x * sin_a + y * cos_a + cy,
             z,
         )
         rx, ry, rz = obj.rotation_euler
         obj.rotation_euler = (rx, ry, rz + angle)
+
+    def _pose_axis_z(self, ang: float) -> tuple[Vector, float]:
+        """
+        Returns the pivot and the yaw (in radians) of the z ruler for a camera at the
+        azimuth ``ang`` (in degrees).
+
+        The z ruler stands on the box corner that bounds the camera's view on the left,
+        which changes every 90 degrees, at the end of the x or y ruler running along the
+        near edge there; the pivot is that end, on the ruler's center line. Its ticks and
+        labels point along the horizontal axis closest to the camera's left, which changes
+        halfway in between, so the labels never face the camera at more than 45 degrees.
+        The yaw is relative to the ruler as built by :meth:`create_axes`, with ticks along
+        +x from the start of the y ruler at the (+x, -y) corner.
+        """
+        cfg = self.config_axes
+        center = self.size_bounding_box / 2
+        sx, sy, _ = self.shift
+
+        # the corner, as signs about the box center, and the outward normal of the near
+        # edge ending there
+        (cx, cy), (nx, ny) = (
+            ((1, -1), (1, 0)),
+            ((1, 1), (0, 1)),
+            ((-1, 1), (-1, 0)),
+            ((-1, -1), (0, -1)),
+        )[self._quadrant(ang)]
+
+        offset = cfg.spacing + 0.5 * cfg.line_width
+        pivot = Vector(
+            (
+                center + cx * (center - sx) + nx * offset,
+                center + cy * (center - sy) + ny * offset,
+                0,
+            )
+        )
+        yaw = math.radians(math.floor((ang - 90) / 90 + 0.5) * 90)
+        return pivot, yaw
+
+    @staticmethod
+    def _quadrant(ang: float) -> int:
+        """
+        Returns the quadrant (0 to 3) that the azimuth ``ang`` (in degrees) falls in,
+        counted counter-clockwise from the +x axis.
+        """
+        return math.floor(ang / 90) % 4
+
+    def _move_axes(self, ang_from: float, ang_to: float) -> None:
+        """
+        Moves the axes from their layout for a camera at the azimuth ``ang_from`` to the
+        one for ``ang_to`` (both in degrees).
+
+        The x and y rulers each lie on whichever of their two parallel edges faces the
+        camera, the x ruler on the +y edge in quadrants 0 and 1 and the y ruler on the +x
+        edge in quadrants 0 and 3. The z ruler is posed as given by :meth:`_pose_axis_z`.
+        All three are derived from the same quadrant, so the z ruler always stands at the
+        end of the ruler it belongs to.
+        """
+        q_from, q_to = self._quadrant(ang_from), self._quadrant(ang_to)
+        flips = {
+            "x": (q_from in (0, 1)) != (q_to in (0, 1)),
+            "y": (q_from in (0, 3)) != (q_to in (0, 3)),
+        }
+        pivot_from, yaw_from = self._pose_axis_z(ang_from)
+        pivot_to, yaw_to = self._pose_axis_z(ang_to)
+        moves_z = pivot_from != pivot_to or yaw_from != yaw_to
+
+        if not (moves_z or any(flips.values())):
+            return
+
+        def _axis_of(name: str) -> str | None:
+            for axis in ("x", "y", "z"):
+                if name == f"axis_{axis}" or name == f"axis label {axis}":
+                    return axis
+                if name.startswith(f"{axis} "):
+                    return axis
+            return None
+
+        sbb = self.size_bounding_box
+
+        for obj in bpy.data.collections["Axes"].objects:
+            axis = _axis_of(obj.name)
+            if axis is None:
+                continue
+
+            if axis == "z":
+                if moves_z:
+                    # turn the ruler around its pivot, then carry it over to the new one
+                    self._orbit(obj, yaw_to - yaw_from, pivot_from)
+                    obj.location = Vector(obj.location) + (pivot_to - pivot_from)
+                continue
+
+            if not flips[axis]:
+                continue
+
+            # record the object's own bounding-box center in world space before
+            # anything changes, to correct its position afterwards (see below)
+            mat_before = Matrix.LocRotScale(
+                obj.location, obj.rotation_euler.to_quaternion(), obj.scale
+            )
+            local_center = sum((Vector(c) for c in obj.bound_box), Vector()) / 8
+            center_before = mat_before @ local_center
+
+            x, y, z = obj.location
+            if axis == "y":
+                x = sbb - x
+            else:
+                y = sbb - y
+            obj.location = (x, y, z)
+
+            if obj.name == f"axis_{axis}":
+                sx, sy, sz = obj.scale
+                obj.scale = (-sx, sy, sz)
+            else:
+                obj.rotation_euler.z += math.radians(180)
+
+                mat_after = Matrix.LocRotScale(
+                    obj.location, obj.rotation_euler.to_quaternion(), obj.scale
+                )
+                center_after = mat_after @ local_center
+                desired = Vector(center_before)
+                if axis == "y":
+                    desired.x = sbb - desired.x
+                else:
+                    desired.y = sbb - desired.y
+                obj.location = Vector(obj.location) + (desired - center_after)
 
     def create_solid(self, pth: Path, style: str = "SOLID_DEFAULT", name: str = "solid"):
         """
@@ -1224,6 +1361,7 @@ class Scene:
             while obs:
                 bpy.data.objects.remove(obs.pop())
             bpy.data.collections.remove(col)
+        self.has_axes = False
         return self
 
     def remove_defaults(self) -> Self:
@@ -1312,9 +1450,12 @@ class Scene:
         stays legible, rather than rotating the whole ruler (which would
         swap their x/y labeling, see the fixed bug this replaced). The
         main ruler bar itself is left unrotated since it's symmetric along
-        its own length. The z ruler sits at the corner shared by the
-        current x and y edges, so it is snapped there in 90-degree steps
-        the same way the whole assembly used to move.
+        its own length. The z ruler stands on the box corner bounding the
+        view on the left, at the end of the x or y ruler there, and turns
+        its ticks and labels in 90-degree steps so they face the camera.
+        It is placed from the box's actual corners rather than orbited
+        around the scene's center, which would carry it off a box that
+        isn't square in the xy plane.
         """
         self._orbit(bpy.data.objects["Camera"], math.radians(ang_rot))
 
@@ -1322,85 +1463,10 @@ class Scene:
             rx, ry, rz = obj.rotation_euler
             obj.rotation_euler = (rx, ry, rz + math.radians(ang_rot))
 
+        ang_before = self._ang_azimuth
+        self._ang_azimuth += ang_rot
         if self.has_axes:
-
-            def _nearest_corner(deg: float) -> float:
-                return math.floor((deg - 45) / 90 + 0.5) * 90 + 45
-
-            def _side(deg: float, fn) -> bool:
-                return fn(math.radians(deg)) >= 0
-
-            ang_before = self._ang_azimuth
-            corner_before = _nearest_corner(ang_before)
-            self._ang_azimuth += ang_rot
-            ang_after = self._ang_azimuth
-            corner_after = _nearest_corner(ang_after)
-
-            corner_delta = math.radians(corner_after - corner_before)
-            flips = {
-                "y": _side(ang_before, math.cos) != _side(ang_after, math.cos),
-                "x": _side(ang_before, math.sin) != _side(ang_after, math.sin),
-            }
-
-            def _axis_of(name: str) -> str | None:
-                for axis in ("x", "y", "z"):
-                    if name == f"axis_{axis}" or name == f"axis label {axis}":
-                        return axis
-                    if name.startswith(f"{axis} "):
-                        return axis
-                return None
-
-            if corner_delta or any(flips.values()):
-                sbb = self.size_bounding_box
-
-                for obj in bpy.data.collections["Axes"].objects:
-                    axis = _axis_of(obj.name)
-                    if axis is None:
-                        continue
-
-                    if axis == "z":
-                        if corner_delta:
-                            self._orbit(obj, corner_delta)
-                        continue
-
-                    if not flips[axis]:
-                        continue
-
-                    # record the object's own bounding-box center in world space
-                    # before anything changes, to correct its position afterwards
-                    # (see below)
-                    mat_before = Matrix.LocRotScale(
-                        obj.location, obj.rotation_euler.to_quaternion(), obj.scale
-                    )
-                    local_center = sum((Vector(c) for c in obj.bound_box), Vector()) / 8
-                    center_before = mat_before @ local_center
-
-                    x, y, z = obj.location
-                    if axis == "y":
-                        x = sbb - x
-                    else:
-                        y = sbb - y
-                    obj.location = (x, y, z)
-
-                    if obj.name == f"axis_{axis}":
-                        sx, sy, sz = obj.scale
-                        obj.scale = (-sx, sy, sz)
-                    else:
-                        obj.rotation_euler.z += math.radians(180)
-
-                        mat_after = Matrix.LocRotScale(
-                            obj.location, obj.rotation_euler.to_quaternion(), obj.scale
-                        )
-                        center_after = mat_after @ local_center
-                        desired = Vector(center_before)
-                        if axis == "y":
-                            desired.x = sbb - desired.x
-                        else:
-                            desired.y = sbb - desired.y
-                        obj.location = Vector(obj.location) + (desired - center_after)
-
-        else:
-            self._ang_azimuth += ang_rot
+            self._move_axes(ang_before, self._ang_azimuth)
 
         return self
 
