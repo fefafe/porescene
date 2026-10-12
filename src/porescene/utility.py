@@ -170,7 +170,7 @@ class UnitPrefixMetric(Enum):
     ZETTA = "Z"
     EXA = "E"
     PETA = "P"
-    TERA = "t"
+    TERA = "T"
     GIGA = "G"
     MEGA = "M"
     KILO = "k"
