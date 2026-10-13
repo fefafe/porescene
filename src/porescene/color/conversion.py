@@ -16,6 +16,9 @@ Some functions to convert color tuples between following color spaces:
 
 from typing import overload
 
+import numpy as np
+import numpy.typing as npt
+
 from ._types import (
     ColorTupleFloat3,
     ColorTupleFloat4,
@@ -155,6 +158,29 @@ def nrgb2lnrgb(
     else:
         lnrgb = (r, g, b, a)
     return lnrgb
+
+
+def nrgb2lnrgb_array(nrgb: npt.ArrayLike) -> np.ndarray:
+    """
+    Converts normalized sRGB into normalized linear RGB, for many colors at once.
+
+    The vectorized counterpart of :func:`nrgb2lnrgb`.
+
+    Parameters
+    ----------
+    nrgb
+        Array whose last axis holds the color channels, either (R, G, B) or
+        (R, G, B, A). Alpha is passed through untransformed.
+
+    Returns
+    -------
+    np.ndarray
+        A new array of the same shape.
+    """
+    c = np.array(nrgb, dtype=float)
+    rgb = c[..., :3]
+    c[..., :3] = np.where(rgb < 0.04045, rgb / 12.92, ((rgb + 0.055) / 1.055) ** 2.4)
+    return c
 
 
 @overload
