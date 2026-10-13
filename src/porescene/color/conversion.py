@@ -86,9 +86,9 @@ def rgb2hex(r: int, g: int, b: int, a: float | None = None) -> str:
     """
     r, g, b = (max(0, min(255, int(round(v)))) for v in (r, g, b))
     if a is None:
-        return "#%02X%02X%02X" % (r, g, b)
+        return f"#{r:02X}{g:02X}{b:02X}"
     alpha = max(0, min(255, round(a * 255)))
-    return "#%02X%02X%02X%02X" % (r, g, b, alpha)
+    return f"#{r:02X}{g:02X}{b:02X}{alpha:02X}"
 
 
 @overload
