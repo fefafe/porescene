@@ -3,5 +3,6 @@
 # Otto von Guericke University Magdeburg, Thermal Process Engineering
 
 from ._color import Color
+from ._color_array import ColorArray
 
-__all__ = ["Color"]
+__all__ = ["Color", "ColorArray"]
