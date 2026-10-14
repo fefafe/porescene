@@ -2,6 +2,7 @@ import numpy as np
 import pytest
 
 from porescene.color import Color
+from porescene.color.gradient import DiscreteGradient, SegmentedGradient, SmoothGradient
 from porescene.color.palette import Palette
 from porescene.config import (
     AxesConfiguration,
@@ -164,6 +165,45 @@ def test_limits_reject_a_data_range_that_is_not_finite():
     # an all-NaN quantity yields such a range; pinning both limits is the way out
     with pytest.raises(ValueError, match="must be finite"):
         QuantityConfiguration("radius").resolve_limits(float("nan"), float("nan"))
+
+
+# -----------------------------------------------------------------------------
+# QuantityConfiguration -- gradient
+
+
+COLORS = [Color("#f00"), Color("#0f0"), Color("#00f")]
+
+
+@pytest.mark.parametrize(
+    "cls", [SmoothGradient, SegmentedGradient, DiscreteGradient], ids=lambda c: c.__name__
+)
+def test_gradient_is_of_the_configured_class(cls):
+    grad = QuantityConfiguration("q", COLORS, gradient_class=cls).create_gradient(1, 3)
+    assert type(grad) is cls
+    assert grad.colors == COLORS
+    assert (grad.boundary_lower, grad.boundary_upper) == (1, 3)
+
+
+@pytest.mark.parametrize("fit", [True, False])
+def test_gradient_follows_fit(fit):
+    assert QuantityConfiguration("q", COLORS, fit=fit).create_gradient(0, 1).fit is fit
+
+
+def test_gradient_takes_the_configured_out_of_range_colors():
+    nan, below, above = Color("#111"), Color("#222"), Color("#333")
+    p = QuantityConfiguration(
+        "q", COLORS, fit=False, color_nan=nan, color_below=below, color_above=above
+    )
+    colors = p.create_gradient(0, 1)([np.nan, -1, 2])
+    assert [c.hex for c in colors] == ["111111", "222222", "333333"]
+
+
+def test_gradient_keeps_its_defaults_for_unset_out_of_range_colors():
+    grad = QuantityConfiguration("q", COLORS).create_gradient(0, 1)
+    default = SmoothGradient(COLORS)
+    assert grad.color_nan.hexa == default.color_nan.hexa
+    assert grad.color_below.hexa == default.color_below.hexa
+    assert grad.color_above.hexa == default.color_above.hexa
 
 
 # =============================================================================
