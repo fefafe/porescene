@@ -254,6 +254,40 @@ class QuantityConfiguration:
 
         return (lower, upper)
 
+    def create_gradient(self, lower: float, upper: float) -> Gradient:
+        """
+        Creates the gradient that colors the quantity between two limits.
+
+        Every color setting of the configuration reaches the gradient: the
+        :attr:`gradient_class`, the :attr:`colors`, :attr:`fit`, and whichever of
+        :attr:`color_nan`, :attr:`color_below` and :attr:`color_above` are set -- those
+        left at ``None`` keep the defaults of the gradient. Rendering through this
+        method keeps the image in line with the colorbar drawn from the same
+        configuration.
+
+        Parameters
+        ----------
+        lower, upper
+            Limits the gradient spans, in the displayed unit, typically from
+            :meth:`resolve_limits`.
+
+        Returns
+        -------
+        Gradient
+            A new instance of :attr:`gradient_class`.
+        """
+        colors_out = {
+            name: color
+            for name, color in (
+                ("color_nan", self.color_nan),
+                ("color_below", self.color_below),
+                ("color_above", self.color_above),
+            )
+            if color is not None
+        }
+
+        return self.gradient_class(self.colors, lower, upper, fit=self.fit, **colors_out)
+
     @property
     def limit_lower(self) -> float | None:
         """
