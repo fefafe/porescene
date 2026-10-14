@@ -18,11 +18,11 @@ The ``create_*`` methods of :class:`~porescene.scene.Scene` accept a material or
 name of a registered one. :func:`register` adds a material to the registry, so it can
 also be named in :class:`~porescene.config.SceneConfiguration`.
 
-Spheres, cylinders and clusters are colored per item, e.g. one color per pore. The
+Spheres, cylinders, clusters and cells are colored per item, e.g. one color per pore. The
 scene feeds these colors into the inputs that the node named :data:`COLOR_NODE`
 connects to or, if the material has no such node, into the ``Base Color`` of its
 Principled BSDF, see :func:`color_inputs`. A material with neither can only render the
-solid, the void, the cells and the axes.
+solid, the void and the axes.
 """
 
 from __future__ import annotations
@@ -394,13 +394,15 @@ CELL = register(
     Material(
         "CELL",
         base_color="#947C5E",
-        metallic=0.2,
-        roughness=0.8,
-        opacity=0.8,
-        bevel=0.05,
+        roughness=0.6,
+        specular=0.5,
     )
 )
-"""Default material of the tessellation cells."""
+"""
+Default material of the tessellation cells. It is opaque and matte; the scene adds the
+rounded edges that set neighboring cells apart, see :meth:`Scene.create_cells()
+<porescene.scene.Scene.create_cells>`.
+"""
 
 CELL_TRANSPARENT = register(
     Material(
@@ -409,10 +411,12 @@ CELL_TRANSPARENT = register(
         metallic=0.2,
         roughness=0.8,
         opacity=0.4,
-        bevel=0.125,
     )
 )
-"""Mostly transparent tessellation cells."""
+"""
+Mostly transparent tessellation cells. Each ray passes many faces before it leaves the
+cells, so this renders far slower than :data:`CELL`.
+"""
 
 AXES = register(
     Material(

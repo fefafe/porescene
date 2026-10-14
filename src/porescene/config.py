@@ -706,6 +706,7 @@ class SceneConfiguration:
         material_clusters: str | MaterialSpec = "STRUCTURE",
         material_solid: str | MaterialSpec = "SOLID",
         material_void: str | MaterialSpec = "VOID",
+        material_cells: str | MaterialSpec = "CELL",
         palette: Palette = None,
     ):
         if versions_void is None:
@@ -726,6 +727,7 @@ class SceneConfiguration:
         self.material_cylinders = material_cylinders
         self.material_clusters = material_clusters
         self.material_void = material_void
+        self.material_cells = material_cells
         self.palette = palette
         self.versions_solid = versions_solid
         self.versions_void = versions_void
@@ -860,6 +862,17 @@ class SceneConfiguration:
     @material_void.setter
     def material_void(self, arg: str | MaterialSpec):
         self._material_void = _material_or_name(arg)
+
+    @property
+    def material_cells(self) -> str | MaterialSpec:
+        """
+        Material the tessellation cells are rendered with, see :attr:`material_spheres`.
+        """
+        return self._material_cells
+
+    @material_cells.setter
+    def material_cells(self, arg: str | MaterialSpec):
+        self._material_cells = _material_or_name(arg)
 
     @property
     def palette(self) -> Palette:

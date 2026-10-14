@@ -13,6 +13,7 @@ import bpy
 
 import bmesh  # type: ignore # isort:skip
 from mathutils import Matrix, Vector  # type: ignore # isort:skip
+from mathutils.geometry import intersect_point_line  # type: ignore # isort:skip
 import numpy as np
 from rich import progress
 
@@ -115,6 +116,7 @@ class Scene:
         }
 
         self.has_axes = False
+        self.has_cells = False
         self.has_clusters = False
         self.has_cylinders = False
         self.has_lights = False
@@ -202,6 +204,16 @@ class Scene:
     ) -> Self:
         """
         Sets the colors for all items in a collection for given frame.
+
+        ``"Spheres"`` and ``"Cylinders"`` take one color per pore and per throat,
+        ``"Clusters"`` one per cluster and ``"Cells"`` one per cell of the tessellation,
+        in the order :meth:`create_cells` was given the cells in.
+
+        Raises
+        ------
+        ValueError
+            If the cells are given a different number of colors than the tessellation
+            has cells.
         """
         if not isinstance(colors, ColorArray):
             colors = ColorArray(colors)
@@ -209,6 +221,19 @@ class Scene:
 
         # Single meshes
         mesh = bpy.data.meshes.get(name_mesh)
+        if mesh is not None and "cell" in mesh.attributes:
+            # the cells share one mesh, whose faces take the color of their cell
+            if len(color_array) != mesh["cell_count"]:
+                raise ValueError(
+                    f"Expected a color for each of the {mesh['cell_count']} cells of "
+                    f"the tessellation, got {len(color_array)}"
+                )
+            cell_attr = mesh.attributes["cell"]
+            cells = np.empty(len(cell_attr.data), dtype=np.int32)
+            cell_attr.data.foreach_get("value", cells)
+            color_attr = mesh.attributes["cell_color"]
+            color_attr.data.foreach_set("color", color_array[cells].ravel())
+            return self
         if mesh is not None:
             color_attr = mesh.attributes.get("color")
             color_attr.data.foreach_set("color", color_array.ravel())
@@ -577,60 +602,120 @@ class Scene:
     def create_cells(
         self,
         pos: np.ndarray,
-        vtx_cv: list[np.ndarray],
-        p_selection: np.ndarray | None = None,
-        merge_dist: float = 0,
-        material: str | MaterialSpec = "CELL",
+        corners: Sequence[np.ndarray],
+        selection: np.ndarray | None = None,
+        bevel: float = 0.05,
+        material: str | MaterialSpec | None = None,
     ) -> Self:
-        col = bpy.data.collections.get("Cells")
-        mat = self.get_material(material)
-        if p_selection is None:
-            p_selection = np.array(range(len(vtx_cv)))
-        if not col:
-            col = bpy.data.collections.new("Cells")
-            bpy.context.scene.collection.children.link(col)
-        for p in progress.track(p_selection, description="Creating cells"):
-            # select current cell vertex list
-            verts = pos[vtx_cv[p], :] * self.scale + self.shift
-            # create point cloud mesh and object of cell vertices
-            mesh = bpy.data.meshes.new(f"cell {p}")
-            mesh.from_pydata(verts, [], [])
-            obj = bpy.data.objects.new(f"cell {p}", mesh)
-            # compute convex hull from point cloud
-            bm = bmesh.new()
-            bm.from_mesh(mesh)
-            bmesh.ops.convex_hull(bm, input=bm.verts)
-            bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=merge_dist)
-            bm.to_mesh(mesh)
+        """
+        Adds the cells of a tessellation of the domain to the scene, such as the Voronoi
+        cells around the pores of a network.
+
+        Every cell is built as the convex hull of its corners, which suits tessellations
+        into convex cells -- Voronoi and Laguerre tessellations, also when clipped to the
+        domain -- but not concave cells. Triangles of the hull that lie in one plane are
+        merged back into the facets of the cell.
+
+        The edges of every cell are rounded off over the width ``bevel`` and darkened
+        slightly towards the edge, so that neighboring cells meet in a narrow groove that
+        sets them apart even where their colors are alike. Both are done in the
+        shading, while the cells keep their exact shape: a bevel of the geometry would
+        have to narrow to fit the shortest edge of a cell, and Voronoi cells have many
+        short edges, so its width would vary from one cell to the next.
+
+        All cells form a single mesh named ``"Cells"``. Color them with
+        :meth:`apply_colors`, passing one color per cell of the tessellation, in the
+        order of ``corners``.
+
+        They are rendered with ``material``, a material or the name of a registered one
+        (see :mod:`porescene.material`), by default
+        :attr:`SceneConfiguration.material_cells
+        <porescene.config.SceneConfiguration.material_cells>`.
+
+        Parameters
+        ----------
+        pos : np.ndarray
+            Positions of the cell corners, of shape ``(N, 3)``, in meters.
+        corners : Sequence[np.ndarray]
+            Indices into ``pos`` of the corners of each cell, zero-based.
+        selection : np.ndarray | None, optional
+            Indices of the cells to build, by default all of them. Of opaque cells only
+            the ones touching the domain boundary can be seen, so building just these
+            gives the same image in a fraction of the time.
+        bevel : float, optional
+            Width of the rounded edges, as a fraction of the mean cell size, by default
+            0.05. The mean cell size is the edge length of a cube with the mean volume of
+            a cell, assuming the cells fill the bounding box of their corners. ``0``
+            keeps the edges sharp.
+        material : str | MaterialSpec | None, optional
+            Material of the cells, by default the one of the scene configuration. The
+            rounded edges need it to have a Principled BSDF.
+
+        Returns
+        -------
+        Self
+            The scene, holding the cells.
+
+        Raises
+        ------
+        ValueError
+            If the corners of a cell span no volume.
+        """
+        if material is None:
+            material = self.config_scene.material_cells
+        if selection is None:
+            selection = np.arange(len(corners))
+
+        pos = np.asarray(pos) * self.scale + self.shift
+        size = (np.prod(np.ptp(pos, axis=0)) / len(corners)) ** (1 / 3)
+
+        # each cell is built in a mesh of its own, since the bmesh operators slow down
+        # with the size of the mesh they work in, and the cells are joined afterwards
+        coords, faces, dist_edge, cells = [], [], [], []
+        n_verts = 0
+        for idx in progress.track(selection, description="Creating cells"):
+            bm = _convex_cell(pos[corners[idx]])
+            if bm.calc_volume() <= 1e-9 * size**3:
+                bm.free()
+                raise ValueError(f"The corners of cell {idx} span no volume")
+            layer = bm.loops.layers.float["cell_edge"]
+            bm.verts.index_update()
+            coords.append([v.co[:] for v in bm.verts])
+            for f in bm.faces:
+                faces.append([v.index + n_verts for v in f.verts])
+                dist_edge.extend(loop[layer] for loop in f.loops)
+            cells.extend([idx] * len(bm.faces))
+            n_verts += len(bm.verts)
             bm.free()
-            #
-            # vtx_boundary = []
-            # for ind, vtx in enumerate(obj.data.vertices):
-            #     if abs(vtx.co.x - (10 - self.shift[0])) < 1e-2:
-            #         vtx_boundary.append(ind)
-            #     if abs(vtx.co.y - (10 - self.shift[1])) < 1e-2:
-            #         vtx_boundary.append(ind)
-            #     if abs(vtx.co.z - (10 - self.shift[2])) < 1e-2:
-            #         vtx_boundary.append(ind)
-            # grp = obj.vertex_groups.new(name="Boundary")
-            # grp.add(vtx_boundary, 1.0, 'REPLACE')
-            # mod = obj.modifiers.new(name=f"Decimate {p}", type='DECIMATE')
-            # mod.decimate_type = 'UNSUBDIV'
-            # mod.use_dissolve_boundaries = True
-            # mod = obj.modifiers.new(name=f"Bevel {p}", type='BEVEL')
-            # mod.offset_type = 'WIDTH'
-            # mod.width = 0.006
-            # mod.segments = 16
-            # mod.use_clamp_overlap = False
-            # mod.vmesh_method = 'CUTOFF'
-            # mod.limit_method = 'ANGLE'
-            # mod.angle_limit = math.radians(50)
-            # mod.vertex_group = "Boundary"
-            # append object to collection
-            col.objects.link(obj)
-            # apply material
-            obj.data.materials.append(mat.copy())
-            obj.data.materials[0].name = obj.name
+
+        mesh = bpy.data.meshes.new("Cells")
+        mesh.from_pydata(np.concatenate(coords), [], faces)
+
+        # every face carries the index of its cell, by which apply_colors spreads the
+        # colors of the cells onto their faces. The color attribute must not be named
+        # "color", which Cycles doesn't read off a face.
+        cell_attr = mesh.attributes.new(name="cell", type="INT", domain="FACE")
+        cell_attr.data.foreach_set("value", np.asarray(cells, dtype=np.int32))
+        mesh["cell_count"] = len(corners)
+        default_color = np.array(Color("#58646E").lnrgba, dtype=np.float32)
+        color_attr = mesh.attributes.new(
+            name="cell_color", type="FLOAT_COLOR", domain="FACE"
+        )
+        color_attr.data.foreach_set("color", np.tile(default_color, len(faces)))
+        edge_attr = mesh.attributes.new(name="cell_edge", type="FLOAT", domain="CORNER")
+        edge_attr.data.foreach_set("value", np.asarray(dist_edge, dtype=np.float32))
+        mesh.update()
+
+        mat = self.get_material(material).copy()
+        self._apply_attribute_color(mat, "GEOMETRY", "cell_color")
+        if bevel > 0:
+            _round_cell_edges(mat, bevel * size)
+        mesh.materials.append(mat)
+
+        obj = bpy.data.objects.new("Cells", mesh)
+        self._layers.objects.link(obj)
+
+        self.has_cells = True
         return self
 
     def create_clusters(
@@ -1240,6 +1325,13 @@ class Scene:
             col.hide_render = True
         return self
 
+    def hide_cells(self) -> Self:
+        """Hides the tessellation cells from render scene."""
+        obj = bpy.data.objects.get("Cells")
+        if obj:
+            obj.hide_render = True
+        return self
+
     def hide_clusters(self) -> Self:
         """
         Hides all spheres from render scene."""
@@ -1510,6 +1602,13 @@ class Scene:
             col.hide_render = False
         return self
 
+    def show_cells(self) -> Self:
+        """Shows the tessellation cells in the render scene."""
+        obj = bpy.data.objects.get("Cells")
+        if obj:
+            obj.hide_render = False
+        return self
+
     def show_clusters(self) -> Self:
         """
         Hides all spheres from render scene."""
@@ -1622,6 +1721,18 @@ class Scene:
         self._has_axes = arg
 
     @property
+    def has_cells(self) -> bool:
+        """
+        Whether the cells of a tessellation have been added to the scene, via
+        :meth:`create_cells`.
+        """
+        return self._has_cells
+
+    @has_cells.setter
+    def has_cells(self, arg: bool):
+        self._has_cells = arg
+
+    @property
     def has_clusters(self) -> bool:
         """
         Whether pore clusters have been added to the scene, via
@@ -1724,3 +1835,123 @@ def _import_object(pth: Path) -> None:
     import_op = getattr(getattr(bpy.ops, namespace), operator)
     with suppress_stdout():
         import_op(filepath=str(pth))
+
+
+# [rad] facets of a cell's hull that meet at a smaller angle are merged into one
+_ANGLE_COPLANAR = math.radians(1)
+
+# share of its color a cell keeps right at its edges, see _round_cell_edges
+_SHADE_CELL_EDGE = 0.6
+
+
+def _convex_cell(pos: np.ndarray) -> bmesh.types.BMesh:
+    """
+    Builds the convex cell around the corners at ``pos``.
+
+    Each facet is split into a fan of triangles around its center, and each corner of a
+    triangle carries its distance to the edge of the facet the triangle lies on, as the
+    float layer ``"cell_edge"``. Interpolated across the triangle, it gives every point
+    of the triangle its distance to that edge, which :func:`_round_cell_edges` rounds
+    off the edges by.
+    """
+    bm = bmesh.new()
+    for p in pos:
+        bm.verts.new(p)
+    res = bmesh.ops.convex_hull(bm, input=bm.verts[:])
+
+    # corners that lie on a facet or an edge of the hull rather than at one of its
+    # corners are left over as loose vertices
+    loose = {
+        g
+        for g in res["geom_interior"] + res["geom_unused"]
+        if isinstance(g, bmesh.types.BMVert)
+    }
+    bmesh.ops.delete(bm, geom=list(loose), context="VERTS")
+
+    # the hull comes in triangles; those in one plane are merged back into the facet
+    # they split, as the edges between them would be rounded off as well
+    bmesh.ops.dissolve_limit(
+        bm, angle_limit=_ANGLE_COPLANAR, verts=bm.verts[:], edges=bm.edges[:]
+    )
+
+    # the distance to a straight line changes linearly along a triangle, so its values
+    # at the corners describe it exactly: zero on the edge, and the distance of the
+    # center to the edge at the center
+    centers = set(bmesh.ops.poke(bm, faces=bm.faces[:])["verts"])
+    layer = bm.loops.layers.float.new("cell_edge")
+    for f in bm.faces:
+        center, a, b = sorted(f.verts, key=lambda v: v not in centers)
+        point, _ = intersect_point_line(center.co, a.co, b.co)
+        for loop in f.loops:
+            loop[layer] = (center.co - point).length if loop.vert is center else 0
+
+    return bm
+
+
+def _round_cell_edges(mat: bpy.types.Material, width: float) -> None:
+    """
+    Rounds off the edges of the cells over ``width`` in the shading of ``mat``, and
+    darkens them towards the edge.
+
+    Both follow the profile of a parabola across the rounded strip, read off the
+    ``"cell_edge"`` attribute that :func:`_convex_cell` puts on the corners: its height
+    bends the normal like a rounded edge would, and it scales the color of the cells
+    down to :data:`_SHADE_CELL_EDGE` at the very edge. A material without a Principled
+    BSDF is left as it is.
+    """
+    nodes, links = mat.node_tree.nodes, mat.node_tree.links
+    n_pr = next((n for n in nodes if n.type == "BSDF_PRINCIPLED"), None)
+    if n_pr is None:
+        return
+
+    n_dist = nodes.new("ShaderNodeAttribute")
+    n_dist.attribute_type = "GEOMETRY"
+    n_dist.attribute_name = "cell_edge"
+
+    # 1 - (1 - x)^2 for the distance x from the edge, relative to the width: rises from
+    # 0 at the edge and levels off at 1 where the facet turns flat
+    n_rel = nodes.new("ShaderNodeMapRange")
+    n_rel.clamp = True
+    n_rel.inputs["From Max"].default_value = width
+    n_rel.inputs["To Min"].default_value = 1
+    n_rel.inputs["To Max"].default_value = 0
+    n_sq = nodes.new("ShaderNodeMath")
+    n_sq.operation = "POWER"
+    n_sq.inputs[1].default_value = 2
+    n_profile = nodes.new("ShaderNodeMath")
+    n_profile.operation = "SUBTRACT"
+    n_profile.inputs[0].default_value = 1
+    links.new(n_dist.outputs["Fac"], n_rel.inputs["Value"])
+    links.new(n_rel.outputs["Result"], n_sq.inputs[0])
+    links.new(n_sq.outputs["Value"], n_profile.inputs[1])
+
+    n_height = nodes.new("ShaderNodeMath")
+    n_height.operation = "MULTIPLY"
+    n_height.inputs[1].default_value = width
+    n_bump = nodes.new("ShaderNodeBump")
+    # the height is given in scene units already, which the default distance would
+    # scale down to next to nothing
+    n_bump.inputs["Distance"].default_value = 1
+    links.new(n_profile.outputs["Value"], n_height.inputs[0])
+    links.new(n_height.outputs["Value"], n_bump.inputs["Height"])
+
+    # a normal the material bends already, e.g. by a bevel, is bent further
+    for link in list(n_pr.inputs["Normal"].links):
+        links.new(link.from_socket, n_bump.inputs["Normal"])
+    links.new(n_bump.outputs["Normal"], n_pr.inputs["Normal"])
+
+    n_shade = nodes.new("ShaderNodeMapRange")
+    n_shade.inputs["To Min"].default_value = _SHADE_CELL_EDGE
+    links.new(n_profile.outputs["Value"], n_shade.inputs["Value"])
+
+    # the colors of the cells pass through the shading on their way into the material
+    for n_attr in [n for n in nodes if n.type == "ATTRIBUTE"]:
+        if n_attr.attribute_name != "cell_color":
+            continue
+        for link in list(n_attr.outputs["Color"].links):
+            n_mix = nodes.new("ShaderNodeMixRGB")
+            n_mix.blend_type = "MULTIPLY"
+            n_mix.inputs["Factor"].default_value = 1
+            links.new(n_attr.outputs["Color"], n_mix.inputs["Color1"])
+            links.new(n_shade.outputs["Result"], n_mix.inputs["Color2"])
+            links.new(n_mix.outputs["Color"], link.to_socket)

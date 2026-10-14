@@ -63,6 +63,13 @@ Static visualizations
          <p class="ps-tile-desc">Render a series of simulation states, coloring the pores and throats by concentration on one fixed color scale.</p>
        </div>
      </a>
+     <a class="ps-tile" href="examples/voronoi_cells.html">
+       <img class="ps-tile-image" src="_static/image/example/cell-porosity+axes.png" alt="Voronoi cells of a pore network, colored by their porosity" loading="lazy">
+       <div class="ps-example-caption">
+         <h3 class="ps-tile-title">Voronoi cells</h3>
+         <p class="ps-tile-desc">Render the Voronoi cells around the pores of a network, each colored by its porosity, with rounded edges that set neighboring cells apart.</p>
+       </div>
+     </a>
    </div>
 
 .. toctree::
@@ -75,6 +82,7 @@ Static visualizations
    examples/network_coordination_number
    examples/network_random
    examples/network_state
+   examples/voronoi_cells
 
 
 Animations

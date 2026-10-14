@@ -102,8 +102,8 @@ Once the scene exists, elements are added through dedicated ``create_*`` methods
   cylinder for each throat (the *stick*).
 - :meth:`Scene.create_clusters() <porescene.scene.Scene.create_clusters>` -- watershed
   pore clusters loaded from a file.
-- :meth:`Scene.create_cells() <porescene.scene.Scene.create_cells>` -- Voronoi cells
-  of a volume tessellation.
+- :meth:`Scene.create_cells() <porescene.scene.Scene.create_cells>` -- the cells of a
+  volume tessellation, such as the Voronoi cells around the pores.
 - :meth:`Scene.create_solid() <porescene.scene.Scene.create_solid>` -- the solid
   microstructure, e.g. from tomographic imaging.
 - :meth:`Scene.create_void() <porescene.scene.Scene.create_void>` -- the void space
@@ -162,8 +162,10 @@ PoreScene registers the following ones under their name:
      - a mostly transparent solid that reveals the structures inside it
    * - ``VOID``
      - the void space (default)
-   * - ``CELL`` / ``CELL_TRANSPARENT``
-     - tessellation cells
+   * - ``CELL``
+     - tessellation cells (default), opaque and matte
+   * - ``CELL_TRANSPARENT``
+     - mostly transparent tessellation cells, slow to render
    * - ``AXES``
      - axis lines, ticks and labels
 

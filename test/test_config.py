@@ -337,6 +337,7 @@ MATERIALS = [
     "material_clusters",
     "material_solid",
     "material_void",
+    "material_cells",
 ]
 
 
