@@ -1775,12 +1775,13 @@ class SmoothGradientAnnotation(GradientAnnotation):
     """
 
     def _stops(self) -> str:
-        gradient = SmoothGradient(self.gradient_colors)
+        values = np.linspace(0.0, 1.0, 100)
+        colors = SmoothGradient(self.gradient_colors)(values)
 
         return "".join(
             f'<stop offset="{_num(round(value * 100, 6))}%" '
-            f'stop-color="{gradient(value)[0].str_rgb}"/>'
-            for value in np.linspace(0.0, 1.0, 100)
+            f'stop-color="{color.str_rgb}"/>'
+            for value, color in zip(values, colors, strict=True)
         )
 
 

@@ -6,8 +6,9 @@ from abc import ABC, abstractmethod
 from typing import Self
 
 import numpy as np
+import numpy.typing as npt
 
-from porescene.color import Color
+from porescene.color import Color, ColorArray
 
 
 class Gradient(ABC):
@@ -34,12 +35,12 @@ class Gradient(ABC):
         self.color_above = color_above
         self.fit = fit
 
-    def __call__(self, value) -> list[Color]:
+    def __call__(self, values: npt.ArrayLike) -> ColorArray:
         """
-        Returns the equivalent :class:`Color <porescene.color.Color>` to ``value``.
+        Returns the equivalent colors to ``values``, see :meth:`get_color`.
         """
 
-        return self.get_color(value)
+        return self.get_color(values)
 
     def __iter__(self) -> Self:
         self.__i = 0
@@ -69,13 +70,34 @@ class Gradient(ABC):
             f"fit={self.fit.__repr__()})"
         )
 
-    @abstractmethod
-    def get_color(self, values) -> list[Color]:
+    def get_color(self, values: npt.ArrayLike) -> ColorArray:
         """
-        Returns the equivalent :class:`Color <porescene.color.Color>` to ``values``.
+        Returns the equivalent colors to ``values``, one per value.
 
-        Returns :class:`list` of :class:`Color <porescene.color.Color>`, if several
-        ``values`` given.
+        ``values`` may be a single number or an array of any shape, which is
+        flattened. NaN values get :attr:`color_nan`, and values beyond the boundaries
+        get :attr:`color_below` or :attr:`color_above`, unless :attr:`fit` clips them
+        onto the boundaries.
+
+        Returns
+        -------
+        A :class:`ColorArray <porescene.color.ColorArray>`, also for a single value.
+        """
+        values = np.asarray(values, dtype=float).ravel()
+        values = (values - self.boundary_lower) / self.range
+        if self.fit:
+            values = np.clip(values, 0.0, 1.0)
+
+        colors = self._map(np.clip(np.nan_to_num(values), 0.0, 1.0))
+        colors[values < 0] = self.color_below
+        colors[values > 1] = self.color_above
+        colors[np.isnan(values)] = self.color_nan
+        return colors
+
+    @abstractmethod
+    def _map(self, values: np.ndarray) -> ColorArray:
+        """
+        Maps values, normalized onto the interval [0, 1], to their colors.
         """
 
     @property
@@ -185,36 +207,10 @@ class SmoothGradient(Gradient):
     Each numerical value has a distinct corresponding color.
     """
 
-    def get_color(self, values) -> list[Color]:
-        values = np.array(values).flatten()
-        colors = []
-        for value in values:
-            value = (float(value) - self.boundary_lower) / self.range
-            if np.isnan(value):
-                colors.append(self.color_nan)
-            elif value < 0:
-                if not self.fit:
-                    colors.append(self.color_below)
-                else:
-                    colors.append(self.colors[0])
-            elif value > 1:
-                if not self.fit:
-                    colors.append(self.color_above)
-                else:
-                    colors.append(self.colors[-1])
-            elif np.isclose(value, 0).item():
-                colors.append(self.colors[0])
-            elif np.isclose(value, 1).item():
-                colors.append(self.colors[-1])
-            else:
-                idx_before = int(value // self.len_segment)
-                idx_after = idx_before + 1
-                color_before = self.colors[idx_before]
-                color_after = self.colors[idx_after]
-                ratio = (value % self.len_segment) / self.len_segment
-                color = color_before.mix(color_after, ratio)
-                colors.append(color)
-        return colors
+    def _map(self, values: np.ndarray) -> ColorArray:
+        stops = ColorArray(self.colors).nrgba
+        x = np.linspace(0.0, 1.0, len(stops))
+        return ColorArray.from_nrgb(*(np.interp(values, x, ch) for ch in stops.T))
 
     @property
     def n_segments(self) -> int:
@@ -227,99 +223,47 @@ class SegmentedGradient(Gradient):
     Returns for a data-value the color of the corresponding segment.
     """
 
-    def get_color(self, values) -> list[Color]:
-        values = np.array(values).flatten()
-        colors = []
-        for value in values:
-            value = (float(value) - self.boundary_lower) / self.range
-            if np.isnan(value):
-                colors.append(self.color_nan)
-            elif value < 0:
-                if not self.fit:
-                    colors.append(self.color_below)
-                else:
-                    colors.append(self.colors[0])
-            elif value > 1:
-                if not self.fit:
-                    colors.append(self.color_above)
-                else:
-                    colors.append(self.colors[-1])
-            elif np.isclose(value, 0).item():
-                colors.append(self.colors[0])
-            elif np.isclose(value, 1).item():
-                colors.append(self.colors[-1])
-            else:
-                idx = int(value // self.len_segment)
-                colors.append(self.colors[idx])
-        return colors
+    def _map(self, values: np.ndarray) -> ColorArray:
+        # the upper boundary belongs to the last segment
+        idx = np.minimum(np.floor(values * self.n_segments), self.n_segments - 1)
+        return ColorArray(self.colors)[idx.astype(int)]
 
     @property
     def n_segments(self) -> int:
         return len(self)
 
 
-class DiscreteGradient:
+class DiscreteGradient(Gradient):
     """
-    This gradient can be used to map colors to a fixed set of values.
+    A gradient for quantities that take a fixed set of values, such as the coordination
+    number.
+
+    The colors stand for values spread evenly from :attr:`boundary_lower` to
+    :attr:`boundary_upper`, see :attr:`levels`: the first color for the lower boundary,
+    the last one for the upper. A value within the boundaries that lies on none of the
+    levels gets :attr:`color_nan`.
+
+    The limits a :class:`~porescene.config.QuantityConfiguration` works out from the
+    data are rounded outward, so they rarely land on the levels. Pin
+    :attr:`~porescene.config.QuantityConfiguration.limit_lower` and
+    :attr:`~porescene.config.QuantityConfiguration.limit_upper` to the first and the
+    last level instead.
     """
 
-    def __init__(self, pairs, /, color_nan=Color("#888")):
-        self._colors = list(pairs.values())
-        self._labels = list(pairs.keys())
-
-    def __call__(self, value) -> Color | list[Color]:
-        """
-        Returns the equivalent :class:`Color <porescene.color.Color>` for ``value``.
-        """
-        return self.get_color(value)
-
-    def get_color(self, values) -> list[Color]:
-        values = np.array(values).flatten()
-        colors = []
-        for value in values:
-            if np.isnan(value):
-                colors.append(self.color_nan)
-            else:
-                for idx, label in enumerate(self.labels):
-                    if np.isclose(value, label).item():
-                        colors.append(self.colors[idx])
-                        break
+    def _map(self, values: np.ndarray) -> ColorArray:
+        pos = values * (len(self) - 1)
+        idx = np.rint(pos)
+        colors = ColorArray(self.colors)[idx.astype(int)]
+        colors[~np.isclose(pos, idx)] = self.color_nan
         return colors
 
     @property
-    def colors(self) -> list[Color]:
-        return self._colors
-
-    @colors.setter
-    def colors(self, arg: list[Color]):
-        self._colors = []
-        for color in arg:
-            if not isinstance(color, Color):
-                raise TypeError(f"{__name__}.colors expects a 'list' of " "'Color'")
-            else:
-                self._colors.append(color)
+    def levels(self) -> np.ndarray:
+        """
+        Values the colors stand for, one per color.
+        """
+        return np.linspace(self.boundary_lower, self.boundary_upper, len(self))
 
     @property
-    def color_nan(self) -> Color:
-        """Color of NaN values."""
-        return self._color_nan
-
-    @color_nan.setter
-    def color_nan(self, arg: Color):
-        if isinstance(arg, Color):
-            self._color_nan = arg
-        else:
-            raise TypeError(f"{__name__}.color_nan expected 'Color'")
-
-    @property
-    def labels(self) -> list[str]:
-        return self._labels
-
-    @labels.setter
-    def labels(self, arg: list[str]):
-        self._labels = []
-        for label in arg:
-            if not isinstance(label, str):
-                raise TypeError(f"{__name__}.labels expects a 'list' of " "'str'")
-            else:
-                self._labels.append(label)
+    def n_segments(self) -> int:
+        return len(self)

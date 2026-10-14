@@ -1,9 +1,11 @@
+import numpy as np
 import pytest
 
 from porescene.color.conversion import (
     hex2rgb,
     lnrgb2nrgb,
     nrgb2lnrgb,
+    nrgb2lnrgb_array,
     nrgb2rgb,
     rgb2hex,
     rgb2nrgb,
@@ -166,6 +168,23 @@ def test_nrgb2lnrgb_is_monotonic():
 
 def test_nrgb2lnrgb_passes_alpha_through_untransformed():
     assert nrgb2lnrgb(0.5, 0.5, 0.5, 0.25)[3] == 0.25
+
+
+def test_nrgb2lnrgb_array_matches_nrgb2lnrgb():
+    values = np.linspace(0.0, 1.0, 101)
+    nrgb = np.column_stack((values, values[::-1], np.full(101, 0.04045)))
+    expected = [nrgb2lnrgb(*row) for row in nrgb]
+    np.testing.assert_allclose(nrgb2lnrgb_array(nrgb), expected, rtol=0, atol=1e-15)
+
+
+def test_nrgb2lnrgb_array_passes_alpha_through_untransformed():
+    assert nrgb2lnrgb_array([[0.5, 0.5, 0.5, 0.25]])[0, 3] == 0.25
+
+
+def test_nrgb2lnrgb_array_leaves_its_input_untouched():
+    nrgb = np.full((2, 3), 0.5)
+    nrgb2lnrgb_array(nrgb)
+    assert nrgb.tolist() == [[0.5] * 3] * 2
 
 
 def test_lnrgb2nrgb_preserves_endpoints():

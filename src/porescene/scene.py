@@ -5,6 +5,7 @@
 import json
 import math
 import warnings
+from collections.abc import Sequence
 from pathlib import Path
 from typing import NamedTuple, Self, cast
 
@@ -16,7 +17,7 @@ import numpy as np
 from rich import progress
 
 from porescene import image
-from porescene.color import Color
+from porescene.color import Color, ColorArray
 from porescene.config import (
     AxesConfiguration,
     ImageConfiguration,
@@ -196,13 +197,15 @@ class Scene:
     def apply_colors(
         self,
         name_mesh: str,
-        colors: list[Color],
+        colors: ColorArray | Sequence[Color],
         frame: int = 0,
     ) -> Self:
         """
         Sets the colors for all items in a collection for given frame.
         """
-        color_array = np.array([c.lnrgba for c in colors], dtype=np.float32)
+        if not isinstance(colors, ColorArray):
+            colors = ColorArray(colors)
+        color_array = colors.lnrgba.astype(np.float32)
 
         # Single meshes
         mesh = bpy.data.meshes.get(name_mesh)

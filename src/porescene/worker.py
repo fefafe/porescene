@@ -3,6 +3,7 @@
 # Otto von Guericke University Magdeburg, Thermal Process Engineering
 
 
+from collections.abc import Sequence
 from pathlib import Path
 
 import bpy
@@ -10,7 +11,7 @@ import numpy as np
 
 from mathutils import Matrix, Vector  # type: ignore  # isort:skip
 
-from porescene.color import Color
+from porescene.color import Color, ColorArray
 from porescene.color.gradient import DiscreteGradient, SegmentedGradient, SmoothGradient
 from porescene.layout import (
     DiscreteGradientAnnotation,
@@ -283,9 +284,9 @@ def make_img(
     show_spheres: bool = True,
     show_cylinders: bool = True,
     show_clusters: bool = True,
-    color_spheres: tuple[Color, ...] = (),
-    color_cylinders: tuple[Color, ...] = (),
-    color_clusters: tuple[Color, ...] = (),
+    color_spheres: ColorArray | Sequence[Color] = (),
+    color_cylinders: ColorArray | Sequence[Color] = (),
+    color_clusters: ColorArray | Sequence[Color] = (),
     name_spheres: str = "",
     name_cylinders: str = "",
     name_clusters: str = "",
@@ -320,15 +321,15 @@ def make_img(
         Whether to show the throat cylinders, by default True.
     show_clusters : bool, optional
         Whether to show the pore clusters, by default True.
-    color_spheres : list[Color], optional
-        Per-pore colors applied to the sphere layer (one :class:`Color` per pore); used
-        only when ``show_spheres`` is set, by default [].
-    color_cylinders : list[Color], optional
-        Per-throat colors applied to the cylinder layer (one :class:`Color` per throat);
-        used only when ``show_cylinders`` is set, by default [].
-    color_clusters : list[Color], optional
+    color_spheres : ColorArray | Sequence[Color], optional
+        Per-pore colors applied to the sphere layer (one color per pore); used only when
+        ``show_spheres`` is set, by default ().
+    color_cylinders : ColorArray | Sequence[Color], optional
+        Per-throat colors applied to the cylinder layer (one color per throat); used
+        only when ``show_cylinders`` is set, by default ().
+    color_clusters : ColorArray | Sequence[Color], optional
         Per-cluster colors applied to the cluster layer; used only when ``show_clusters``
-        is set, by default [].
+        is set, by default ().
     name_spheres : str, optional
         Label describing the sphere coloring, embedded in the output file name with
         underscores replaced by hyphens (e.g. ``"radius"``), by default "".
@@ -425,8 +426,10 @@ def make_radius(
     """
     Renders the pore network with pores and throats colored by their radius.
 
-    A smooth color gradient is fitted to the radius range (across pore and throat radii,
-    see :meth:`~porescene.config.QuantityConfiguration.resolve_limits`) and the sphere and
+    A color gradient, built from the ``radius`` quantity configuration by
+    :meth:`~porescene.config.QuantityConfiguration.create_gradient`, is fitted to the
+    radius range (across pore and throat radii, see
+    :meth:`~porescene.config.QuantityConfiguration.resolve_limits`) and the sphere and
     cylinder layers are colored accordingly via :func:`make_img`. Spheres and cylinders
     are only colored and shown when enabled in the scene configuration *and* the
     corresponding radius data is present.
@@ -469,7 +472,7 @@ def make_radius(
 
     # setup colorbar
     mn, mx = conf.resolve_limits(quant.min, quant.max)
-    grad = SmoothGradient(conf.colors, mn, mx, fit=True)
+    grad = conf.create_gradient(mn, mx)
 
     # render given configuration
     return make_img(
@@ -498,8 +501,9 @@ def make_coordination_number(
     Renders the pore network with pores, throats, and clusters colored by their
     coordination number.
 
-    A color gradient (the gradient class configured for the ``coordination_number``
-    quantity) is fitted to the coordination-number range (see
+    A color gradient, built from the ``coordination_number`` quantity configuration by
+    :meth:`~porescene.config.QuantityConfiguration.create_gradient`, is fitted to the
+    coordination-number range (see
     :meth:`~porescene.config.QuantityConfiguration.resolve_limits`), and the sphere,
     cylinder and cluster layers are colored accordingly via :func:`make_img`. Each layer
     is only colored and shown when it is enabled in the scene configuration and the
@@ -537,7 +541,7 @@ def make_coordination_number(
     quant = _quantity_geometry(pn, sc, "coordination_number")
 
     limit_lower, limit_upper = conf.resolve_limits(quant.min, quant.max)
-    grad = conf.gradient_class(conf.colors, limit_lower, limit_upper)
+    grad = conf.create_gradient(limit_lower, limit_upper)
 
     return make_img(
         dir_img,
@@ -766,7 +770,7 @@ def make_state_quantity(
     do_clusters = sc.config_scene.enable_clusters and sc.has_clusters
 
     limits = conf.resolve_limits(*quantity_range(pn, sc, name))
-    grad = conf.gradient_class(conf.colors, *limits)
+    grad = conf.create_gradient(*limits)
 
     return make_img(
         dir_img,
@@ -962,6 +966,8 @@ def make_colorbar(
     if len(ticks) == 0:
         if conf.gradient_class is SegmentedGradient:
             n_ticks = len(conf.colors) + 1
+        elif conf.gradient_class is DiscreteGradient:
+            n_ticks = len(conf.colors)
         else:
             n_ticks = 5
         # two decimals beyond the configured precision keep a tick that falls between

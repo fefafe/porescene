@@ -1,6 +1,7 @@
 import numpy as np
 import pytest
 
+from porescene.color import Color, ColorArray
 from porescene.material import Material
 
 bpy = pytest.importorskip("bpy")
@@ -44,6 +45,17 @@ def test_per_item_colors_pass_through_ambient_occlusion(scene):
     scene.create_spheres(POS, R, material="SOLID")
     mat = bpy.data.objects["Sphere_SOLID"].data.materials[0]
     assert color_links(mat, "MIX_RGB", "Color1") == ["color"]
+
+
+@pytest.mark.parametrize("as_array", [True, False])
+def test_apply_colors_writes_linear_rgba_per_item(scene, as_array):
+    scene.create_spheres(POS, R)
+    colors = [Color("#f00"), Color("#80808080"), Color("#00f")]
+    scene.apply_colors("Spheres", ColorArray(colors) if as_array else colors)
+    written = np.zeros(len(colors) * 4, dtype=np.float32)
+    bpy.data.meshes["Spheres"].attributes["color"].data.foreach_get("color", written)
+    expected = [c.lnrgba for c in colors]
+    np.testing.assert_allclose(written.reshape(-1, 4), expected, rtol=1e-6)
 
 
 def test_clusters_leave_the_shared_material_untouched(scene, tmp_path):
