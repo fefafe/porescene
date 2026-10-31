@@ -575,6 +575,18 @@ class AnnotationElement(abc.ABC):
         """
         return self._render()[1]
 
+    def key(self) -> BoundingBox | None:
+        """
+        Returns the rectangle of the element's key, in its own coordinate system.
+
+        The key is the colored part that the rest of the element explains -- the bar of a
+        colorbar, the first box of a legend. With :attr:`SVGCanvas.align_keys` set, the
+        canvas lines up the keys of the annotations sharing an edge rather than their
+        outer boxes. ``None`` (default) for an element without one, which is placed by
+        its outer box either way.
+        """
+        return None
+
     def fonts(self) -> list["Font"]:
         """
         Returns the typefaces the element sets its text in, none by default.
@@ -1331,6 +1343,10 @@ class GradientAnnotation(TitledAnnotation, abc.ABC):
 
         return BoundingBox(0, 0, self._gradient_length, self._gradient_height)
 
+    def key(self) -> BoundingBox:
+        """Returns the bar, see :meth:`AnnotationElement.key`."""
+        return self._bar
+
     @property
     def _axis(self) -> float:
         """
@@ -1975,17 +1991,40 @@ class LabelsAnnotation(TitledAnnotation):
         self._labels.append((color, text))
         return self
 
+    def key(self) -> BoundingBox | None:
+        """
+        Returns the first colored box, ``None`` for an empty legend, see
+        :meth:`AnnotationElement.key`.
+
+        Lined up with the bar of a colorbar next to it, it puts the first label level with
+        the scale, and the heading of the legend at the height of that of the colorbar.
+        """
+        if not self._labels:
+            return None
+
+        width, height = self._box_size
+
+        return BoundingBox(self._x_box, 0, width, height)
+
+    @property
+    def _x_box(self) -> float:
+        """
+        Left edge of the colored boxes.
+
+        The boxes face the edge of the canvas, so the labels read towards the figure.
+        """
+        return -self._box_size[0] if self._faces("E") else 0.0
+
     def _render(self) -> tuple[str, BoundingBox]:
         bounds = _Bounds()
         width, height = self._box_size
         svg = ""
         y = 0.0
 
-        # the boxes face the edge of the canvas, so the labels read towards the figure
         flipped = self._faces("E")
+        x_box = self._x_box
 
         for no, (color, text) in enumerate(self._labels):
-            x_box = -width if flipped else 0.0
             x_label = x_box - self._spacing if flipped else width + self._spacing
             y_label = y + height / 2
             anchor = "end" if flipped else "start"
@@ -2181,6 +2220,16 @@ class _Placement(NamedTuple):
     align: CompassDirection
 
 
+class _Entry(NamedTuple):
+    """An annotation as it is drawn, ready to be moved into its strip of the canvas."""
+
+    align: CompassDirection
+    markup: str
+    box: BoundingBox
+    #: rectangle of its key, ``None`` where it is not lined up by one
+    key: BoundingBox | None
+
+
 class SVGCanvas:
     """
     The sheet a figure is composed on.
@@ -2201,7 +2250,8 @@ class SVGCanvas:
     -- a horizontal colorbar, a line of text -- claims the top or bottom edge and is
     flushed left or right in it, a tall one claims the left or right edge and is flushed
     to the top or bottom. Several annotations on one edge are lined up along it in the
-    order they were added.
+    order they were added, and across it either against the edge or, with
+    :attr:`align_keys` set, by their keys.
 
     The canvas is measured in centimeters, and states that size in the file it writes, so
     a figure is laid out at the size it is meant to be printed at and lands at that size
@@ -2222,6 +2272,9 @@ class SVGCanvas:
     spacing
         Gap in centimeters kept between two annotations on one edge, and between an edge
         and the image.
+    align_keys
+        Whether to line up the keys of the annotations on one edge rather than their outer
+        boxes, see :attr:`align_keys`. ``False`` by default.
 
     Examples
     --------
@@ -2257,11 +2310,13 @@ class SVGCanvas:
         *,
         background: Color | None = None,
         spacing: float | None = None,
+        align_keys: bool = False,
     ) -> None:
         self.size = self.DEFAULT_SIZE if size is None else size
         self.padding = self.DEFAULT_PADDING if padding is None else padding
         self.background = background
         self.spacing = self.DEFAULT_SPACING if spacing is None else spacing
+        self.align_keys = align_keys
         self._placements: list[_Placement] = []
         self._image: ImageAnnotation | None = None
 
@@ -2412,26 +2467,26 @@ class SVGCanvas:
             self._size[1] - self._padding[2],
         )
 
-        bands: dict[str, list[tuple[CompassDirection, str, BoundingBox]]] = {
-            "N": [],
-            "S": [],
-            "W": [],
-            "E": [],
-        }
+        bands: dict[str, list[_Entry]] = {"N": [], "S": [], "W": [], "E": []}
         for placement in self._placements:
             markup, box = placement.element._render()
-            bands[_band_of(placement.align, box)].append((placement.align, markup, box))
-
-        thickness = {
-            "N": max((box.height for _, _, box in bands["N"]), default=0.0),
-            "S": max((box.height for _, _, box in bands["S"]), default=0.0),
-            "W": max((box.width for _, _, box in bands["W"]), default=0.0),
-            "E": max((box.width for _, _, box in bands["E"]), default=0.0),
-        }
+            key = placement.element.key() if self.align_keys else None
+            bands[_band_of(placement.align, box)].append(
+                _Entry(placement.align, markup, box, key)
+            )
 
         fragments = []
+        thickness = {}
         for band, entries in bands.items():
-            fragments += self._place_band(band, entries, inner)
+            insets = self._insets(band, entries)
+            thickness[band] = max(
+                (
+                    inset + (entry.box.height if band in ("N", "S") else entry.box.width)
+                    for inset, entry in zip(insets, entries, strict=True)
+                ),
+                default=0.0,
+            )
+            fragments += self._place_band(band, entries, insets, inner)
 
         def _claimed(band: str) -> float:
             return thickness[band] + self._spacing if bands[band] else 0.0
@@ -2450,10 +2505,42 @@ class SVGCanvas:
 
         return fragments, region
 
+    def _insets(self, band: str, entries: list[_Entry]) -> list[float]:
+        """
+        Returns how far every annotation of one strip is set back from the edge the strip
+        runs along.
+
+        Every annotation sits right against the edge by default. Those that report a key,
+        which they only do with :attr:`align_keys` set, are instead lined up on the middle
+        of their keys: the one whose key lies deepest inside its box stays against the
+        edge, and the others are set back until the middles of their keys are level with
+        it.
+        """
+        # distance from the side of an annotation facing the edge to the middle of its key
+        depths: list[float | None] = []
+        for entry in entries:
+            box, key = entry.box, entry.key
+            if key is None:
+                depths.append(None)
+            else:
+                depths.append(
+                    {
+                        "N": key.center_y - box.y,
+                        "S": box.bottom - key.center_y,
+                        "W": key.center_x - box.x,
+                        "E": box.right - key.center_x,
+                    }[band]
+                )
+
+        line = max((depth for depth in depths if depth is not None), default=0.0)
+
+        return [0.0 if depth is None else line - depth for depth in depths]
+
     def _place_band(
         self,
         band: str,
-        entries: list[tuple[CompassDirection, str, BoundingBox]],
+        entries: list[_Entry],
+        insets: list[float],
         inner: BoundingBox,
     ) -> list[str]:
         """
@@ -2462,8 +2549,8 @@ class SVGCanvas:
         They are lined up along the strip -- side by side in a northern or southern one,
         one below the other in a western or eastern one -- and flushed against its ends
         according to the corner they were placed at, with the ones placed at the plain
-        direction centered between them. Across the strip they all sit against the edge
-        the strip runs along.
+        direction centered between them. Across the strip they sit against the edge the
+        strip runs along, set back from it by their ``insets`` (see :meth:`_insets`).
         """
         if not entries:
             return []
@@ -2472,13 +2559,18 @@ class SVGCanvas:
 
         # a corner direction names the edge the strip runs along and the end of it the
         # annotation is flushed against; a plain one leaves that end open, i.e. centered
-        groups: dict[str, list[tuple[str, BoundingBox]]] = {"-": [], "+": [], "0": []}
-        for align, markup, box in entries:
+        groups: dict[str, list[tuple[str, BoundingBox, float]]] = {
+            "-": [],
+            "+": [],
+            "0": [],
+        }
+        for entry, inset in zip(entries, insets, strict=True):
+            align = entry.align.value
             if along_x:
-                key = "-" if "W" in align.value else ("+" if "E" in align.value else "0")
+                key = "-" if "W" in align else ("+" if "E" in align else "0")
             else:
-                key = "-" if "N" in align.value else ("+" if "S" in align.value else "0")
-            groups[key].append((markup, box))
+                key = "-" if "N" in align else ("+" if "S" in align else "0")
+            groups[key].append((entry.markup, entry.box, inset))
 
         fragments = []
         for key, group in groups.items():
@@ -2486,7 +2578,7 @@ class SVGCanvas:
                 continue
 
             extent = sum(
-                (box.width if along_x else box.height) for _, box in group
+                (box.width if along_x else box.height) for _, box, _ in group
             ) + self._spacing * (len(group) - 1)
 
             if along_x:
@@ -2502,14 +2594,20 @@ class SVGCanvas:
                     "0": inner.center_y - extent / 2,
                 }[key]
 
-            for markup, box in group:
+            for markup, box, inset in group:
                 if along_x:
                     dx = start - box.x
-                    dy = (inner.y if band == "N" else inner.bottom - box.height) - box.y
+                    if band == "N":
+                        dy = inner.y + inset - box.y
+                    else:
+                        dy = inner.bottom - inset - box.bottom
                     start += box.width + self._spacing
                 else:
                     dy = start - box.y
-                    dx = (inner.x if band == "W" else inner.right - box.width) - box.x
+                    if band == "W":
+                        dx = inner.x + inset - box.x
+                    else:
+                        dx = inner.right - inset - box.right
                     start += box.height + self._spacing
 
                 fragments.append(_translate(markup, dx, dy))
@@ -2649,6 +2747,26 @@ class SVGCanvas:
     @spacing.setter
     def spacing(self, arg: float):
         self._spacing = cm2px(arg)
+
+    @property
+    def align_keys(self) -> bool:
+        """
+        Whether the annotations on one edge are lined up by their keys rather than by
+        their outer boxes.
+
+        By default every annotation sits right against the edge it was placed at, so a
+        colorbar with a heading and a legend without one next to it start level at the
+        top, and the legend's box ends up beside the heading rather than beside the bar.
+        With this set, the middles of their keys (see :meth:`AnnotationElement.key`) are
+        lined up instead -- the bar of a colorbar with the first box of a legend -- and
+        the annotations are set back from the edge as far as that takes. Annotations
+        without a key, such as a line of text, still sit against the edge.
+        """
+        return self._align_keys
+
+    @align_keys.setter
+    def align_keys(self, arg: bool):
+        self._align_keys = bool(arg)
 
 
 def _band_of(align: CompassDirection, box: BoundingBox) -> str:
