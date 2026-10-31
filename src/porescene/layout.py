@@ -1264,6 +1264,8 @@ class GradientAnnotation(TitledAnnotation, abc.ABC):
       tall bar leaves no width for a horizontal line of text.
     * The exponent, where one is given, sits at the high end of the axis, and the NaN
       swatch at the low end -- outside the scale it does not belong to.
+    * The low end is at the bottom of a vertical bar and at the left of a horizontal one;
+      :attr:`reverse` swaps the two ends.
 
     Parameters
     ----------
@@ -1288,6 +1290,7 @@ class GradientAnnotation(TitledAnnotation, abc.ABC):
         self.gradient_colors = colors
         self.ticks = ticks
         self.orientation = Orientation.VERTICAL
+        self.reverse = False
         self.color_ticks = Color("#000")
         self.color_nan = None
         self.exponent = None
@@ -1403,6 +1406,9 @@ class GradientAnnotation(TitledAnnotation, abc.ABC):
         else:
             (x1, y1), (x2, y2) = (0, 0), (1, 0)
 
+        if self.reverse:
+            (x1, y1), (x2, y2) = (x2, y2), (x1, y1)
+
         stops = self._stops()
         name = make_id((x1, y1), (x2, y2), stops)
         bar = self._bar
@@ -1439,7 +1445,6 @@ class GradientAnnotation(TitledAnnotation, abc.ABC):
 
     def _tag_ticks(self, bounds: _Bounds) -> str:
         """Writes the tick marks and their labels along the tick side of the bar."""
-        bar = self._bar
         svg = ""
 
         for no, (fraction, tick) in enumerate(
@@ -1451,8 +1456,7 @@ class GradientAnnotation(TitledAnnotation, abc.ABC):
 
             if self.orientation is Orientation.VERTICAL:
                 sign = self._toward_center_x
-                # the low end of a vertical bar is its bottom
-                y1 = y2 = bar.bottom - self._along_bar(fraction)
+                y1 = y2 = self._along_bar(fraction)
                 x1 = self._axis
                 x2 = x1 + self._tick_length * sign
                 x_label = x2 + self._spacing * sign
@@ -1461,7 +1465,7 @@ class GradientAnnotation(TitledAnnotation, abc.ABC):
                 valign = "middle"
             else:
                 sign = self._toward_center_y
-                x1 = x2 = bar.x + self._along_bar(fraction)
+                x1 = x2 = self._along_bar(fraction)
                 y1 = self._axis
                 y2 = y1 + self._tick_length * sign
                 x_label = x1
@@ -1511,28 +1515,36 @@ class GradientAnnotation(TitledAnnotation, abc.ABC):
 
     def _along_bar(self, fraction: float) -> float:
         """
-        Turns a position along the bar into a distance from its low end.
+        Turns a position along the bar into the coordinate it lands on: its y on a
+        vertical bar, its x on a horizontal one.
 
         The two outermost ticks are pulled inwards by half a line width, so that they come
         to rest inside the rounded cap of the axis rather than on top of it.
         """
+        bar = self._bar
         position = self._gradient_length * fraction
 
         if fraction <= 0:
-            return position + self._line_width / 2
-        if fraction >= 1:
-            return position - self._line_width / 2
+            position += self._line_width / 2
+        elif fraction >= 1:
+            position -= self._line_width / 2
 
-        return position
+        # the low end of a vertical bar is its bottom, that of a horizontal one its left,
+        # unless the bar is reversed
+        if self.orientation is Orientation.VERTICAL:
+            return bar.y + position if self.reverse else bar.bottom - position
+
+        return bar.right - position if self.reverse else bar.x + position
 
     def _tag_exponent(self, bounds: _Bounds) -> str:
         """
         Writes the power of ten the tick values are to be read with.
 
         It goes at the high end of the axis -- to the right of a horizontal bar, above a
-        vertical one -- in line with the tick labels, and is set off from the outermost of
-        them by twice the usual gap, so that it reads as the factor of the whole scale
-        rather than as part of the value it stands next to.
+        vertical one, or the other way round with :attr:`reverse` set -- in line with the
+        tick labels, and is set off from the outermost of them by twice the usual gap, so
+        that it reads as the factor of the whole scale rather than as part of the value it
+        stands next to.
         """
         bar = self._bar
         separator = self.seperator_exponent.value
@@ -1546,9 +1558,15 @@ class GradientAnnotation(TitledAnnotation, abc.ABC):
                 x, anchor = self._axis + offset, "start"
             else:
                 x, anchor = self._axis - offset, "end"
-            y = bar.y - 2 * self._spacing - self._font_size_ticks
+            if self.reverse:
+                y = bar.bottom + 2 * self._spacing
+            else:
+                y = bar.y - 2 * self._spacing - self._font_size_ticks
         else:
-            x, anchor = bar.right + 2 * self._spacing, "start"
+            if self.reverse:
+                x, anchor = bar.x - 2 * self._spacing, "end"
+            else:
+                x, anchor = bar.right + 2 * self._spacing, "start"
             y = self._row_labels()
 
         text = f"{separator} 10{exponent}"
@@ -1577,7 +1595,8 @@ class GradientAnnotation(TitledAnnotation, abc.ABC):
         Writes the swatch standing for the values that are not on the scale.
 
         It sits beyond the low end of the bar -- below a vertical one, to the left of a
-        horizontal one -- separated from it by a gap, since it reports a value the
+        horizontal one, or the other way round with :attr:`reverse` set -- separated from
+        it by a gap, since it reports a value the
         gradient itself says nothing about. Its label goes next to the swatch rather than
         in the row or column of the tick labels, which keeps the two from running into
         each other where the swatch ends up alongside the outermost tick.
@@ -1589,10 +1608,19 @@ class GradientAnnotation(TitledAnnotation, abc.ABC):
 
         if self.orientation is Orientation.VERTICAL:
             inward = self._toward_center_x > 0
-            x, y = bar.x, bar.bottom + self._spacing
+            x = bar.x
+            if self.reverse:
+                y = bar.y - self._spacing - size
+            else:
+                y = bar.bottom + self._spacing
             x_label = (bar.right + self._spacing) if inward else (bar.x - self._spacing)
             y_label = y + size / 2
             anchor = "start" if inward else "end"
+        elif self.reverse:
+            x, y = bar.right + self._spacing, bar.y
+            x_label = x + size + self._spacing
+            y_label = y + size / 2
+            anchor = "start"
         else:
             x, y = bar.x - self._spacing - size, bar.y
             x_label = x - self._spacing
@@ -1721,6 +1749,22 @@ class GradientAnnotation(TitledAnnotation, abc.ABC):
         self._orientation = arg
 
     @property
+    def reverse(self) -> bool:
+        """
+        If ``True``, the bar runs the other way round: from top to bottom when vertical,
+        from right to left when horizontal.
+
+        The colors, the ticks, the exponent and the NaN swatch all swap ends along with
+        it, so the low end of the scale, and what goes with it, lands at the top or the
+        right. ``False`` by default.
+        """
+        return self._reverse
+
+    @reverse.setter
+    def reverse(self, arg: bool):
+        self._reverse = bool(arg)
+
+    @property
     def roundness(self) -> float:
         """Corner radius of the bar and of the NaN swatch, in centimeters."""
         return px2cm(self._roundness)
@@ -1786,7 +1830,8 @@ class GradientAnnotation(TitledAnnotation, abc.ABC):
 
         They are placed by their position in the sequence rather than by their value, and
         the first of them lands on the low end of the bar -- at the bottom of a vertical
-        one, at the left of a horizontal one.
+        one, at the left of a horizontal one, or the other way round with :attr:`reverse`
+        set.
         """
         return self._ticks
 
