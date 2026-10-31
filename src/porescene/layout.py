@@ -1298,6 +1298,7 @@ class GradientAnnotation(TitledAnnotation, abc.ABC):
         self.roundness = 0.05
         self.seperator_decimal = "DOT"
         self.seperator_exponent = MultiplicationSymbol.CROSS
+        self.spacing_axis = 0.1
         self.text_nan = "NaN"
         self.tick_length = 0.25
 
@@ -1326,6 +1327,22 @@ class GradientAnnotation(TitledAnnotation, abc.ABC):
             return BoundingBox(0, 0, self._gradient_height, self._gradient_length)
 
         return BoundingBox(0, 0, self._gradient_length, self._gradient_height)
+
+    @property
+    def _axis(self) -> float:
+        """
+        Where the axis runs: its x next to a vertical bar, its y next to a horizontal one.
+
+        It is set off from the tick side of the bar by :attr:`spacing_axis`, measured to
+        the near edge of its stroke, so that the gap stays clear whatever the line width.
+        """
+        bar = self._bar
+        offset = self._spacing_axis + self._line_width / 2
+
+        if self.orientation is Orientation.VERTICAL:
+            return bar.right + offset if self._toward_center_x > 0 else bar.x - offset
+
+        return bar.bottom + offset if self._toward_center_y > 0 else bar.y - offset
 
     def _render(self) -> tuple[str, BoundingBox]:
         bounds = _Bounds()
@@ -1407,10 +1424,10 @@ class GradientAnnotation(TitledAnnotation, abc.ABC):
         inset = self._line_width / 2
 
         if self.orientation is Orientation.VERTICAL:
-            x1 = x2 = bar.right if self._toward_center_x > 0 else bar.x
+            x1 = x2 = self._axis
             y1, y2 = bar.y + inset, bar.bottom - inset
         else:
-            y1 = y2 = bar.bottom if self._toward_center_y > 0 else bar.y
+            y1 = y2 = self._axis
             x1, x2 = bar.x + inset, bar.right - inset
 
         return (
@@ -1436,7 +1453,7 @@ class GradientAnnotation(TitledAnnotation, abc.ABC):
                 sign = self._toward_center_x
                 # the low end of a vertical bar is its bottom
                 y1 = y2 = bar.bottom - self._along_bar(fraction)
-                x1 = bar.right if sign > 0 else bar.x
+                x1 = self._axis
                 x2 = x1 + self._tick_length * sign
                 x_label = x2 + self._spacing * sign
                 y_label = y1
@@ -1445,7 +1462,7 @@ class GradientAnnotation(TitledAnnotation, abc.ABC):
             else:
                 sign = self._toward_center_y
                 x1 = x2 = bar.x + self._along_bar(fraction)
-                y1 = bar.bottom if sign > 0 else bar.y
+                y1 = self._axis
                 y2 = y1 + self._tick_length * sign
                 x_label = x1
                 y_label = self._row_labels()
@@ -1485,13 +1502,12 @@ class GradientAnnotation(TitledAnnotation, abc.ABC):
         ticks end, while one above it has to be lifted by its own height on top of that to
         come to rest clear of them.
         """
-        bar = self._bar
         offset = self._tick_length + self._spacing
 
         if self._toward_center_y > 0:
-            return bar.bottom + offset
+            return self._axis + offset
 
-        return bar.y - offset - self._font_size_ticks
+        return self._axis - offset - self._font_size_ticks
 
     def _along_bar(self, fraction: float) -> float:
         """
@@ -1527,9 +1543,9 @@ class GradientAnnotation(TitledAnnotation, abc.ABC):
         if self.orientation is Orientation.VERTICAL:
             offset = self._tick_length + self._spacing
             if self._toward_center_x > 0:
-                x, anchor = bar.right + offset, "start"
+                x, anchor = self._axis + offset, "start"
             else:
-                x, anchor = bar.x - offset, "end"
+                x, anchor = self._axis - offset, "end"
             y = bar.y - 2 * self._spacing - self._font_size_ticks
         else:
             x, anchor = bar.right + 2 * self._spacing, "start"
@@ -1732,6 +1748,20 @@ class GradientAnnotation(TitledAnnotation, abc.ABC):
         self._seperator_exponent = arg
 
     @property
+    def spacing_axis(self) -> float:
+        """
+        Gap left clear between the bar and its axis, in centimeters.
+
+        The ticks, their labels and the exponent move out along with the axis. ``0``
+        sets the axis right against the bar.
+        """
+        return px2cm(self._spacing_axis)
+
+    @spacing_axis.setter
+    def spacing_axis(self, arg: float):
+        self._spacing_axis = cm2px(arg)
+
+    @property
     def text_nan(self) -> str:
         """Label of the NaN swatch, ``"NaN"`` by default."""
         return self._text_nan
@@ -1835,10 +1865,10 @@ class DiscreteGradientAnnotation(SegmentedGradientAnnotation):
         dash = 0.6 * step
 
         if self.orientation is Orientation.VERTICAL:
-            x1 = x2 = bar.right if self._toward_center_x > 0 else bar.x
+            x1 = x2 = self._axis
             y1, y2 = bar.y, bar.bottom
         else:
-            y1 = y2 = bar.bottom if self._toward_center_y > 0 else bar.y
+            y1 = y2 = self._axis
             x1, x2 = bar.x, bar.right
 
         return (
