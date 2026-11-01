@@ -1310,7 +1310,7 @@ class GradientAnnotation(TitledAnnotation, abc.ABC):
         self.gradient_height = 0.6
         self.gradient_length = 10
         self.line_width = 0.06
-        self.roundness = 0.05
+        self.roundness = 0.1
         self.seperator_decimal = "DOT"
         self.seperator_exponent = MultiplicationSymbol.CROSS
         self.spacing_axis = 0.1
