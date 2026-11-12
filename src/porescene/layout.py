@@ -1949,7 +1949,9 @@ class LabelsAnnotation(TitledAnnotation):
     frozen, sublimating, dry -- that carry no scale to put ticks on.
 
     The boxes take the side of the column that faces the edge of the canvas, so the labels
-    read towards the figure they explain.
+    read towards the figure they explain. With :attr:`orientation` set to
+    :attr:`~.Orientation.HORIZONTAL`, the labels run in a row instead, each box left of
+    its label, for a legend above or below a figure.
 
     Parameters
     ----------
@@ -1976,6 +1978,7 @@ class LabelsAnnotation(TitledAnnotation):
         self.box_size = (0.6, 0.6)
         self.color_labeltext = Color("#000")
         self.font_size_labeltext = 14
+        self.orientation = Orientation.VERTICAL
         self.roundness = 0.1
 
     def __iter__(self) -> Iterator[tuple[Color, str]]:
@@ -2011,8 +2014,12 @@ class LabelsAnnotation(TitledAnnotation):
         """
         Left edge of the colored boxes.
 
-        The boxes face the edge of the canvas, so the labels read towards the figure.
+        The boxes face the edge of the canvas, so the labels read towards the figure; in a
+        row, they always lead their labels.
         """
+        if self.orientation is Orientation.HORIZONTAL:
+            return 0.0
+
         return -self._box_size[0] if self._faces("E") else 0.0
 
     def _render(self) -> tuple[str, BoundingBox]:
@@ -2021,11 +2028,12 @@ class LabelsAnnotation(TitledAnnotation):
         svg = ""
         y = 0.0
 
-        flipped = self._faces("E")
+        horizontal = self.orientation is Orientation.HORIZONTAL
+        flipped = self._faces("E") and not horizontal
         x_box = self._x_box
 
         for no, (color, text) in enumerate(self._labels):
-            x_label = x_box - self._spacing if flipped else width + self._spacing
+            x_label = x_box - self._spacing if flipped else x_box + width + self._spacing
             y_label = y + height / 2
             anchor = "end" if flipped else "start"
 
@@ -2058,7 +2066,16 @@ class LabelsAnnotation(TitledAnnotation):
                 name=f"label-text-{no}",
             )
 
-            y += height + self._spacing
+            # in a row, the next box follows the label at three times the spacing, so
+            # that the pairs of box and label stay apart
+            if horizontal:
+                x_box = (
+                    x_label
+                    + self.font.advance(text, self._font_size_labeltext)
+                    + 3 * self._spacing
+                )
+            else:
+                y += height + self._spacing
 
         svg = f"<g>{svg}</g>" if svg else svg
 
@@ -2100,6 +2117,18 @@ class LabelsAnnotation(TitledAnnotation):
     @font_size_labeltext.setter
     def font_size_labeltext(self, arg: float):
         self._font_size_labeltext = pt2px(arg)
+
+    @property
+    def orientation(self) -> Orientation:
+        """
+        Whether the labels run from top to bottom (:attr:`~.Orientation.VERTICAL`, the
+        default) or from left to right (:attr:`~.Orientation.HORIZONTAL`).
+        """
+        return self._orientation
+
+    @orientation.setter
+    def orientation(self, arg: Orientation):
+        self._orientation = arg
 
     @property
     def roundness(self) -> float:
